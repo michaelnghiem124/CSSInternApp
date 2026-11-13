@@ -21,7 +21,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, EmailStr, Field, field_validator
 from pydantic_ai.exceptions import UsageLimitExceeded
 
-from . import agents, auth, config, db, directory, safety
+from . import agents, auth, config, db, directory, mailer, safety
 
 log = logging.getLogger("intern_hub")
 
@@ -166,7 +166,7 @@ class ProfileFields(BaseModel):
 
 
 class RegisterBody(ProfileFields):
-    password: str = Field(min_length=8, max_length=200)
+    password: str = Field(max_length=200)
     access_code: str = Field(max_length=100)
 
 
@@ -203,14 +203,15 @@ def register(body: RegisterBody, request: Request, response: Response):
         raise HTTPException(403, "That program access code isn't right. Ask the Program Chair for it.")
     if db.get_user_by_email(body.slack_email):
         raise HTTPException(409, "An account with that email already exists. Sign in instead.")
+    auth.check_password_strength(body.password, str(body.slack_email))
     data = body.model_dump(exclude={"password", "access_code"})
     data["slack_email"] = str(body.slack_email).lower()
     uid = db.create_user(data, auth.hash_password(body.password))
     db.touch_login(uid)
-    auth.set_cookie(response, request, auth.USER_COOKIE,
-                    auth.make_token("user", str(uid), auth.USER_SESSION_SECONDS),
+    user = db.get_user(uid)
+    auth.set_cookie(response, request, auth.USER_COOKIE, auth.user_cookie_value(user),
                     auth.USER_SESSION_SECONDS)
-    return {"user": _public_user(db.get_user(uid), include_private=True)}
+    return {"user": _public_user(user, include_private=True)}
 
 
 @app.post("/api/auth/login")
@@ -223,10 +224,105 @@ def login(body: LoginBody, request: Request, response: Response):
         db.log_safety(_ip(request), "login_failed", body.email[:80])
         raise HTTPException(401, "Email or password is incorrect.")
     db.touch_login(u["id"])
-    auth.set_cookie(response, request, auth.USER_COOKIE,
-                    auth.make_token("user", str(u["id"]), auth.USER_SESSION_SECONDS),
+    auth.set_cookie(response, request, auth.USER_COOKIE, auth.user_cookie_value(u),
                     auth.USER_SESSION_SECONDS)
     return {"user": _public_user(u, include_private=True)}
+
+
+# ---------------------------------------------------------------------------
+# Password reset + change
+# ---------------------------------------------------------------------------
+forgot_limiter = safety.RateLimiter(3)
+reset_limiter = safety.RateLimiter(10)
+
+
+class ForgotBody(BaseModel):
+    email: str = Field(max_length=200)
+
+
+class ResetBody(BaseModel):
+    token: str = Field(min_length=20, max_length=200)
+    password: str = Field(max_length=200)
+
+
+class ChangePasswordBody(BaseModel):
+    current_password: str = Field(max_length=200)
+    new_password: str = Field(max_length=200)
+
+
+def _reset_link(request: Request, token: str) -> str:
+    # The token rides in the URL fragment (#...), which browsers never send to the server,
+    # so it doesn't land in access logs or Referer headers.
+    return f"{str(request.base_url).rstrip('/')}/#reset={token}"
+
+
+@app.post("/api/auth/forgot")
+def forgot_password(body: ForgotBody, request: Request):
+    """Same answer whether or not the email has an account, so this can't be used to find
+    out who is registered."""
+    if not forgot_limiter.allow(_ip(request)):
+        raise HTTPException(429, "Too many requests. Wait a minute.")
+    u = db.get_user_by_email(body.email.strip().lower())
+    emailed = False
+    if u:
+        db.add_reset_request(u["id"])
+        if mailer.enabled():
+            token = auth.new_reset_token(u["id"], "email")
+            emailed = mailer.send_reset_email(u["slack_email"], u["first_name"],
+                                              _reset_link(request, token), auth.RESET_TTL_HOURS)
+            if emailed:
+                db.resolve_reset_requests(u["id"])
+        db.log_safety(_ip(request), "reset_requested", f"user {u['id']}")
+    return {"ok": True, "email_enabled": mailer.enabled()}
+
+
+@app.get("/api/auth/reset/{token}")
+def check_reset_token(token: str, request: Request):
+    if not reset_limiter.allow(_ip(request)):
+        raise HTTPException(429, "Too many attempts. Wait a minute.")
+    row = db.find_reset_token(auth.hash_reset_token(token))
+    if not row:
+        raise HTTPException(400, "This reset link is invalid, already used, or expired. "
+                            "Ask for a new one.")
+    u = db.get_user(row["user_id"])
+    return {"first_name": u["first_name"] if u else "", "expires_at": row["expires_at"]}
+
+
+@app.post("/api/auth/reset")
+def reset_password(body: ResetBody, request: Request, response: Response):
+    if not reset_limiter.allow(_ip(request)):
+        raise HTTPException(429, "Too many attempts. Wait a minute.")
+    row = db.find_reset_token(auth.hash_reset_token(body.token))
+    u = db.get_user(row["user_id"]) if row else None
+    if not (row and u):
+        raise HTTPException(400, "This reset link is invalid, already used, or expired. "
+                            "Ask for a new one.")
+    auth.check_password_strength(body.password, u["slack_email"])
+    if not db.use_reset_token(row["id"]):
+        raise HTTPException(400, "This reset link was just used. Ask for a new one.")
+    db.set_password(u["id"], auth.hash_password(body.password))  # signs out every device
+    db.resolve_reset_requests(u["id"])
+    db.log_safety(_ip(request), "password_reset", f"user {u['id']}")
+    response.delete_cookie(auth.USER_COOKIE)
+    return {"ok": True, "email": u["slack_email"]}
+
+
+@app.post("/api/me/password")
+def change_password(body: ChangePasswordBody, request: Request, response: Response,
+                    user: Annotated[dict, Depends(auth.require_user)]):
+    if user.get("is_admin_view"):
+        raise HTTPException(400, "Change the admin password with scripts/set_admin_password.py.")
+    if not login_limiter.allow(_ip(request)):
+        raise HTTPException(429, "Too many attempts. Wait a minute.")
+    if not auth.verify_password(body.current_password, user["password_hash"]):
+        raise HTTPException(400, "Your current password isn't right.")
+    auth.check_password_strength(body.new_password, user["slack_email"])
+    db.set_password(user["id"], auth.hash_password(body.new_password))
+    # Other devices are signed out by the version bump; keep this one signed in.
+    fresh = db.get_user(user["id"])
+    auth.set_cookie(response, request, auth.USER_COOKIE, auth.user_cookie_value(fresh),
+                    auth.USER_SESSION_SECONDS)
+    return {"ok": True}
 
 
 @app.post("/api/auth/logout")
@@ -749,6 +845,22 @@ def admin_interns_csv():
                     and c != "phone" else u[c] for c in cols])
     return RawResponse(buf.getvalue(), media_type="text/csv", headers={
         "Content-Disposition": f'attachment; filename="css-interns-{datetime.now():%Y%m%d}.csv"'})
+
+
+@app.get("/api/admin/reset-requests", dependencies=[Depends(auth.require_admin)])
+def admin_reset_requests():
+    return {"requests": db.list_reset_requests(), "email_enabled": mailer.enabled()}
+
+
+@app.post("/api/admin/interns/{user_id}/reset-link", dependencies=[Depends(auth.require_admin)])
+def admin_reset_link(user_id: int, request: Request):
+    u = db.get_user(user_id)
+    if not u:
+        raise HTTPException(404, "No such intern.")
+    token = auth.new_reset_token(user_id, "admin")
+    db.resolve_reset_requests(user_id)
+    return {"link": _reset_link(request, token), "hours": auth.RESET_TTL_HOURS,
+            "name": f"{u['first_name']} {u['last_name']}", "email": u["slack_email"]}
 
 
 @app.get("/api/admin/access-code", dependencies=[Depends(auth.require_admin)])

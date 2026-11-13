@@ -53,6 +53,7 @@
           <label>Preferred email<input type="email" id="li-email" autocomplete="username" required></label>
           <label>Password<input type="password" id="li-pw" autocomplete="current-password" required></label>
           <button class="btn primary wide" type="submit">Sign in</button>
+          <p class="fine"><a href="#" data-goto="forgot">Forgot your password?</a></p>
           <p class="fine">New intern? Choose <a href="#" data-goto="register">Register</a> and use the access code from the Program Chair.</p>
         </form>
 
@@ -76,10 +77,26 @@
           <label class="span2">Hobbies<textarea id="rg-hobbies" rows="2" maxlength="1000" placeholder="e.g. hockey, cooking, volunteering"></textarea></label>
           <label class="span2">What do you want to get out of the intern program?<textarea id="rg-goals" rows="3" maxlength="1500"></textarea></label>
           <label class="span2">One fun fact about me<input id="rg-fun" maxlength="300" placeholder="e.g. I've visited 30 national parks"></label>
-          <label>Password <span class="req">*</span><input type="password" id="rg-pw" required minlength="8" autocomplete="new-password" placeholder="8+ characters"></label>
-          <label>Confirm password <span class="req">*</span><input type="password" id="rg-pw2" required minlength="8" autocomplete="new-password"></label>
+          <label>Password <span class="req">*</span><input type="password" id="rg-pw" required minlength="12" autocomplete="new-password" placeholder="12+ characters"></label>
+          <label>Confirm password <span class="req">*</span><input type="password" id="rg-pw2" required minlength="12" autocomplete="new-password"></label>
           <label class="check span2"><input type="checkbox" id="rg-share" checked> Show my profile to other interns (photo, name, city, email, school or employer, LinkedIn, interests, hobbies, goals, fun fact). Your phone number is only visible to the Program Chair.</label>
           <div class="span2"><button class="btn primary wide" type="submit">Create my account</button></div>
+        </form>
+
+        <form id="forgot-form" data-pane="forgot" hidden>
+          <h2>Reset your password</h2>
+          <p class="muted small">Enter the email you registered with. We'll get a one-time reset link to you.</p>
+          <label>Preferred email<input type="email" id="fg-email" autocomplete="email" required></label>
+          <button class="btn primary wide" type="submit">Request a reset link</button>
+          <p class="fine"><a href="#" data-goto="login">Back to sign in</a></p>
+        </form>
+
+        <form id="reset-form" data-pane="reset" hidden>
+          <h2 id="reset-title">Choose a new password</h2>
+          <p class="muted small">At least 12 characters. A short phrase works well, like <em>purple-hockey-2027</em>. This signs you out on your other devices.</p>
+          <label>New password<input type="password" id="rs-pw" minlength="12" autocomplete="new-password" required></label>
+          <label>Confirm new password<input type="password" id="rs-pw2" minlength="12" autocomplete="new-password" required></label>
+          <button class="btn primary wide" type="submit">Save new password</button>
         </form>
 
         <form id="admin-login-form" data-pane="admin" hidden>
@@ -90,6 +107,7 @@
           <p class="fine" id="admin-not-configured" hidden>Admin sign-in isn't set up on this server yet. Run <code>.venv/bin/python -m scripts.set_admin_password</code>, then restart.</p>
         </form>
         <p class="error" id="gate-error" hidden></p>
+        <p class="success" id="gate-msg" hidden></p>
       </div>
     </div>
   </section>
@@ -213,6 +231,7 @@
             <div><b>Program access code</b> <span class="muted small">Interns need this to register. Share it on Slack; rotate it to stop new sign-ups.</span></div>
             <div class="code-row"><code id="access-code">…</code><button class="btn small" type="button" id="copy-code">Copy</button><button class="btn small ghost" type="button" id="rotate-code">Rotate</button></div>
           </div>
+          <div id="reset-requests" class="reset-requests" hidden></div>
           <input type="search" id="intern-q" placeholder="Search interns by name, city, school, interest…" aria-label="Search interns" style="margin:12px 0">
           <div class="table-wrap"><table id="intern-table" class="table"></table></div>
         </div>
@@ -306,6 +325,13 @@
         <label class="span2">One fun fact about me<input id="me-fun" maxlength="300"></label>
         <label class="check span2"><input type="checkbox" id="me-share"> Show my profile to other interns (never my phone number)</label>
         <div class="span2 form-actions"><button class="btn primary" type="submit">Save</button><span class="error" id="me-error" hidden></span></div>
+      </form>
+      <form id="pw-form" class="form-grid pw-form">
+        <h3 class="span2">Change password</h3>
+        <label class="span2">Current password<input type="password" id="pw-current" autocomplete="current-password" required></label>
+        <label>New password<input type="password" id="pw-new" minlength="12" autocomplete="new-password" required placeholder="12+ characters"></label>
+        <label>Confirm new password<input type="password" id="pw-new2" minlength="12" autocomplete="new-password" required></label>
+        <div class="span2 form-actions"><button class="btn" type="submit">Change password</button><span class="error" id="pw-error" hidden></span></div>
       </form>
     </div>
   </dialog>

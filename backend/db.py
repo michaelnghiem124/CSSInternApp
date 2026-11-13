@@ -83,6 +83,21 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at TEXT NOT NULL,
     last_login TEXT
 );
+CREATE TABLE IF NOT EXISTS password_resets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash TEXT NOT NULL UNIQUE,  -- sha256 of the token; the token itself is never stored
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    used_at TEXT,
+    created_by TEXT NOT NULL          -- 'admin' or 'email'
+);
+CREATE TABLE IF NOT EXISTS reset_requests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at TEXT NOT NULL,
+    resolved_at TEXT
+);
 CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
@@ -121,6 +136,7 @@ MIGRATIONS = {
         "linkedin_url": "TEXT NOT NULL DEFAULT ''",
         "photo": "BLOB",
         "photo_updated": "TEXT",
+        "session_version": "INTEGER NOT NULL DEFAULT 0",
     },
 }
 
@@ -282,7 +298,7 @@ USER_FIELDS = ("first_name", "last_name", "phone", "slack_email", "city", "state
 # Everything except the photo bytes and password hash, for list/detail queries.
 _USER_COLS = ("id, first_name, last_name, phone, slack_email, city, state, school, interests, "
               "hobbies, goals, fun_fact, linkedin_url, share_with_cohort, created_at, updated_at, "
-              "last_login, photo_updated, password_hash")
+              "last_login, photo_updated, password_hash, session_version")
 
 
 def create_user(data: dict[str, Any], password_hash: str) -> int:
@@ -342,6 +358,65 @@ def get_photo(user_id: int) -> bytes | None:
 def delete_user(user_id: int) -> bool:
     with conn() as c:
         return c.execute("DELETE FROM users WHERE id = ?", (user_id,)).rowcount > 0
+
+
+# ---------------------------------------------------------------------------
+# Passwords + resets
+# ---------------------------------------------------------------------------
+def set_password(user_id: int, password_hash: str) -> None:
+    """New password, and bump session_version so every existing sign-in cookie dies."""
+    with conn() as c:
+        c.execute("UPDATE users SET password_hash = ?, session_version = session_version + 1, "
+                  "updated_at = ? WHERE id = ?", (password_hash, _now(), user_id))
+
+
+def add_reset_request(user_id: int) -> None:
+    """One open request per intern is enough; repeat clicks don't pile up."""
+    with conn() as c:
+        open_ = c.execute("SELECT 1 FROM reset_requests WHERE user_id = ? AND resolved_at IS NULL",
+                          (user_id,)).fetchone()
+        if not open_:
+            c.execute("INSERT INTO reset_requests (user_id, created_at) VALUES (?, ?)",
+                      (user_id, _now()))
+
+
+def list_reset_requests() -> list[dict[str, Any]]:
+    with conn() as c:
+        return [dict(r) for r in c.execute(
+            "SELECT r.id, r.user_id, r.created_at, u.first_name, u.last_name, u.slack_email "
+            "FROM reset_requests r JOIN users u ON u.id = r.user_id "
+            "WHERE r.resolved_at IS NULL ORDER BY r.created_at")]
+
+
+def resolve_reset_requests(user_id: int) -> None:
+    with conn() as c:
+        c.execute("UPDATE reset_requests SET resolved_at = ? WHERE user_id = ? AND resolved_at IS NULL",
+                  (_now(), user_id))
+
+
+def create_reset_token(user_id: int, token_hash: str, expires_at: str, created_by: str) -> None:
+    """Only the newest link works: any earlier unused link for this intern is retired."""
+    with conn() as c:
+        c.execute("UPDATE password_resets SET used_at = ? WHERE user_id = ? AND used_at IS NULL",
+                  (_now(), user_id))
+        c.execute("INSERT INTO password_resets (user_id, token_hash, created_at, expires_at, "
+                  "created_by) VALUES (?, ?, ?, ?, ?)",
+                  (user_id, token_hash, _now(), expires_at, created_by))
+
+
+def find_reset_token(token_hash: str) -> dict[str, Any] | None:
+    """A token that exists, is unused, and hasn't expired."""
+    with conn() as c:
+        r = c.execute("SELECT * FROM password_resets WHERE token_hash = ? AND used_at IS NULL "
+                      "AND expires_at > ?", (token_hash, _now())).fetchone()
+    return dict(r) if r else None
+
+
+def use_reset_token(token_id: int) -> bool:
+    """Mark used. Returns False if someone else used it first (single use, race-safe)."""
+    with conn() as c:
+        return c.execute("UPDATE password_resets SET used_at = ? WHERE id = ? AND used_at IS NULL",
+                         (_now(), token_id)).rowcount == 1
 
 
 def get_setting(key: str) -> str | None:

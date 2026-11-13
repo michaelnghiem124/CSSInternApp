@@ -328,7 +328,7 @@
     if (!META.is_admin) return;
     $("#admin-panel").hidden = false;
     $("#admin-name").textContent = META.admin_name; $("#admin-title").textContent = META.admin_title;
-    await Promise.all([loadInterns(), loadAccessCode(), loadAdminEvents(), loadAnnouncements(), loadUsage()]);
+    await Promise.all([loadInterns(), loadResetRequests(), loadAccessCode(), loadAdminEvents(), loadAnnouncements(), loadUsage()]);
   }
 
   // speaker picker
@@ -457,11 +457,12 @@
   function gatePane(name) {
     $$(".gate-seg button").forEach((b) => b.classList.toggle("on", b.dataset.gate === name));
     $$("[data-pane]").forEach((f) => (f.hidden = f.dataset.pane !== name));
-    $("#gate-error").hidden = true;
+    $("#gate-error").hidden = true; $("#gate-msg").hidden = true;
   }
   $(".gate-seg").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) gatePane(b.dataset.gate); });
   document.addEventListener("click", (e) => { const a = e.target.closest("[data-goto]"); if (a) { e.preventDefault(); gatePane(a.dataset.goto); } });
-  function gateError(msg) { $("#gate-error").textContent = msg; $("#gate-error").hidden = false; }
+  function gateError(msg) { $("#gate-msg").hidden = true; $("#gate-error").textContent = msg; $("#gate-error").hidden = false; }
+  function gateMsg(msg) { $("#gate-error").hidden = true; $("#gate-msg").textContent = msg; $("#gate-msg").hidden = false; }
   function fillStates() {
     const opts = (META.us_states || []).map((s) => `<option>${esc(s)}</option>`).join("");
     $("#rg-state").insertAdjacentHTML("beforeend", opts);
@@ -497,6 +498,40 @@
     }
     location.hash = "#match"; location.reload();
   });
+  // ---------- forgot / reset password ----------
+  $("#forgot-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const email = $("#fg-email").value.trim();
+    try {
+      const r = await api("/api/auth/forgot", { method: "POST", body: { email } });
+      gatePane("login"); $("#li-email").value = email;
+      gateMsg(r.email_enabled
+        ? "If that email has an account, a reset link is on its way. Check your inbox (and spam). The link expires in 24 hours."
+        : "Request sent. If that email has an account, the Program Chair will send you a one-time reset link on Slack. It expires 24 hours after it's created.");
+    } catch (err) { gateError(err.message); }
+  });
+
+  let RESET_TOKEN = "";
+  async function startReset(token) {
+    RESET_TOKEN = token;
+    history.replaceState(null, "", location.pathname);  // keep the token out of history
+    showGate(); gatePane("reset");
+    try {
+      const r = await api(`/api/auth/reset/${encodeURIComponent(token)}`);
+      $("#reset-title").textContent = r.first_name ? `Hi ${r.first_name}, choose a new password` : "Choose a new password";
+    } catch (err) { gatePane("forgot"); gateError(err.message); }
+  }
+  $("#reset-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if ($("#rs-pw").value !== $("#rs-pw2").value) { gateError("Passwords don't match."); return; }
+    try {
+      const r = await api("/api/auth/reset", { method: "POST", body: { token: RESET_TOKEN, password: $("#rs-pw").value } });
+      RESET_TOKEN = ""; $("#reset-form").reset();
+      gatePane("login"); $("#li-email").value = r.email; $("#li-pw").focus();
+      gateMsg("Password updated. Sign in with your new password.");
+    } catch (err) { gateError(err.message); }
+  });
+
   $("#signout-btn").addEventListener("click", async () => { await api("/api/auth/logout", { method: "POST" }); location.hash = ""; location.reload(); });
 
   // ---------- photos ----------
@@ -565,6 +600,16 @@
       meDialog.close(); toast("Profile saved"); $("#who-name").textContent = `${ME.first_name} ${ME.last_name}`; loadCohort(); }
     catch (err) { $("#me-error").textContent = err.message; $("#me-error").hidden = false; }
   });
+  $("#pw-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const err = $("#pw-error"); err.hidden = true;
+    if ($("#pw-new").value !== $("#pw-new2").value) { err.textContent = "New passwords don't match."; err.hidden = false; return; }
+    try {
+      await api("/api/me/password", { method: "POST", body: { current_password: $("#pw-current").value, new_password: $("#pw-new").value } });
+      $("#pw-form").reset(); toast("Password changed. Other devices have been signed out.");
+    } catch (ex) { err.textContent = ex.message; err.hidden = false; }
+  });
+
   $("#me-photo-remove").addEventListener("click", async () => {
     await api("/api/me/photo", { method: "DELETE" });
     ME = (await api("/api/me")).user; $("#me-photo-preview").hidden = true; $("#me-photo-ph").hidden = false;
@@ -600,6 +645,7 @@
       ${row_("Interests", u.interests)}${row_("Hobbies", u.hobbies)}${row_("Program goals", u.goals)}${row_("Fun fact", u.fun_fact)}
       ${row_("Shares with cohort", u.share_with_cohort ? "Yes" : "No")}${row_("Registered", (u.created_at || "").replace("T", " "))}${row_("Last sign-in", (u.last_login || "").replace("T", " "))}</dl>
       <div class="event-actions"><a class="btn" href="tel:${esc(u.phone)}">Call</a><a class="btn" href="mailto:${esc(u.slack_email)}">Email</a>
+      <button class="btn" type="button" data-reset-link="${u.id}">Create password reset link</button>
       <button class="btn danger" type="button" id="del-intern">Delete account</button></div></div>`;
     $("#del-intern").onclick = async () => {
       if (!await modal({ title: `Delete ${u.first_name} ${u.last_name}'s account?`, body: "This removes their profile and sign-in. It can't be undone.", ok: "Delete account", danger: true })) return;
@@ -607,6 +653,31 @@
     };
     $("#intern-dialog").showModal();
   });
+  async function loadResetRequests() {
+    const r = await api("/api/admin/reset-requests");
+    const box = $("#reset-requests");
+    box.hidden = !r.requests.length;
+    box.innerHTML = `<b>🔑 Password reset requests (${r.requests.length})</b> <span class="muted small">Create a one-time link and send it to them on Slack.</span>
+      <ul>${r.requests.map((q) => `<li><span><strong>${esc(q.first_name)} ${esc(q.last_name)}</strong> · ${esc(q.slack_email)} · <span class="muted">${esc(q.created_at.replace("T", " ").slice(0, 16))}</span></span>
+        <button class="btn small primary" type="button" data-reset-link="${q.user_id}">Create reset link</button></li>`).join("")}</ul>`;
+  }
+  async function createResetLink(userId) {
+    const r = await api(`/api/admin/interns/${userId}/reset-link`, { method: "POST" });
+    loadResetRequests();
+    const p = modal({ title: `Reset link for ${r.name}`, cancel: null, ok: "Done", html: true,
+      body: `<p>Send this to <strong>${esc(r.email)}</strong> on Slack. It works once, expires in ${r.hours} hours, and any earlier link for them stops working.</p>
+        <div class="link-box"><input id="reset-link-text" readonly value="${esc(r.link)}"><button class="btn small" type="button" id="copy-reset-link">Copy</button></div>` });
+    $("#copy-reset-link").onclick = async () => {
+      try { await navigator.clipboard.writeText(r.link); toast("Reset link copied"); }
+      catch { $("#reset-link-text").select(); toast("Press Cmd+C to copy"); }
+    };
+    await p;
+  }
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-reset-link]");
+    if (b) { e.preventDefault(); createResetLink(b.dataset.resetLink).catch((err) => toast(err.message)); }
+  });
+
   async function loadAccessCode() { $("#access-code").textContent = (await api("/api/admin/access-code")).code; }
   $("#copy-code").addEventListener("click", async () => { try { await navigator.clipboard.writeText($("#access-code").textContent); toast("Access code copied"); } catch { toast("Couldn't copy. Select the code instead."); } });
   $("#rotate-code").addEventListener("click", async () => {
@@ -618,6 +689,7 @@
   async function boot() {
     META = await api("/api/meta");
     fillStates();
+    if (location.hash.startsWith("#reset=")) { await startReset(location.hash.slice(7)); return; }
     if (!META.signed_in) { showGate(); return; }
     ME = (await api("/api/me")).user;
     $("#gate").hidden = true; $("#app-nav").hidden = false; $("#app-main").hidden = false;

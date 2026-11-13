@@ -53,6 +53,16 @@ The whole site sits behind a sign-in. Only the sign-in/register screen is public
 
   You type a username and password at a hidden prompt. Only a scrypt hash is saved to `.env`. Restart the server, then choose **Admin** on the sign-in screen. The Admin page lists every intern profile (with search, a detail view, delete, and CSV export), the access code, talks, announcements, and AI usage. **There is no default admin password: until you run the script, admin sign-in is disabled.**
 
+**Passwords:** at least 12 characters. Interns can change theirs under **Cohort → Edit my profile**; this requires the current password and signs out their other devices.
+
+**Forgotten passwords:**
+1. On the sign-in screen the intern chooses **Forgot your password?** and enters their email. The response is the same whether or not the account exists.
+2. The request appears in a **Password reset requests** banner on the Admin page. The admin clicks **Create reset link** there, or from any intern's profile, and sends the link on Slack.
+3. The link works **once** and expires after **24 hours**. Making a new link cancels older ones.
+4. Opening it lets the intern choose a new password, which also **signs out every device** they were signed in on. Only a SHA-256 hash of each link token is stored, and the token travels in the URL fragment, so it never reaches server logs.
+
+**Optional email delivery:** set `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, and `SMTP_FROM` in `.env`, and the link is emailed to the intern automatically.
+
 **Testing from a fresh clone:** run the setup script to create your own admin login. Sign in as admin to see every tab and the access code, then register a test intern with that code.
 
 Passwords are hashed with scrypt. Sessions are signed HttpOnly cookies (14 days for interns, 8 hours for admin). Sign-in and registration are rate-limited.

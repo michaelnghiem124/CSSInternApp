@@ -342,3 +342,15 @@ img.avatar { object-fit: cover; }
 .intern .links { display: flex; gap: 12px; flex-wrap: wrap; margin-top: auto; }
 .intern .links a { font-size: .82rem; font-weight: 600; text-decoration: none; }
 .intern-detail .photo-lg { width: 96px; height: 96px; border-radius: 50%; object-fit: cover; }
+
+/* ---------- password reset ---------- */
+.success { color: var(--ok); font-size: .88rem; background: #e8f6ee; padding: 8px 12px; border-radius: 10px; }
+.gate-card h2 { margin-top: 10px; }
+.pw-form { margin-top: 22px; padding-top: 6px; border-top: 1px solid var(--line); }
+.pw-form h3 { margin: 12px 0 0; font-size: 1rem; }
+.reset-requests { margin-top: 12px; border: 1px solid #f6dfa6; background: #fff8e6; border-radius: 12px; padding: 10px 14px; }
+.reset-requests b { font-size: .85rem; }
+.reset-requests ul { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+.reset-requests li { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: .88rem; }
+.link-box { display: flex; gap: 8px; margin-top: 12px; }
+.link-box input { font-family: ui-monospace, Menlo, monospace; font-size: .78rem; }

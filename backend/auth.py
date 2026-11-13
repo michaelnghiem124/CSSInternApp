@@ -91,11 +91,50 @@ def set_cookie(response: Response, request: Request, name: str, value: str, ttl:
 # ---------------------------------------------------------------------------
 
 
+MIN_PASSWORD = 12
+RESET_TTL_HOURS = 24
+
+
+def user_cookie_value(user: dict) -> str:
+    """Subject is "<id>:<session_version>". Changing a password bumps the version, which
+    invalidates every cookie issued before it (on every device)."""
+    return make_token("user", f"{user['id']}:{user.get('session_version') or 0}",
+                      USER_SESSION_SECONDS)
+
+
 def current_user(request: Request) -> dict | None:
-    uid = read_token("user", request.cookies.get(USER_COOKIE))
-    if not uid or not uid.isdigit():
+    subject = read_token("user", request.cookies.get(USER_COOKIE))
+    if not subject or ":" not in subject:
         return None
-    return db.get_user(int(uid))
+    uid, ver = subject.split(":", 1)
+    if not (uid.isdigit() and ver.isdigit()):
+        return None
+    user = db.get_user(int(uid))
+    if not user or int(user.get("session_version") or 0) != int(ver):
+        return None
+    return user
+
+
+def check_password_strength(password: str, email: str = "") -> None:
+    if len(password) < MIN_PASSWORD:
+        raise HTTPException(400, f"Use at least {MIN_PASSWORD} characters for your password.")
+    if email and password.lower() == email.lower():
+        raise HTTPException(400, "Don't use your email address as your password.")
+
+
+def new_reset_token(user_id: int, created_by: str) -> str:
+    """Random 256-bit token. Only its sha256 is stored, so a leaked database can't be used
+    to reset anyone's password."""
+    from datetime import datetime, timedelta
+
+    token = secrets.token_urlsafe(32)
+    expires = (datetime.now() + timedelta(hours=RESET_TTL_HOURS)).isoformat(timespec="seconds")
+    db.create_reset_token(user_id, hash_reset_token(token), expires, created_by)
+    return token
+
+
+def hash_reset_token(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
 
 
 def require_user(request: Request) -> dict:
