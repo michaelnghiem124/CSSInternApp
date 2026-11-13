@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CSS Intern Hub</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Open+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="icon" type="image/png" sizes="32x32" href="https://www.cybersecuritysummit.org/wp-content/uploads/2021/02/cropped-cropped-CS_SUMMIT-FAVICON-300x300-1-32x32.png">
+  <link rel="apple-touch-icon" href="https://www.cybersecuritysummit.org/wp-content/uploads/2021/02/cropped-cropped-CS_SUMMIT-FAVICON-300x300-1-180x180.png">
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap topbar-inner">
+      <a class="brand" href="#match" aria-label="Cyber Security Summit Intern Hub home">
+        <img class="brand-logo" src="https://www.cybersecuritysummit.org/wp-content/uploads/2024/05/CS_SUMMIT_Logotag_reverse_hi-res-768x203.png" alt="Cyber Security Summit" referrerpolicy="no-referrer" onerror="this.replaceWith(Object.assign(document.createElement('strong'),{textContent:'Cyber Security Summit'}))">
+        <span class="brand-tag">Intern Hub</span>
+      </a>
+      <nav class="tabs" role="tablist" id="app-nav" hidden>
+        <a href="#match" data-tab="match" role="tab">Matchmaker</a>
+        <a href="#directory" data-tab="directory" role="tab">Think Tank</a>
+        <a href="#cohort" data-tab="cohort" role="tab">Cohort</a>
+        <a href="#calendar" data-tab="calendar" role="tab">Talks <span class="pill" id="talk-count" hidden></span></a>
+        <a href="#admin" data-tab="admin" role="tab" id="admin-tab" hidden>Admin</a>
+        <span class="who"><span id="who-name"></span><button type="button" id="signout-btn">Sign out</button></span>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ============ SIGN-IN GATE ============ -->
+  <section id="gate" class="gate" hidden>
+    <div class="gate-inner">
+      <div class="gate-intro">
+        <div class="eyebrow">Cyber Security Summit · Intern Program</div>
+        <h1>Welcome to the <span class="hl">Intern Hub.</span></h1>
+        <p>Meet the Think Tank, find the CISOs and leaders you should talk to, connect with your fellow interns, and never miss a talk.</p>
+        <ul class="gate-points">
+          <li>AI matchmaker across 64 Think Tank bios</li>
+          <li>Your cohort's interests, hobbies, and goals</li>
+          <li>Talk reminders straight to your calendar</li>
+        </ul>
+      </div>
+      <div class="card gate-card">
+        <div class="seg gate-seg" role="tablist">
+          <button type="button" data-gate="login" class="on">Sign in</button>
+          <button type="button" data-gate="register">Register</button>
+          <button type="button" data-gate="admin">Admin</button>
+        </div>
+
+        <form id="login-form-intern" data-pane="login">
+          <label>Slack email<input type="email" id="li-email" autocomplete="username" required></label>
+          <label>Password<input type="password" id="li-pw" autocomplete="current-password" required></label>
+          <button class="btn primary wide" type="submit">Sign in</button>
+          <p class="fine">New intern? Choose <a href="#" data-goto="register">Register</a> and use the access code from the Program Chair.</p>
+        </form>
+
+        <form id="register-form" data-pane="register" class="form-grid" hidden>
+          <label class="span2">Program access code<input id="rg-code" required autocomplete="off" placeholder="From the Program Chair"></label>
+          <label>First name<input id="rg-first" required maxlength="60" autocomplete="given-name"></label>
+          <label>Last name<input id="rg-last" required maxlength="60" autocomplete="family-name"></label>
+          <label>Cell phone<input id="rg-phone" type="tel" required maxlength="30" autocomplete="tel" placeholder="(612) 555-0123"></label>
+          <label>Slack email<input id="rg-email" type="email" required autocomplete="email" placeholder="Used to sign in"></label>
+          <label>City<input id="rg-city" required maxlength="80" autocomplete="address-level2"></label>
+          <label>State<select id="rg-state" required><option value="">Choose…</option></select></label>
+          <label class="span2">School <small class="muted">optional</small><input id="rg-school" maxlength="120"></label>
+          <label class="span2">Interests <small class="muted">cyber topics, career paths, sectors</small><textarea id="rg-interests" rows="2" required maxlength="1000" placeholder="e.g. incident response, cyber policy, healthcare security"></textarea></label>
+          <label class="span2">Hobbies<textarea id="rg-hobbies" rows="2" maxlength="1000" placeholder="e.g. hockey, cooking, volunteering"></textarea></label>
+          <label class="span2">What do you want to get out of the intern program?<textarea id="rg-goals" rows="3" required maxlength="1500"></textarea></label>
+          <label>Password<input type="password" id="rg-pw" required minlength="8" autocomplete="new-password" placeholder="8+ characters"></label>
+          <label>Confirm password<input type="password" id="rg-pw2" required minlength="8" autocomplete="new-password"></label>
+          <label class="check span2"><input type="checkbox" id="rg-share" checked> Show my profile to other interns (name, city, Slack email, school, interests, hobbies, goals). Your phone number is only visible to the Program Chair.</label>
+          <div class="span2"><button class="btn primary wide" type="submit">Create my account</button></div>
+        </form>
+
+        <form id="admin-login-form" data-pane="admin" hidden>
+          <p class="muted small">For the Program Chair only.</p>
+          <label>Admin username<input id="ad-user" autocomplete="username" required></label>
+          <label>Password<input type="password" id="ad-pw" autocomplete="current-password" required></label>
+          <button class="btn primary wide" type="submit">Sign in as admin</button>
+          <p class="fine" id="admin-not-configured" hidden>Admin sign-in isn't set up on this server yet. Run <code>.venv/bin/python -m scripts.set_admin_password</code>, then restart.</p>
+        </form>
+        <p class="error" id="gate-error" hidden></p>
+      </div>
+    </div>
+  </section>
+
+  <div id="notices" class="wrap"></div>
+
+  <main class="wrap" id="app-main" hidden>
+    <!-- ============ MATCHMAKER ============ -->
+    <section id="tab-match" class="tab" hidden>
+      <div class="hero">
+        <div class="eyebrow">Intern Program · Think Tank Matchmaker</div>
+        <h1>Find the Think Tank members <span class="hl">you should meet.</span></h1>
+        <p>Add your resume and what you're curious about. The matchmaker reads all <span id="people-count">64</span> Think Tank bios and tells you who to talk to, why, and what to ask first.</p>
+      </div>
+      <div class="match-grid">
+        <aside class="card profile-card">
+          <h2>Your profile</h2>
+          <form id="profile-form">
+            <label class="drop" id="drop">
+              <input type="file" id="resume-file" accept=".pdf,.docx,.txt,.md" hidden>
+              <span class="drop-icon" aria-hidden="true">⬆</span>
+              <span id="drop-label"><strong>Upload resume</strong><br><small>PDF, DOCX, or TXT · max 2 MB</small></span>
+            </label>
+            <label for="intro">About you <small class="muted">interests, hobbies, goals</small></label>
+            <textarea id="intro" rows="4" maxlength="4000" placeholder="e.g. Sophomore studying CS. Curious about incident response and cyber policy. I play hockey and love cooking."></textarea>
+            <button class="btn primary" id="profile-btn" type="submit">Build my profile</button>
+            <p class="fine">Your resume is read once to build this profile and is never stored. Chats are kept only in memory for this browser session.</p>
+          </form>
+          <div id="profile-view" hidden></div>
+        </aside>
+
+        <section class="card chat-card">
+          <div class="chat-head">
+            <h2>Matchmaker</h2>
+            <button class="btn ghost small" id="reset-chat" type="button">New chat</button>
+          </div>
+          <div id="chat-log" class="chat-log" aria-live="polite"></div>
+          <div class="suggestions" id="suggestions">
+            <button type="button">Who should I talk to first?</button>
+            <button type="button">I'm interested in the military-to-cyber path</button>
+            <button type="button">Which CISOs care about mentoring students?</button>
+            <button type="button">Who shares my hobbies?</button>
+          </div>
+          <form id="chat-form" class="chat-form">
+            <textarea id="chat-input" rows="1" maxlength="4000" placeholder="Ask who to meet, how to prep for a talk…" aria-label="Message"></textarea>
+            <button class="btn primary" id="send-btn" type="submit">Send</button>
+          </form>
+        </section>
+      </div>
+    </section>
+
+    <!-- ============ DIRECTORY ============ -->
+    <section id="tab-directory" class="tab" hidden>
+      <div class="section-head">
+        <div>
+          <h1>Think Tank directory</h1>
+          <p class="muted">Bios as published on cybersecuritysummit.org. Click anyone for the full bio.</p>
+        </div>
+      </div>
+      <div class="filters">
+        <input type="search" id="dir-q" placeholder="Search names, employers, schools, skills, hobbies…" aria-label="Search">
+        <select id="dir-sector" aria-label="Sector"><option value="">All sectors</option></select>
+        <div class="seg" id="dir-section" role="group" aria-label="Section">
+          <button type="button" data-v="" class="on">All</button>
+          <button type="button" data-v="Co-chair">Co-chairs</button>
+          <button type="button" data-v="Think Tank">Think Tank</button>
+          <button type="button" data-v="Emeritus">Emeritus</button>
+        </div>
+      </div>
+      <p class="muted small" id="dir-count"></p>
+      <div id="dir-grid" class="people-grid"></div>
+    </section>
+
+    <!-- ============ CALENDAR ============ -->
+    <section id="tab-calendar" class="tab" hidden>
+      <div class="section-head">
+        <div>
+          <h1>Think Tank talks</h1>
+          <p class="muted">CISOs and Think Tank members who are giving their time to interns. Times are Minneapolis (Central).</p>
+        </div>
+        <div class="head-actions">
+          <a class="btn" id="subscribe-btn" href="/api/calendar.ics" download>Add all to my calendar</a>
+        </div>
+      </div>
+      <div id="event-list"></div>
+    </section>
+
+    <!-- ============ COHORT ============ -->
+    <section id="tab-cohort" class="tab" hidden>
+      <div class="section-head">
+        <div>
+          <h1>Your intern cohort</h1>
+          <p class="muted">Interns who chose to share their profile. Reach out on Slack.</p>
+        </div>
+        <div class="head-actions"><button class="btn" type="button" id="edit-me-btn">Edit my profile</button></div>
+      </div>
+      <div class="filters cohort-filters">
+        <input type="search" id="cohort-q" placeholder="Search names, schools, interests, hobbies…" aria-label="Search cohort">
+      </div>
+      <div id="cohort-grid" class="people-grid"></div>
+    </section>
+
+    <!-- ============ ADMIN ============ -->
+    <section id="tab-admin" class="tab" hidden>
+      <div id="admin-panel" hidden>
+        <div class="section-head">
+          <div>
+            <h1>Admin · <span id="admin-name"></span></h1>
+            <p class="muted" id="admin-title"></p>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="chat-head">
+            <h2>Intern profiles <span class="muted small" id="intern-count"></span></h2>
+            <div class="head-actions">
+              <a class="btn small" href="/api/admin/interns.csv" download>Export CSV</a>
+            </div>
+          </div>
+          <div class="access-code">
+            <div><b>Program access code</b> <span class="muted small">Interns need this to register. Share it on Slack; rotate it to stop new sign-ups.</span></div>
+            <div class="code-row"><code id="access-code">…</code><button class="btn small" type="button" id="copy-code">Copy</button><button class="btn small ghost" type="button" id="rotate-code">Rotate</button></div>
+          </div>
+          <input type="search" id="intern-q" placeholder="Search interns by name, city, school, interest…" aria-label="Search interns" style="margin:12px 0">
+          <div class="table-wrap"><table id="intern-table" class="table"></table></div>
+        </div>
+
+        <div class="admin-grid">
+          <div class="card">
+            <h2 id="event-form-title">Schedule a talk</h2>
+            <form id="event-form" class="form-grid">
+              <input type="hidden" id="ev-id">
+              <label class="span2">Title<input id="ev-title" required maxlength="140" placeholder="Fireside chat with …"></label>
+              <label>Type
+                <select id="ev-kind">
+                  <option>Think Tank talk</option><option>CISO fireside</option><option>Think Tank panel</option>
+                  <option>Office hours</option><option>Committee meeting</option><option>Summit event</option>
+                </select>
+              </label>
+              <label class="check"><input type="checkbox" id="ev-required"> Required for interns</label>
+              <label>Date<input type="date" id="ev-date" required></label>
+              <div class="row2">
+                <label>Start<input type="time" id="ev-start" required value="12:00"></label>
+                <label>End<input type="time" id="ev-end" required value="13:00"></label>
+              </div>
+              <label class="span2">Speakers
+                <div class="speaker-picker">
+                  <div id="ev-speakers" class="chips"></div>
+                  <input id="ev-speaker-q" placeholder="Type a Think Tank name…" autocomplete="off">
+                  <div id="ev-speaker-opts" class="opts" hidden></div>
+                </div>
+              </label>
+              <label>Location<input id="ev-location" maxlength="200" placeholder="Zoom, or a room"></label>
+              <label>Join link<input id="ev-url" type="url" maxlength="500" placeholder="https://"></label>
+              <label class="span2">Description<textarea id="ev-desc" rows="3" maxlength="2000"></textarea></label>
+              <label class="span2">Reminder / prep note for interns<input id="ev-prep" maxlength="500" placeholder="Read their bio and bring one question about…"></label>
+              <div class="span2 form-actions">
+                <button class="btn primary" type="submit" id="ev-save">Add to calendar</button>
+                <button class="btn ghost" type="button" id="ev-cancel" hidden>Cancel edit</button>
+                <span class="error" id="ev-error" hidden></span>
+              </div>
+            </form>
+          </div>
+
+          <div class="card">
+            <h2>Announcement banner</h2>
+            <form id="ann-form" class="inline-form">
+              <input id="ann-text" maxlength="400" placeholder="Shown at the top of every intern's screen" required>
+              <button class="btn primary" type="submit">Post</button>
+            </form>
+            <ul id="ann-list" class="plain-list"></ul>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Scheduled talks</h2>
+          <div class="table-wrap"><table id="admin-events" class="table"></table></div>
+        </div>
+
+        <div class="card">
+          <div class="chat-head"><h2>AI usage &amp; safety</h2><button class="btn ghost small" id="usage-refresh" type="button">Refresh</button></div>
+          <div id="usage"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="wrap footer">
+    <span>Run by <span id="footer-admin"></span> · Bios © Cyber Security Summit, used for program purposes.</span>
+    <span id="model-note"></span>
+  </footer>
+
+  <dialog id="me-dialog" class="dialog">
+    <button class="dialog-close" type="button" aria-label="Close">×</button>
+    <div style="padding:26px">
+      <h2>My profile</h2>
+      <form id="me-form" class="form-grid">
+        <label>First name<input id="me-first" required maxlength="60"></label>
+        <label>Last name<input id="me-last" required maxlength="60"></label>
+        <label>Cell phone<input id="me-phone" type="tel" required maxlength="30"></label>
+        <label>Slack email<input id="me-email" type="email" required></label>
+        <label>City<input id="me-city" required maxlength="80"></label>
+        <label>State<select id="me-state" required></select></label>
+        <label class="span2">School<input id="me-school" maxlength="120"></label>
+        <label class="span2">Interests<textarea id="me-interests" rows="2" required maxlength="1000"></textarea></label>
+        <label class="span2">Hobbies<textarea id="me-hobbies" rows="2" maxlength="1000"></textarea></label>
+        <label class="span2">What I want from the program<textarea id="me-goals" rows="3" required maxlength="1500"></textarea></label>
+        <label class="check span2"><input type="checkbox" id="me-share"> Show my profile to other interns (never my phone number)</label>
+        <div class="span2 form-actions"><button class="btn primary" type="submit">Save</button><span class="error" id="me-error" hidden></span></div>
+      </form>
+    </div>
+  </dialog>
+
+  <dialog id="intern-dialog" class="dialog">
+    <button class="dialog-close" type="button" aria-label="Close">×</button>
+    <div id="intern-body" style="padding:26px"></div>
+  </dialog>
+
+  <dialog id="confirm-dialog" class="dialog confirm">
+    <div style="padding:24px">
+      <h2 id="confirm-title"></h2>
+      <div id="confirm-body" class="muted"></div>
+      <div class="form-actions" style="justify-content:flex-end">
+        <button class="btn ghost" type="button" id="confirm-cancel">Cancel</button>
+        <button class="btn primary" type="button" id="confirm-ok">OK</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="person-dialog" class="dialog">
+    <button class="dialog-close" type="button" aria-label="Close">×</button>
+    <div id="person-body"></div>
+  </dialog>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+JORDAN RIVERA (fictional sample resume for testing)
+University of Minnesota – Twin Cities | B.S. Computer Science, minor in Public Policy | Expected May 2028
+
+EXPERIENCE
+IT Help Desk Student Technician, University of Minnesota OIT — Sept 2025–present
+- Resolve 40+ tickets/week on account lockouts, MFA enrollment, and password resets
+- Wrote a knowledge-base article on phishing reports that cut repeat tickets 15%
+
+Minnesota Army National Guard — Signal Support Specialist (25U), 2023–present
+- Maintain tactical radio and network equipment; hold a Secret clearance
+
+PROJECTS
+- Home lab: Splunk + Security Onion monitoring a Raspberry Pi honeypot
+- CTF team member (picoCTF 2026, top 10%)
+
+SKILLS: Python, Linux, Active Directory, Okta, Splunk, Wireshark, Security+ (2026)
+
+INTERESTS & ACTIVITIES
+- Identity and access management, cyber policy, how laws like the MN Consumer Data Privacy Act get written
+- Ice fishing, smoking brisket, volunteer coach for a youth hockey team

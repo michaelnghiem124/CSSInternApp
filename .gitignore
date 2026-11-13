@@ -1,0 +1,16 @@
+# secrets
+.env
+data/.session_secret
+
+# runtime data: the database holds RSVP names and usage logs; it is rebuilt on first run
+data/*.db
+data/*.db-*
+
+# python
+.venv/
+__pycache__/
+*.pyc
+
+# local tooling
+.claude/
+.DS_Store

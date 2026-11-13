@@ -1,0 +1,8 @@
+fastapi>=0.115
+uvicorn[standard]>=0.30
+python-dotenv>=1.0
+python-multipart>=0.0.9
+pypdf>=5.0
+email-validator>=2.0
+# Agents. The anthropic extra runs Claude; the openai extra runs gpt-6-luna through Portkey.
+pydantic-ai-slim[anthropic,openai]>=2.60
