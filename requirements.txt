@@ -5,5 +5,8 @@ python-multipart>=0.0.9
 pypdf>=5.0
 email-validator>=2.0
 pillow>=11.0
-# Agents. The anthropic extra runs Claude; the openai extra runs gpt-6-luna through Portkey.
-pydantic-ai-slim[anthropic,openai]>=2.60
+# Agents. The anthropic extra runs Claude; the openai extra runs gpt-6-luna through Portkey;
+# the mcp extra lets the Pulse Analyst use the cohort MCP server.
+pydantic-ai-slim[anthropic,openai,mcp]>=2.60
+# The cohort MCP server (mcp_server/cohort_server.py).
+fastmcp>=2.10

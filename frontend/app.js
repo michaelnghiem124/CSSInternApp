@@ -331,7 +331,8 @@
     if (!META.is_admin) return;
     $("#admin-panel").hidden = false;
     $("#admin-name").textContent = META.admin_name; $("#admin-title").textContent = META.admin_title;
-    await Promise.all([loadInterns(), loadResetRequests(), loadAccessCode(), loadAdminEvents(), loadAnnouncements(), loadUsage()]);
+    await Promise.all([loadInterns(), loadResetRequests(), loadAccessCode(), loadAdminEvents(), loadAnnouncements(), loadDemoStatus()]);
+    showAdminSection(store.get("css_admin_sec") || "interns");
   }
 
   // speaker picker
@@ -493,6 +494,7 @@
       phone: $("#rg-phone").value, slack_email: $("#rg-email").value, city: $("#rg-city").value, state: $("#rg-state").value,
       school: $("#rg-school").value, interests: $("#rg-interests").value, hobbies: $("#rg-hobbies").value,
       goals: $("#rg-goals").value, fun_fact: $("#rg-fun").value, linkedin_url: $("#rg-linkedin").value,
+      committee_prefs: PREFS.rg, availability: $("#rg-avail").value,
       share_with_cohort: $("#rg-share").checked, password: $("#rg-pw").value,
     };
     try { await api("/api/auth/register", { method: "POST", body }); }
@@ -675,6 +677,7 @@
     if (!ME) { toast("The admin account has no intern profile."); return; }
     const m = { first: "first_name", last: "last_name", phone: "phone", email: "slack_email", city: "city", state: "state", school: "school", interests: "interests", hobbies: "hobbies", goals: "goals", fun: "fun_fact", linkedin: "linkedin_url" };
     Object.entries(m).forEach(([id, k]) => ($("#me-" + id).value = ME[k] || ""));
+    PREFS.me = [...(ME.committee_prefs || [])]; renderPrefs("me"); $("#me-avail").value = ME.availability || "";
     $("#me-photo").value = "";
     $("#me-photo-preview").hidden = !ME.photo_url; $("#me-photo-ph").hidden = !!ME.photo_url;
     if (ME.photo_url) $("#me-photo-preview").src = ME.photo_url;
@@ -687,7 +690,8 @@
     const body = { first_name: $("#me-first").value, last_name: $("#me-last").value, phone: $("#me-phone").value, slack_email: $("#me-email").value,
       city: $("#me-city").value, state: $("#me-state").value, school: $("#me-school").value, interests: $("#me-interests").value,
       hobbies: $("#me-hobbies").value, goals: $("#me-goals").value, fun_fact: $("#me-fun").value,
-      linkedin_url: $("#me-linkedin").value, share_with_cohort: $("#me-share").checked };
+      linkedin_url: $("#me-linkedin").value, share_with_cohort: $("#me-share").checked,
+      committee_prefs: PREFS.me, availability: $("#me-avail").value };
     try {
       ME = (await api("/api/me", { method: "PUT", body })).user;
       if ($("#me-photo").files[0]) ME = await uploadPhoto($("#me-photo").files[0]);
@@ -721,7 +725,7 @@
     $("#intern-table").innerHTML = `<thead><tr><th></th><th>Name</th><th>Location</th><th>Email</th><th>Phone</th><th>Interests</th><th>Joined</th><th></th></tr></thead><tbody>${
       list.map((u) => `<tr class="clickable" data-intern="${u.id}">
         <td>${initAvatar(u, "sm")}</td>
-        <td><strong>${esc(u.first_name)} ${esc(u.last_name)}</strong>${u.school ? `<br><span class="muted small">${esc(u.school)}</span>` : ""}</td>
+        <td><strong>${esc(u.first_name)} ${esc(u.last_name)}</strong>${u.is_sample ? ' <span class="badge sample">Sample</span>' : ""}${u.school ? `<br><span class="muted small">${esc(u.school)}</span>` : ""}</td>
         <td>${esc(u.city)}, ${esc(u.state)}</td><td>${esc(u.slack_email)}</td><td style="white-space:nowrap">${esc(u.phone)}</td>
         <td>${esc(u.interests.slice(0, 90))}${u.interests.length > 90 ? "…" : ""}</td>
         <td style="white-space:nowrap">${esc((u.created_at || "").slice(0, 10))}</td>
@@ -736,7 +740,7 @@
       <div class="pd-head">${u.photo_url ? `<img class="photo-lg" src="${esc(u.photo_url)}" alt="">` : initAvatar(u, "lg")}<div><h2>${esc(u.first_name)} ${esc(u.last_name)}</h2><div class="muted">${esc(u.city)}, ${esc(u.state)}</div></div></div>
       <dl>${row_("Cell phone", u.phone)}${row_("Preferred email", u.slack_email)}${row_("School / employer", u.school)}
       <dt>LinkedIn</dt><dd>${u.linkedin_url ? `<a href="${esc(u.linkedin_url)}" target="_blank" rel="noopener">${esc(u.linkedin_url.replace(/^https:\/\/(www\.)?/, ""))}</a>` : "—"}</dd>
-      ${row_("Interests", u.interests)}${row_("Hobbies", u.hobbies)}${row_("Program goals", u.goals)}${row_("Fun fact", u.fun_fact)}
+      ${row_("Interests", u.interests)}${row_("Hobbies", u.hobbies)}${row_("Program goals", u.goals)}${row_("Fun fact", u.fun_fact)}${row_("Committee picks", (u.committee_prefs || []).map((sl, i) => `${i + 1}. ${(COMMITTEES_PUBLIC.find((c) => c.slug === sl) || {}).name || sl}`).join("\n"))}${row_("Availability", u.availability)}
       ${row_("Shares with cohort", u.share_with_cohort ? "Yes" : "No")}${row_("Registered", (u.created_at || "").replace("T", " "))}${row_("Last sign-in", (u.last_login || "").replace("T", " "))}</dl>
       <div class="event-actions"><a class="btn" href="tel:${esc(u.phone)}">Call</a><a class="btn" href="mailto:${esc(u.slack_email)}">Email</a>
       <button class="btn" type="button" data-reset-link="${u.id}">Create password reset link</button>
@@ -779,11 +783,280 @@
     $("#access-code").textContent = (await api("/api/admin/access-code", { method: "POST" })).code; toast("New access code ready");
   });
 
+  // ---------- committee preferences (registration + profile) ----------
+  let COMMITTEES_PUBLIC = [];
+  const PREFS = { rg: [], me: [] };
+  function renderPrefs(which) {
+    const box = $(`#${which}-prefs`);
+    if (!box) return;
+    box.innerHTML = COMMITTEES_PUBLIC.map((c) => {
+      const rank = PREFS[which].indexOf(c.slug);
+      return `<label title="${esc(c.description)}"><input type="checkbox" value="${esc(c.slug)}" ${rank >= 0 ? "checked" : ""}>
+        ${rank >= 0 ? `<span class="rank">${rank + 1}</span>` : ""}${esc(c.name)}</label>`;
+    }).join("");
+  }
+  ["rg", "me"].forEach((which) => {
+    $(`#${which}-prefs`)?.addEventListener("change", (e) => {
+      const cb = e.target; if (cb.type !== "checkbox") return;
+      const list = PREFS[which];
+      if (cb.checked) {
+        if (list.length >= 3) { cb.checked = false; toast("Pick up to 3 committees."); return; }
+        list.push(cb.value);
+      } else { PREFS[which] = list.filter((s) => s !== cb.value); }
+      renderPrefs(which);
+    });
+  });
+  async function loadPublicCommittees() {
+    try { COMMITTEES_PUBLIC = await api("/api/committees"); } catch { COMMITTEES_PUBLIC = []; }
+    renderPrefs("rg");
+  }
+
+  // ---------- admin sub-navigation ----------
+  const ASEC_LOADED = {};
+  function showAdminSection(name) {
+    $$("#admin-nav button").forEach((b) => b.classList.toggle("on", b.dataset.asec === name));
+    $$("[data-asec-panel]").forEach((p) => (p.hidden = p.dataset.asecPanel !== name));
+    store.set("css_admin_sec", name);
+    if (name === "placements") loadPlacements();
+    if (name === "pulse") loadPulse();
+    if (name === "usage") loadUsage();
+  }
+  $("#admin-nav").addEventListener("click", (e) => { const b = e.target.closest("button[data-asec]"); if (b) showAdminSection(b.dataset.asec); });
+
+  // ---------- demo data ----------
+  async function loadDemoStatus() {
+    const s = await api("/api/admin/demo");
+    $("#demo-status").textContent = s.sample_interns
+      ? `${s.sample_interns} fictional interns and ${s.sample_messages} sample Slack messages loaded (marked "Sample").`
+      : "Fictional sample interns, Slack activity, and meeting notes for trying the AI agents.";
+    $("#demo-remove").hidden = !s.sample_interns;
+  }
+  $("#demo-load").addEventListener("click", async (e) => {
+    e.target.classList.add("busy");
+    try { const r = await api("/api/admin/demo", { method: "POST" }); toast(`Demo cohort ready (${r.interns_total} fictional interns).`); }
+    finally { e.target.classList.remove("busy"); }
+    loadDemoStatus(); loadInterns(); ASEC_LOADED.placements = ASEC_LOADED.pulse = false;
+  });
+  $("#demo-remove").addEventListener("click", async () => {
+    if (!await modal({ title: "Remove demo data?", body: "Deletes the fictional interns, their placements, the sample Slack messages, and the sample meeting notes. Real interns and real data aren't touched.", ok: "Remove demo data", danger: true })) return;
+    await api("/api/admin/demo", { method: "DELETE" }); toast("Demo data removed"); loadDemoStatus(); loadInterns();
+  });
+
+  // ---------- Placements: Committee & Cyber Coach Matchmaker ----------
+  let ADMIN_COMMITTEES = [], ADMIN_COACHES = [], MATCH = null;
+  const scoreCls = (n) => (n >= 75 ? "" : n >= 50 ? "mid" : "low");
+  async function loadPlacements() {
+    [ADMIN_COMMITTEES, ADMIN_COACHES, MATCH] = await Promise.all([api("/api/admin/committees"), api("/api/admin/coaches"), api("/api/admin/placements")]);
+    renderCommittees(); renderCoaches(); renderMatrix();
+  }
+  function renderMatrix() {
+    const m = MATCH;
+    if (!m || !m.rows.length) {
+      $("#match-table").innerHTML = `<tbody><tr><td class="muted">No matches yet. Set committee capacities and meeting times below, then press <b>Run matchmaker</b>. (No interns? Load the demo cohort on the Interns tab.)</td></tr></tbody>`;
+      $("#match-meta").textContent = ""; $("#match-cost").textContent = ""; $("#match-notes").textContent = ""; $("#match-unplaced").innerHTML = "";
+      return;
+    }
+    const t = m.usage.total;
+    $("#match-meta").textContent = `Last run ${m.created_at.replace("T", " ").slice(0, 16)}`;
+    $("#match-cost").textContent = `${t.calls} model calls · ${fmt(t.input_tokens)} in / ${fmt(t.output_tokens)} out · ${money(t.cost_usd)} · ${m.usage.cached_profiles} profiles from cache`;
+    $("#match-notes").textContent = m.notes || "";
+    const committeeOpts = (sel) => ADMIN_COMMITTEES.filter((c) => c.active).map((c) => `<option value="${esc(c.slug)}" ${c.slug === sel ? "selected" : ""}>${esc(c.name)}</option>`).join("");
+    const coachOpts = (sel) => ADMIN_COACHES.filter((c) => c.active || c.slug === sel).map((c) => `<option value="${esc(c.slug)}" ${c.slug === sel ? "selected" : ""}>${esc(c.name)}</option>`).join("");
+    $("#match-table").innerHTML = `<thead><tr><th>Intern</th><th>Committee</th><th>Cyber Coach</th><th>Why this match works</th><th>Status</th><th></th></tr></thead><tbody>${
+      m.rows.map((r) => `<tr data-uid="${r.intern_id}">
+        <td><strong>${esc(r.name)}</strong>${r.is_sample ? ' <span class="badge sample">Sample</span>' : ""}<br><span class="muted small">${esc(r.school)}</span></td>
+        <td>${(() => { const fit = r.ranked.find((x) => x.committee === r.final_committee); return fit ? `<span class="score ${scoreCls(fit.score)}" title="Fit score for this committee">${fit.score}</span>` : '<span class="score low" title="Not in the AI\'s top 3">—</span>'; })()} <select data-field="committee">${committeeOpts(r.final_committee)}</select>
+          <div class="alts">Top fits: ${r.ranked.map((x) => `${esc(x.name)} (${x.score})`).join(" · ")}</div>
+          ${r.flags.map((f) => `<div class="flag-line">⚑ ${esc(f)}</div>`).join("")}</td>
+        <td><select data-field="coach">${coachOpts(r.final_coach)}</select><div class="alts">${esc(r.coach_why)}</div></td>
+        <td class="why">${esc(r.why_this_match)}${r.overridden ? '<div class="alts">Edited by you after the AI run</div>' : ""}</td>
+        <td><span class="status-pill ${r.status === "approved" ? "approved" : ""}">${r.status === "approved" ? "Approved" : "Proposed"}</span></td>
+        <td style="white-space:nowrap">${r.status === "approved"
+          ? `<button class="btn small" data-act="drafts">${r.has_drafts ? "View intros" : "Draft intros"}</button> <button class="btn small ghost" data-act="unapprove">Undo</button>`
+          : `<button class="btn small primary" data-act="approve">Approve</button>`}</td>
+      </tr>`).join("")}</tbody>`;
+    $("#match-unplaced").innerHTML = m.unplaced.length ? `<h3 class="sub">Not placed</h3><ul class="plain-list">${m.unplaced.map((u) => `<li><strong>${esc(u.name)}</strong><span class="muted">${esc(u.reason)}</span></li>`).join("")}</ul>` : "";
+  }
+  $("#match-table").addEventListener("change", async (e) => {
+    const sel = e.target.closest("select[data-field]"); if (!sel) return;
+    const uid = sel.closest("tr").dataset.uid;
+    await api(`/api/admin/placements/${uid}`, { method: "PUT", body: { [sel.dataset.field]: sel.value } });
+    MATCH = await api("/api/admin/placements"); renderMatrix(); toast("Placement updated");
+  });
+  $("#match-table").addEventListener("click", async (e) => {
+    const b = e.target.closest("button[data-act]"); if (!b) return;
+    const uid = b.closest("tr").dataset.uid;
+    if (b.dataset.act === "approve" || b.dataset.act === "unapprove") {
+      await api(`/api/admin/placements/${uid}`, { method: "PUT", body: { status: b.dataset.act === "approve" ? "approved" : "proposed" } });
+      MATCH = await api("/api/admin/placements"); renderMatrix();
+    }
+    if (b.dataset.act === "drafts") openDrafts(uid, b);
+  });
+  $("#run-match").addEventListener("click", async (e) => {
+    const btn = e.currentTarget; btn.classList.add("busy");
+    $("#match-meta").textContent = "Extracting profiles and matching… (20-60 s)";
+    try { MATCH = await api("/api/admin/placements/run", { method: "POST" }); renderMatrix(); toast(`Matched ${MATCH.rows.length} interns for ${money(MATCH.usage.total.cost_usd)}`); loadUsageQuiet(); }
+    catch (err) { $("#match-meta").textContent = ""; toast(err.message); }
+    finally { btn.classList.remove("busy"); }
+  });
+
+  async function openDrafts(uid, btn) {
+    let d = (await api(`/api/admin/placements/${uid}/drafts`)).drafts;
+    if (!d) {
+      btn.classList.add("busy");
+      try { d = (await api(`/api/admin/placements/${uid}/drafts`, { method: "POST" })).drafts; MATCH = await api("/api/admin/placements"); renderMatrix(); }
+      catch (err) { toast(err.message); return; }
+      finally { btn.classList.remove("busy"); }
+    }
+    const block = (label, to, subject, body) => `<div class="draft-block"><div class="meta"><span><b>${label}</b>${to ? ` · to ${esc(to)}` : ""}</span>
+      <span>${to && subject ? `<a class="btn small ghost" href="mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}">Open in email</a> ` : ""}<button class="btn small" type="button" data-copy="${esc((subject ? "Subject: " + subject + "\n\n" : "") + body)}">Copy</button></span></div>
+      ${subject ? `<div><b>Subject:</b> ${esc(subject)}</div>` : ""}<pre>${esc(body)}</pre></div>`;
+    $("#drafts-body").innerHTML = `<h2>Intro drafts · ${esc(d.committee)}</h2>
+      <p class="muted small">Drafts only. Nothing has been sent. Review, edit in your email or Slack, and send yourself. Director: ${esc(d.director)}.</p>
+      ${block("Email to intern", d.intern_email_to, d.intern_email.subject, d.intern_email.body)}
+      ${block("Slack DM to intern", "", "", d.intern_slack_dm)}
+      ${block("Email to committee director", d.director_email_to, d.director_email.subject, d.director_email.body)}
+      ${block("Slack DM to committee director", "", "", d.director_slack_dm)}
+      <div class="form-actions"><button class="btn ghost small" type="button" id="redraft">Re-draft with AI</button></div>`;
+    $("#redraft").onclick = async (ev) => {
+      ev.target.classList.add("busy");
+      try { await api(`/api/admin/placements/${uid}/drafts`, { method: "POST" }); $("#drafts-dialog").close(); openDrafts(uid, ev.target); }
+      catch (err) { toast(err.message); } finally { ev.target.classList.remove("busy"); }
+    };
+    $("#drafts-dialog").showModal();
+  }
+  document.addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-copy]"); if (!b) return;
+    try { await navigator.clipboard.writeText(b.dataset.copy); toast("Copied"); } catch { toast("Couldn't copy. Select the text instead."); }
+  });
+  $$("#drafts-dialog .dialog-close, #committee-dialog .dialog-close").forEach((b) => b.addEventListener("click", () => b.closest("dialog").close()));
+
+  function renderCommittees() {
+    $("#committee-table").innerHTML = `<thead><tr><th>Committee</th><th class="num">Seats</th><th>Director</th><th>Meets</th><th></th></tr></thead><tbody>${
+      ADMIN_COMMITTEES.map((c) => `<tr style="${c.active ? "" : "opacity:.5"}"><td><strong>${esc(c.name)}</strong>${c.active ? "" : ' <span class="badge">Off</span>'}</td>
+        <td class="num">${c.capacity}</td><td>${esc(c.director_display || "—")}</td>
+        <td>${esc([c.meeting_day, c.meeting_time].filter(Boolean).join(" ") || "—")}</td>
+        <td><button class="btn small ghost" data-edit-committee="${esc(c.slug)}">Edit</button></td></tr>`).join("")}</tbody>`;
+  }
+  $("#committee-table").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-edit-committee]"); if (!b) return;
+    const c = ADMIN_COMMITTEES.find((x) => x.slug === b.dataset.editCommittee);
+    const sel = $("#cm-director-slug");
+    if (sel.options.length <= 1) sel.insertAdjacentHTML("beforeend", PEOPLE.filter((p) => p.section !== "Emeritus").map((p) => `<option value="${esc(p.slug)}">${esc(p.name)} · ${esc(p.org)}</option>`).join(""));
+    $("#cm-slug").value = c.slug; $("#cm-title").textContent = `Edit ${c.name}`;
+    $("#cm-name").value = c.name; $("#cm-desc").value = c.description; $("#cm-needs").value = c.needs;
+    $("#cm-capacity").value = c.capacity; $("#cm-active").checked = c.active; sel.value = c.director_slug;
+    $("#cm-director-name").value = c.director_name; $("#cm-director-email").value = c.director_email;
+    $("#cm-day").value = c.meeting_day; $("#cm-time").value = c.meeting_time; $("#cm-note").value = c.meeting_note;
+    $("#cm-error").hidden = true; $("#committee-dialog").showModal();
+  });
+  $("#committee-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const body = { name: $("#cm-name").value, description: $("#cm-desc").value, needs: $("#cm-needs").value,
+      capacity: Number($("#cm-capacity").value), active: $("#cm-active").checked, director_slug: $("#cm-director-slug").value,
+      director_name: $("#cm-director-name").value, director_email: $("#cm-director-email").value,
+      meeting_day: $("#cm-day").value, meeting_time: $("#cm-time").value, meeting_note: $("#cm-note").value };
+    try { await api(`/api/admin/committees/${$("#cm-slug").value}`, { method: "PUT", body }); $("#committee-dialog").close(); toast("Committee saved"); loadPlacements(); }
+    catch (err) { $("#cm-error").textContent = err.message; $("#cm-error").hidden = false; }
+  });
+
+  function renderCoaches() {
+    const q = ($("#coach-q").value || "").toLowerCase();
+    const active = ADMIN_COACHES.filter((c) => c.active);
+    $("#coach-count").textContent = `${active.length} active · ${active.reduce((n, c) => n + c.capacity, 0)} intern slots`;
+    $("#coach-list").innerHTML = ADMIN_COACHES.filter((c) => !q || (c.name + c.org + c.title).toLowerCase().includes(q)).map((c) => `<div class="coach-row" data-slug="${esc(c.slug)}">
+      <input type="checkbox" ${c.active ? "checked" : ""} aria-label="Active coach">
+      <span><strong>${esc(c.name)}</strong><br><small>${esc(c.title || "")}${c.title ? " · " : ""}${esc(c.org)}</small></span>
+      <input type="number" min="0" max="10" value="${c.capacity}" aria-label="Interns this coach can take"></div>`).join("");
+  }
+  $("#coach-q").addEventListener("input", renderCoaches);
+  $("#coach-list").addEventListener("change", async (e) => {
+    const row = e.target.closest(".coach-row"); if (!row) return;
+    const body = e.target.type === "checkbox" ? { active: e.target.checked } : { capacity: Number(e.target.value) };
+    await api(`/api/admin/coaches/${row.dataset.slug}`, { method: "PUT", body });
+    const c = ADMIN_COACHES.find((x) => x.slug === row.dataset.slug); Object.assign(c, body); renderCoaches();
+  });
+
+  // ---------- Cohort Pulse & Monday Brief ----------
+  let BRIEF = null, SHOW_ALIAS = false;
+  async function loadPulse() {
+    const [src, briefs] = await Promise.all([api("/api/admin/pulse/sources"), api("/api/admin/pulse/briefs")]);
+    const total = Object.values(src.messages_by_source).reduce((a, b) => a + b, 0);
+    const label = { live: "Live Slack sync", export: "Uploaded Slack export", demo: "Demo data (fictional)" };
+    $("#pulse-sources").innerHTML = `
+      <div class="src"><span><b>Slack live connection</b></span><span>${src.slack_live ? "✓ Connected (bot token set)" : '<span class="muted">Not connected. Add SLACK_BOT_TOKEN to .env.</span>'}</span></div>
+      ${Object.entries(src.messages_by_source).map(([k, v]) => `<div class="src"><span>${esc(label[k] || k)}</span><span>${fmt(v)} messages</span></div>`).join("") || '<div class="src"><span class="muted">No Slack messages yet</span><span></span></div>'}
+      <div class="src"><span>Check-in channel</span><span>#${esc(src.checkin_channel)}</span></div>
+      ${src.notes.length ? `<div><b class="small">Meeting notes</b><ul class="plain-list">${src.notes.map((n) => `<li><span>${esc(n.meeting_date)} · ${esc(n.committee || "—")} · ${esc(n.title || "Notes")}${n.source === "demo" ? ' <span class="badge sample">Sample</span>' : ""}</span><button class="btn small ghost" data-del-note="${n.id}">Remove</button></li>`).join("")}</ul></div>` : '<div class="src"><span class="muted">No meeting notes yet</span><span></span></div>'}`;
+    $("#slack-sync").disabled = !src.slack_live;
+    $("#run-brief").disabled = !total && !src.notes.length;
+    $("#brief-list").innerHTML = briefs.briefs.map((b) => `<li><span>Week of ${esc(b.week_of)} <span class="muted small">· ${esc(b.created_at.replace("T", " ").slice(0, 16))}</span></span><button class="btn small ghost" data-brief="${b.id}">Open</button></li>`).join("") || '<li class="muted">No briefs yet.</li>';
+    if (briefs.latest && !BRIEF) { BRIEF = briefs.latest; renderBrief(); }
+  }
+  $("#pulse-sources").addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-del-note]"); if (!b) return;
+    await api(`/api/admin/pulse/notes/${b.dataset.delNote}`, { method: "DELETE" }); loadPulse();
+  });
+  $("#brief-list").addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-brief]"); if (!b) return;
+    BRIEF = await api(`/api/admin/pulse/briefs/${b.dataset.brief}`); renderBrief(); $("#brief-card").scrollIntoView({ behavior: "smooth" });
+  });
+  $("#slack-export").addEventListener("change", async (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    const fd = new FormData(); fd.append("file", f);
+    try { const r = await api("/api/admin/pulse/slack-export", { method: "POST", body: fd }); toast(`Imported ${fmt(r.messages)} messages from ${r.users} Slack members`); }
+    catch (err) { toast(err.message); }
+    e.target.value = ""; loadPulse();
+  });
+  $("#slack-sync").addEventListener("click", async (e) => {
+    const btn = e.currentTarget; btn.classList.add("busy");
+    try { const r = await api("/api/admin/pulse/slack-sync", { method: "POST" }); toast(`Synced ${fmt(r.messages)} messages from ${r.channels} channels`); }
+    catch (err) { toast(err.message); } finally { btn.classList.remove("busy"); }
+    loadPulse();
+  });
+  $("#notes-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const fd = new FormData();
+    fd.append("committee", $("#nt-committee").value); fd.append("meeting_date", $("#nt-date").value);
+    fd.append("title", $("#nt-title").value); fd.append("text", $("#nt-text").value);
+    if ($("#nt-file").files[0]) fd.append("file", $("#nt-file").files[0]);
+    try { await api("/api/admin/pulse/notes", { method: "POST", body: fd }); $("#notes-form").reset(); $("#nt-error").hidden = true; toast("Notes added"); loadPulse(); }
+    catch (err) { $("#nt-error").textContent = err.message; $("#nt-error").hidden = false; }
+  });
+  $("#run-brief").addEventListener("click", async (e) => {
+    const btn = e.currentTarget; btn.classList.add("busy");
+    $("#brief-meta").textContent = "Reading Slack and notes through the MCP server… (20-60 s)";
+    try { BRIEF = await api("/api/admin/pulse/brief", { method: "POST" }); SHOW_ALIAS = false; renderBrief(); loadPulse(); toast(`Brief ready · ${money(BRIEF.usage.cost_usd)}`); loadUsageQuiet(); }
+    catch (err) { toast(err.message); }
+    finally { btn.classList.remove("busy"); $("#brief-meta").textContent = ""; }
+  });
+  $("#brief-toggle-alias").addEventListener("click", () => { SHOW_ALIAS = !SHOW_ALIAS; renderBrief(); });
+  function renderBrief() {
+    if (!BRIEF) return;
+    const x = SHOW_ALIAS ? BRIEF.pseudonymized : BRIEF.brief, u = BRIEF.usage;
+    $("#brief-card").hidden = false;
+    $("#brief-title").textContent = `Chair's Monday Brief · week of ${BRIEF.week_of}`;
+    $("#brief-toggle-alias").textContent = SHOW_ALIAS ? "Show real names" : "Show what the AI saw (pseudonyms)";
+    $("#brief-download").href = `/api/admin/pulse/briefs/${BRIEF.id}/markdown`;
+    const sec = (title, items, fn) => (items.length ? `<h3>${title}</h3>${items.map(fn).join("")}` : "");
+    $("#brief-body").innerHTML = `<p class="brief-headline">${esc(x.headline)}</p>
+      ${sec("(a) Interns who need a quick 1-on-1 nudge", x.nudges, (n) => `<div class="brief-item nudge"><span class="who">${esc(n.who)}</span>: ${esc(n.reason)}
+        <ul>${n.evidence.map((ev) => `<li>${esc(ev)}</li>`).join("")}</ul>
+        <div class="dm"><span><b>Suggested DM:</b> ${esc(n.suggested_dm)}</span><button class="btn small" type="button" data-copy="${esc(n.suggested_dm)}">Copy</button></div></div>`)}
+      ${sec("(b) Wins to spotlight at all-hands", x.wins, (w) => `<div class="brief-item win"><span class="who">${esc(w.who)}</span>: ${esc(w.what)} <span class="muted small">(${esc(w.evidence)})</span></div>`)}
+      ${sec("(c) Blockers to escalate", x.blockers, (b) => `<div class="brief-item blocker"><b>${esc(b.committee)}</b>: ${esc(b.blocker)} <span class="muted small">· waiting ${Math.round(b.waiting_days)} days${b.raised_by ? " · raised by " + esc(b.raised_by) : ""}</span><div class="small">→ Escalate to <b>${esc(b.escalate_to)}</b></div></div>`)}
+      ${x.watch.length ? `<h3>Keep an eye on</h3><ul>${x.watch.map((w) => `<li>${esc(w)}</li>`).join("")}</ul>` : ""}
+      ${x.safety_notes.length ? `<h3>🛡️ Safety notes</h3><div class="brief-safety">${x.safety_notes.map((s) => `<div>${esc(s)}</div>`).join("")}</div>` : ""}
+      <div class="brief-foot">${esc(x.coverage)}<br>${u.tool_calls} MCP tool calls · ${fmt(u.input_tokens)} in (${fmt(u.cache_read_tokens)} cached) / ${fmt(u.output_tokens)} out · ${money(u.cost_usd)} · ${(u.latency_ms / 1000).toFixed(0)} s · ${esc(u.model)}</div>`;
+  }
+  async function loadUsageQuiet() { try { if (!$("[data-asec-panel=usage]").hidden) loadUsage(); } catch { /* ignore */ } }
+
   // ---------- boot ----------
   async function boot() {
     META = await api("/api/meta");
     fillStates();
     setForgotCopy();
+    loadPublicCommittees();
     $("#footer-admin").textContent = `${META.admin_name}, ${META.admin_title}`;
     if (location.hash.startsWith("#reset=")) { await startReset(location.hash.slice(7)); return; }
     if (!META.signed_in) { showGate(); return; }

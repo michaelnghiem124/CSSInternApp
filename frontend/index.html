@@ -84,6 +84,8 @@
           <label class="span2">Hobbies<textarea id="rg-hobbies" rows="2" maxlength="1000" placeholder="e.g. hockey, cooking, volunteering"></textarea></label>
           <label class="span2">What do you want to get out of the intern program?<textarea id="rg-goals" rows="3" maxlength="1500"></textarea></label>
           <label class="span2">One fun fact about me<input id="rg-fun" maxlength="300" placeholder="e.g. I've visited 30 national parks"></label>
+          <div class="span2 pref-field"><b>Committees you'd like to join</b> <small class="muted">pick up to 3, in order of preference</small><div class="pref-grid" id="rg-prefs"></div></div>
+          <label class="span2">Availability <small class="muted">when you can't meet</small><input id="rg-avail" maxlength="300" placeholder="e.g. Classes Tue/Thu mornings; no Friday meetings"></label>
           <label>Password <span class="req">*</span><input type="password" id="rg-pw" required minlength="12" autocomplete="new-password" placeholder="12+ characters"></label>
           <label>Confirm password <span class="req">*</span><input type="password" id="rg-pw2" required minlength="12" autocomplete="new-password"></label>
           <div class="span2"><label class="show-pw"><input type="checkbox" data-show="rg-pw,rg-pw2"> Show password</label><ul class="pw-rules" data-pw="rg-pw" data-confirm="rg-pw2" aria-live="polite"><li data-rule="len">At least 12 characters</li><li data-rule="email">Not your email address</li><li data-rule="match">Both entries match</li></ul></div>
@@ -240,6 +242,19 @@
           </div>
         </div>
 
+        <nav class="admin-nav" id="admin-nav" role="tablist">
+          <button type="button" data-asec="interns" class="on">Interns</button>
+          <button type="button" data-asec="placements">Placements <span class="ai-chip">AI</span></button>
+          <button type="button" data-asec="pulse">Cohort Pulse <span class="ai-chip">AI</span></button>
+          <button type="button" data-asec="talks">Talks</button>
+          <button type="button" data-asec="usage">AI usage</button>
+        </nav>
+
+        <div data-asec-panel="interns">
+        <div class="card demo-card">
+          <div><b>Demo data</b> <span class="muted small" id="demo-status">Fictional sample interns, Slack activity, and meeting notes for trying the AI agents.</span></div>
+          <div class="code-row"><button class="btn small" type="button" id="demo-load">Load demo cohort</button><button class="btn small ghost" type="button" id="demo-remove">Remove demo data</button></div>
+        </div>
         <div class="card">
           <div class="chat-head">
             <h2>Intern profiles <span class="muted small" id="intern-count"></span></h2>
@@ -255,7 +270,91 @@
           <input type="search" id="intern-q" placeholder="Search interns by name, city, school, interest…" aria-label="Search interns" style="margin:12px 0">
           <div class="table-wrap"><table id="intern-table" class="table"></table></div>
         </div>
+        </div>
 
+        <!-- ===== Placements: Committee & Cyber Coach Matchmaker ===== -->
+        <div data-asec-panel="placements" hidden>
+          <div class="card agent-hero">
+            <div>
+              <h2>Committee &amp; Cyber Coach Matchmaker</h2>
+              <p class="muted small">A <b>Fit Extractor</b> agent turns each intern's profile into a structured fit profile (cached), then a <b>Placement Matcher</b> agent scores every intern against committee needs, meeting times, and the Cyber Coach pool. Hard rules (capacity, schedule conflicts, real committees and coaches) are enforced in code and the model must fix any violation.</p>
+            </div>
+            <div class="agent-actions">
+              <button class="btn primary" type="button" id="run-match">Run matchmaker</button>
+              <span class="muted small" id="match-meta"></span>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="chat-head"><h2>Assignment matrix</h2><span class="muted small" id="match-cost"></span></div>
+            <p class="muted small" id="match-notes"></p>
+            <div class="table-wrap"><table id="match-table" class="table match-table"></table></div>
+            <div id="match-unplaced"></div>
+          </div>
+
+          <div class="admin-grid">
+            <div class="card">
+              <div class="chat-head"><h2>Committees</h2><span class="muted small">Capacity, needs, director, meeting time</span></div>
+              <div class="table-wrap"><table id="committee-table" class="table"></table></div>
+            </div>
+            <div class="card">
+              <div class="chat-head"><h2>Cyber Coach pool</h2><span class="muted small" id="coach-count"></span></div>
+              <input type="search" id="coach-q" placeholder="Filter coaches…" style="margin-bottom:10px">
+              <div class="coach-list" id="coach-list"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== Cohort Pulse ===== -->
+        <div data-asec-panel="pulse" hidden>
+          <div class="card agent-hero">
+            <div>
+              <h2>Cohort Pulse &amp; Chair's Monday Brief</h2>
+              <p class="muted small">The <b>Pulse Analyst</b> agent reads Slack and committee meeting notes <b>only through the cohort MCP server</b>, which replaces every name, email, phone number, and link with pseudonyms before the model sees anything and withholds messages that try to give the AI instructions. Names are restored only here, on your screen.</p>
+            </div>
+            <div class="agent-actions">
+              <button class="btn primary" type="button" id="run-brief">Generate Monday Brief</button>
+              <span class="muted small" id="brief-meta"></span>
+            </div>
+          </div>
+
+          <div class="admin-grid">
+            <div class="card">
+              <h2>Data sources</h2>
+              <div id="pulse-sources" class="pulse-sources"></div>
+              <div class="source-actions">
+                <label class="btn small file-btn">Upload Slack export (.zip)<input type="file" id="slack-export" accept=".zip" hidden></label>
+                <button class="btn small" type="button" id="slack-sync">Sync from Slack</button>
+              </div>
+              <h3 class="sub">Add committee meeting notes</h3>
+              <form id="notes-form" class="form-grid">
+                <label>Committee<input id="nt-committee" maxlength="120" placeholder="e.g. MedTech Seminar"></label>
+                <label>Meeting date<input type="date" id="nt-date" required></label>
+                <label class="span2">Title<input id="nt-title" maxlength="200" placeholder="Biweekly sync"></label>
+                <label class="span2">Notes <small class="muted">paste, or upload a file below</small><textarea id="nt-text" rows="4" placeholder="Action: Name - task - due Nov 14"></textarea></label>
+                <label class="span2">Or upload<input type="file" id="nt-file" accept=".txt,.md,.docx,.pdf"></label>
+                <div class="span2 form-actions"><button class="btn" type="submit">Add notes</button><span class="error" id="nt-error" hidden></span></div>
+              </form>
+            </div>
+            <div class="card">
+              <div class="chat-head"><h2>Past briefs</h2></div>
+              <ul class="plain-list" id="brief-list"></ul>
+            </div>
+          </div>
+
+          <div class="card brief-card" id="brief-card" hidden>
+            <div class="chat-head">
+              <h2 id="brief-title">Chair's Monday Brief</h2>
+              <div class="head-actions">
+                <button class="btn small ghost" type="button" id="brief-toggle-alias">Show pseudonymized version</button>
+                <a class="btn small" id="brief-download" href="#" download>Download .md</a>
+              </div>
+            </div>
+            <div id="brief-body"></div>
+          </div>
+        </div>
+
+        <div data-asec-panel="talks" hidden>
         <div class="admin-grid">
           <div class="card">
             <h2 id="event-form-title">Schedule a talk</h2>
@@ -307,10 +406,13 @@
           <h2>Scheduled talks</h2>
           <div class="table-wrap"><table id="admin-events" class="table"></table></div>
         </div>
+        </div>
 
+        <div data-asec-panel="usage" hidden>
         <div class="card">
           <div class="chat-head"><h2>AI usage &amp; safety</h2><button class="btn ghost small" id="usage-refresh" type="button">Refresh</button></div>
           <div id="usage"></div>
+        </div>
         </div>
       </div>
     </section>
@@ -343,6 +445,8 @@
         <label class="span2">Hobbies<textarea id="me-hobbies" rows="2" maxlength="1000"></textarea></label>
         <label class="span2">What I want from the program<textarea id="me-goals" rows="3" maxlength="1500"></textarea></label>
         <label class="span2">One fun fact about me<input id="me-fun" maxlength="300"></label>
+        <div class="span2 pref-field"><b>Committees you'd like to join</b> <small class="muted">up to 3, in order</small><div class="pref-grid" id="me-prefs"></div></div>
+        <label class="span2">Availability <small class="muted">when you can't meet</small><input id="me-avail" maxlength="300"></label>
         <label class="check span2"><input type="checkbox" id="me-share"> Show my profile to other interns (never my phone number)</label>
         <div class="span2 form-actions"><button class="btn primary" type="submit">Save</button><span class="error" id="me-error" hidden></span></div>
       </form>
@@ -360,6 +464,33 @@
   <dialog id="intern-dialog" class="dialog">
     <button class="dialog-close" type="button" aria-label="Close">×</button>
     <div id="intern-body" style="padding:26px"></div>
+  </dialog>
+
+  <dialog id="drafts-dialog" class="dialog wide-dialog">
+    <button class="dialog-close" type="button" aria-label="Close">×</button>
+    <div id="drafts-body" style="padding:26px"></div>
+  </dialog>
+
+  <dialog id="committee-dialog" class="dialog">
+    <button class="dialog-close" type="button" aria-label="Close">×</button>
+    <div style="padding:26px">
+      <h2 id="cm-title">Edit committee</h2>
+      <form id="committee-form" class="form-grid">
+        <input type="hidden" id="cm-slug">
+        <label class="span2">Name<input id="cm-name" required maxlength="120"></label>
+        <label class="span2">What it does<textarea id="cm-desc" rows="2" maxlength="600"></textarea></label>
+        <label class="span2">Looking for <small class="muted">skills and traits the matcher scores against</small><textarea id="cm-needs" rows="2" maxlength="600"></textarea></label>
+        <label>Intern capacity<input type="number" id="cm-capacity" min="0" max="50" required></label>
+        <label class="check"><input type="checkbox" id="cm-active"> Active this cohort</label>
+        <label class="span2">Director (Think Tank member)<select id="cm-director-slug"><option value="">Not a Think Tank member / not set</option></select></label>
+        <label>Or director name<input id="cm-director-name" maxlength="120"></label>
+        <label>Director email <small class="muted">for intro drafts</small><input id="cm-director-email" type="email" maxlength="200"></label>
+        <label>Meeting day<select id="cm-day"><option value="">Not set</option><option>Mon</option><option>Tue</option><option>Wed</option><option>Thu</option><option>Fri</option></select></label>
+        <label>Meeting time<input type="time" id="cm-time"></label>
+        <label class="span2">Meeting note<input id="cm-note" maxlength="120" placeholder="e.g. 2nd & 4th Wednesday, Zoom"></label>
+        <div class="span2 form-actions"><button class="btn primary" type="submit">Save committee</button><span class="error" id="cm-error" hidden></span></div>
+      </form>
+    </div>
   </dialog>
 
   <dialog id="confirm-dialog" class="dialog confirm">

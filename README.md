@@ -5,7 +5,9 @@ An AI-powered resource for the **Cyber Security Summit Intern Program** (Minneap
 - **Matchmaker**: an intern uploads a resume and says what they're curious about. Two agents read it and recommend 3 to 5 Think Tank members, each with a reason grounded in that person's published bio, shared ground, and conversation starters.
 - **Think Tank directory**: all 64 published bios (2 co-chairs, 49 members, 13 emeritus), searchable by name, employer, school, skill, or hobby, and filterable by sector.
 - **Talks calendar**: the Chair schedules CISO firesides, panels, and office hours. Interns RSVP and add talks to their own calendars (`.ics` with reminders 1 day and 1 hour before). Talks within 48 hours, and the Chair's announcements, show as banners on every page.
-- **Admin**: event and announcement management, RSVP lists, and a live dashboard of AI token usage, cost, and blocked safety events.
+- **Admin**: intern profiles, talks and announcements, RSVP lists, a live dashboard of AI token usage, cost, and blocked safety events, plus two admin agents:
+  - **Committee & Cyber Coach Matchmaker**: places every intern on a Summit committee and pairs them with a Think Tank Cyber Coach. It produces a ranked assignment matrix with one-sentence "why this match works" lines, and drafts intro emails and Slack DMs.
+  - **Cohort Pulse & Chair's Monday Brief**: reads Slack (through an MCP server) and committee meeting notes. It flags interns who need a nudge, wins to spotlight, and blockers to escalate, with names pseudonymized before the AI sees anything.
 
 ## Run it locally
 
@@ -116,6 +118,41 @@ FastAPI (backend/main.py)
 - **Storage.** SQLite at `data/app.db` (gitignored), created on first run with three sample talks marked "Sample". It holds intern accounts, events, RSVPs, announcements, the access code, and token/safety logs. **Resumes and chat text are never written to disk.** Conversations live in server memory for 3 hours.
 - **Cost controls.** The roster sits in the matchmaker's instructions, which never change between requests, so the provider caches them (`cache=True`). Thinking effort is `low`. The cheap model reads resumes, so the expensive model never sees raw resume text. Every reply shows its own token counts and cost.
 
+## Admin agents
+
+Both agents are on **Admin → Placements** and **Admin → Cohort Pulse**. To try them without real data, go to **Admin → Interns** and choose **Load demo cohort**. It loads 8 fictional interns, 3 weeks of Slack activity, and meeting notes, all marked "Sample", hidden from real interns, and removable in one click.
+
+### Committee & Cyber Coach Matchmaker (`backend/placements.py`)
+
+The work is split across three agents. The code, not a model, decides who runs next.
+
+| Agent | Model | Does |
+|---|---|---|
+| Fit Extractor | Haiku 5.5, one call per intern | Profile → `InternFit` (skills, domains, strengths, experience level, committee preferences, times they can't meet). Cached by profile hash, so unchanged interns cost nothing on re-runs. |
+| Placement Matcher | Sonnet 5.5, one call per cohort | Fit profiles + committees (needs, capacity, meeting time) + the Cyber Coach pool → `AssignmentMatrix`: top 3 committees per intern with scores, the assignment, a coach, and one-sentence rationales and flags. |
+| Intro Drafter | Haiku 5.5, on demand | Approved placement → `IntroDrafts`: an email and a Slack DM to the intern, and the same to the committee director. These are drafts only and are never sent automatically. |
+
+Hard rules live in code, not in the prompt. Before the matcher runs, the code works out each intern's schedule conflicts. An output validator then rejects any matrix that does any of the following, and the model has to fix it:
+- breaks a committee or coach capacity
+- puts an intern in a committee whose meeting they can't attend
+- names a committee or coach that doesn't exist
+- skips or duplicates an intern
+
+The admin can override any assignment from the matrix and approve placements before drafting intros. Committees (capacity, needs, director, meeting day and time) and the coach pool are edited on the same screen. Interns pick up to 3 committees and describe their availability at registration or in Edit my profile.
+
+### Cohort Pulse & Chair's Monday Brief (`backend/pulse.py`, `mcp_server/cohort_server.py`)
+
+- **Data sources.** Slack comes from a live sync (set `SLACK_BOT_TOKEN`) or an uploaded Slack export `.zip`. Committee meeting notes can be pasted, or uploaded as TXT, MD, DOCX, or PDF.
+- **The MCP boundary.** The Pulse Analyst (Sonnet 5.5) reads data only through the cohort MCP server's five read-only tools: `get_cohort_signals`, `list_channels`, `get_channel_messages`, `get_open_threads`, and `get_meeting_notes`. Every tool returns a privacy-safe view:
+  - **PII redaction:** each person becomes a pseudonym (`Intern-03`, `Member-01`), and @mentions, emails, phone numbers, ID numbers, and links are replaced.
+  - **Indirect prompt-injection guard:** messages or note lines that read like instructions to an AI are withheld and marked `[FLAGGED]`, and the prompt treats all tool output as data.
+  - **Signals computed in code:** days since last post, check-ins this week and last, unanswered questions, and flagged messages. The model interprets them instead of counting.
+- **Output guard.** A validator rejects any brief that contains an email, a phone number, a real name, a made-up pseudonym, or a nudge aimed at someone who isn't an intern. Only after it passes does code swap pseudonyms back to names, and only for the admin. The admin can toggle to see exactly what the AI saw.
+- **Read-only.** The agent has no tool that can post to Slack or email anyone. Suggested DMs are text for the Chair to send.
+- **Output.** A `ChairBrief`: (a) interns to nudge, with evidence and a suggested DM, (b) wins to spotlight, (c) blockers to escalate and to whom, plus watch items, safety notes, and data coverage. It is saved and downloadable as Markdown.
+
+**Measured cost (demo cohort of 10):** the matchmaker costs about $0.13 for a first run and much less on re-runs (cached profiles). A Monday Brief costs about $0.03, and an intro draft about $0.001.
+
 ## Configuration
 
 Every setting is in `backend/config.py` and can be overridden from `.env`: model names, prices, rate limit, daily token budget, per-run request/tool/token limits, and admin name/title.
@@ -133,11 +170,13 @@ Start command: `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`.
 ## Project layout
 
 ```
-backend/   main.py (API) · agents.py · safety.py · directory.py · db.py · config.py · prompts/
-frontend/  index.html · styles.css · app.js
-data/      think_tank_raw.json · think_tank.json
-scripts/   enrich_bios.py
-samples/   fictional resumes for testing
+backend/     main.py (API) · agents.py (intern matchmaker) · placements.py (committee matchmaker)
+             pulse.py (Monday Brief) · demo.py · auth.py · mailer.py · safety.py · db.py · config.py · prompts/
+mcp_server/  cohort_server.py (read-only, privacy-safe Slack + notes tools)
+frontend/    index.html · styles.css · app.js
+data/        think_tank_raw.json · think_tank.json
+scripts/     enrich_bios.py · set_admin_password.py
+samples/     fictional resumes for testing
 ```
 
 Bios and headshots belong to the Cyber Security Summit and its Think Tank members. They are shown here for the intern program's use.

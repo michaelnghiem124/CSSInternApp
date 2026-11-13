@@ -21,7 +21,9 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, EmailStr, Field, field_validator
 from pydantic_ai.exceptions import UsageLimitExceeded
 
-from . import agents, auth, config, db, directory, mailer, safety
+import json as _json
+
+from . import agents, auth, config, db, demo, directory, mailer, placements, pulse, safety
 
 log = logging.getLogger("intern_hub")
 
@@ -115,10 +117,22 @@ class ProfileFields(BaseModel):
     goals: str = Field("", max_length=1500)
     fun_fact: str = Field("", max_length=300)
     linkedin_url: str = Field("", max_length=200)
+    committee_prefs: list[str] = Field(default_factory=list, max_length=10)
+    availability: str = Field("", max_length=300)
     share_with_cohort: bool = True
 
+    @field_validator("committee_prefs")
+    @classmethod
+    def known_committees(cls, v: list[str]) -> list[str]:
+        known = {c["slug"] for c in placements.list_committees(active_only=True)}
+        out = []
+        for slug in v:
+            if slug in known and slug not in out:
+                out.append(slug)
+        return out[:3]
+
     @field_validator("first_name", "last_name", "city", "school", "interests", "hobbies", "goals",
-                     "fun_fact")
+                     "fun_fact", "availability")
     @classmethod
     def trim(cls, v: str) -> str:
         return v.strip()
@@ -185,9 +199,16 @@ def _public_user(u: dict, include_private: bool = False) -> dict:
             "interests", "hobbies", "goals", "fun_fact", "linkedin_url", "share_with_cohort",
             "created_at"]
     if include_private:
-        keep += ["phone", "last_login", "updated_at", "must_change_password"]
+        keep += ["phone", "last_login", "updated_at", "must_change_password", "availability",
+                 "is_sample"]
     d = {k: u.get(k) for k in keep}
     d["share_with_cohort"] = bool(d["share_with_cohort"])
+    if include_private:
+        try:
+            d["committee_prefs"] = _json.loads(u.get("committee_prefs") or "[]")
+        except ValueError:
+            d["committee_prefs"] = []
+        d["is_sample"] = bool(u.get("is_sample"))
     if "must_change_password" in d:
         d["must_change_password"] = bool(d["must_change_password"])
     # Cache-busting URL; the endpoint itself checks the viewer is signed in.
@@ -447,8 +468,11 @@ def user_photo(user_id: int, request: Request, viewer: Annotated[dict, Depends(a
 
 @app.get("/api/cohort")
 def cohort(user: Annotated[dict, Depends(auth.require_user)]):
-    """Other interns who chose to share. Phone numbers are never included here."""
-    return [_public_user(u) for u in db.list_users(cohort_only=True)]
+    """Other interns who chose to share. Phone numbers are never included here. Fictional
+    demo interns are visible to the admin (and to each other) but never to real interns."""
+    show_samples = bool(user.get("is_admin_view") or user.get("is_sample"))
+    return [_public_user(u) for u in db.list_users(cohort_only=True)
+            if show_samples or not u.get("is_sample")]
 
 
 @app.post("/api/admin/login")
@@ -512,6 +536,12 @@ def _card(p: directory.Person, full: bool = False) -> dict:
     if not full:
         d["bio"] = p.bio[:400]
     return d
+
+
+@app.get("/api/committees")
+def public_committees():
+    return [{k: c[k] for k in ("slug", "name", "description")}
+            for c in placements.list_committees(active_only=True)]
 
 
 @app.get("/api/people", dependencies=[Depends(auth.require_user)])
@@ -914,3 +944,212 @@ def admin_access_code():
 @app.post("/api/admin/access-code", dependencies=[Depends(auth.require_admin)])
 def admin_rotate_access_code():
     return {"code": auth.rotate_access_code()}
+
+
+# ---------------------------------------------------------------------------
+# Admin: Committee & Cyber Coach Matchmaker
+# ---------------------------------------------------------------------------
+class CommitteeBody(BaseModel):
+    name: str = Field(min_length=2, max_length=120)
+    description: str = Field("", max_length=600)
+    needs: str = Field("", max_length=600)
+    capacity: int = Field(ge=0, le=50)
+    director_slug: str = Field("", max_length=80)
+    director_name: str = Field("", max_length=120)
+    director_email: str = Field("", max_length=200)
+    meeting_day: str = Field("", pattern=r"^(|Mon|Tue|Wed|Thu|Fri|Sat|Sun)$")
+    meeting_time: str = Field("", pattern=r"^(|[01]\d:[0-5]\d|2[0-3]:[0-5]\d)$")
+    meeting_note: str = Field("", max_length=120)
+    active: bool = True
+
+    @field_validator("director_slug")
+    @classmethod
+    def real_person(cls, v: str) -> str:
+        if v and not directory.get_person(v):
+            raise ValueError("Unknown Think Tank member.")
+        return v
+
+
+class CoachBody(BaseModel):
+    capacity: int | None = Field(None, ge=0, le=10)
+    active: bool | None = None
+
+
+class PlacementBody(BaseModel):
+    committee: str | None = None
+    coach: str | None = None
+    status: str | None = Field(None, pattern=r"^(proposed|approved)$")
+
+
+def _agent_error(exc: Exception) -> JSONResponse:
+    log.exception("admin agent failed")
+    msg = str(exc) if isinstance(exc, ValueError) else "The AI provider returned an error. Try again."
+    return JSONResponse({"message": msg}, status_code=400 if isinstance(exc, ValueError) else 502)
+
+
+@app.get("/api/admin/committees", dependencies=[Depends(auth.require_admin)])
+def admin_committees():
+    return placements.list_committees()
+
+
+@app.put("/api/admin/committees/{slug}", dependencies=[Depends(auth.require_admin)])
+def admin_update_committee(slug: str, body: CommitteeBody):
+    if slug not in {c["slug"] for c in placements.list_committees()}:
+        raise HTTPException(404, "No such committee.")
+    placements.update_committee(slug, body.model_dump())
+    return {"ok": True}
+
+
+@app.get("/api/admin/coaches", dependencies=[Depends(auth.require_admin)])
+def admin_coaches():
+    return placements.list_coaches()
+
+
+@app.put("/api/admin/coaches/{slug}", dependencies=[Depends(auth.require_admin)])
+def admin_update_coach(slug: str, body: CoachBody):
+    if not directory.get_person(slug):
+        raise HTTPException(404, "No such Think Tank member.")
+    placements.update_coach(slug, body.capacity, body.active)
+    return {"ok": True}
+
+
+@app.get("/api/admin/placements", dependencies=[Depends(auth.require_admin)])
+def admin_placements():
+    return placements.latest_run() or {"rows": [], "unplaced": [], "run_id": None}
+
+
+@app.post("/api/admin/placements/run", dependencies=[Depends(auth.require_admin)])
+async def admin_run_placements():
+    try:
+        return await placements.run_matching()
+    except Exception as exc:  # noqa: BLE001
+        return _agent_error(exc)
+
+
+@app.put("/api/admin/placements/{user_id}", dependencies=[Depends(auth.require_admin)])
+def admin_update_placement(user_id: int, body: PlacementBody):
+    if body.committee and body.committee not in {c["slug"] for c in placements.list_committees()}:
+        raise HTTPException(400, "Unknown committee.")
+    if body.coach and not directory.get_person(body.coach):
+        raise HTTPException(400, "Unknown coach.")
+    placements.set_placement(user_id, body.committee, body.coach, body.status)
+    return {"ok": True}
+
+
+@app.get("/api/admin/placements/{user_id}/drafts", dependencies=[Depends(auth.require_admin)])
+def admin_get_drafts(user_id: int):
+    return {"drafts": placements.get_drafts(user_id)}
+
+
+@app.post("/api/admin/placements/{user_id}/drafts", dependencies=[Depends(auth.require_admin)])
+async def admin_make_drafts(user_id: int):
+    try:
+        return await placements.draft_intros(user_id)
+    except Exception as exc:  # noqa: BLE001
+        return _agent_error(exc)
+
+
+# ---------------------------------------------------------------------------
+# Admin: demo data
+# ---------------------------------------------------------------------------
+@app.get("/api/admin/demo", dependencies=[Depends(auth.require_admin)])
+def admin_demo_status():
+    return demo.status()
+
+
+@app.post("/api/admin/demo", dependencies=[Depends(auth.require_admin)])
+def admin_demo_load():
+    return demo.load()
+
+
+@app.delete("/api/admin/demo", dependencies=[Depends(auth.require_admin)])
+def admin_demo_remove():
+    return demo.remove()
+
+
+# ---------------------------------------------------------------------------
+# Admin: Cohort Pulse & Monday Brief
+# ---------------------------------------------------------------------------
+@app.get("/api/admin/pulse/sources", dependencies=[Depends(auth.require_admin)])
+def admin_pulse_sources():
+    return pulse.sources_status()
+
+
+@app.post("/api/admin/pulse/slack-export", dependencies=[Depends(auth.require_admin)])
+async def admin_pulse_export(file: Annotated[UploadFile, File()]):
+    data = await file.read(50_000_001)
+    if len(data) > 50_000_000:
+        raise HTTPException(400, "Export is over 50 MB. Export a shorter date range.")
+    try:
+        return pulse.ingest_slack_export(data)
+    except (zipfile.BadZipFile, KeyError, ValueError):
+        raise HTTPException(400, "That doesn't look like a Slack export .zip.")
+
+
+@app.post("/api/admin/pulse/slack-sync", dependencies=[Depends(auth.require_admin)])
+def admin_pulse_sync():
+    if not pulse.slack_live_enabled():
+        raise HTTPException(400, "Add SLACK_BOT_TOKEN to .env and restart to connect Slack.")
+    try:
+        return pulse.sync_slack_live()
+    except Exception as exc:  # noqa: BLE001
+        log.exception("slack sync failed")
+        raise HTTPException(502, f"Slack sync failed: {exc}")
+
+
+@app.post("/api/admin/pulse/notes", dependencies=[Depends(auth.require_admin)])
+async def admin_pulse_add_notes(
+    committee: Annotated[str, Form(max_length=120)] = "",
+    meeting_date: Annotated[str, Form()] = "",
+    title: Annotated[str, Form(max_length=200)] = "",
+    text: Annotated[str, Form()] = "",
+    file: Annotated[UploadFile | None, File()] = None,
+):
+    if file is not None and file.filename:
+        data = await file.read(config.MAX_UPLOAD_BYTES + 1)
+        if len(data) > config.MAX_UPLOAD_BYTES:
+            raise HTTPException(400, "Notes file is over 2 MB.")
+        text = _extract_text(file.filename, data)
+    if not text.strip():
+        raise HTTPException(400, "Paste notes or upload a file.")
+    try:
+        meeting_date = datetime.fromisoformat(meeting_date).strftime("%Y-%m-%d")
+    except ValueError:
+        raise HTTPException(400, "Pick the meeting date.")
+    return {"id": pulse.add_notes(committee.strip(), meeting_date, title.strip(), text)}
+
+
+@app.delete("/api/admin/pulse/notes/{note_id}", dependencies=[Depends(auth.require_admin)])
+def admin_pulse_delete_notes(note_id: int):
+    pulse.delete_notes(note_id)
+    return {"ok": True}
+
+
+@app.post("/api/admin/pulse/brief", dependencies=[Depends(auth.require_admin)])
+async def admin_pulse_brief():
+    try:
+        return await pulse.generate_brief()
+    except Exception as exc:  # noqa: BLE001
+        return _agent_error(exc)
+
+
+@app.get("/api/admin/pulse/briefs", dependencies=[Depends(auth.require_admin)])
+def admin_pulse_briefs():
+    return {"briefs": pulse.list_briefs(), "latest": pulse.get_brief()}
+
+
+@app.get("/api/admin/pulse/briefs/{brief_id}", dependencies=[Depends(auth.require_admin)])
+def admin_pulse_brief_get(brief_id: int):
+    b = pulse.get_brief(brief_id)
+    if not b:
+        raise HTTPException(404, "No such brief.")
+    return b
+
+
+@app.get("/api/admin/pulse/briefs/{brief_id}/markdown", dependencies=[Depends(auth.require_admin)])
+def admin_pulse_brief_md(brief_id: int):
+    b = pulse.get_brief(brief_id)
+    if not b:
+        raise HTTPException(404, "No such brief.")
+    return PlainTextResponse(pulse.brief_markdown(b), media_type="text/markdown", headers={
+        "Content-Disposition": f'attachment; filename="chairs-monday-brief-{b["week_of"]}.md"'})

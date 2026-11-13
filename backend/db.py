@@ -98,6 +98,82 @@ CREATE TABLE IF NOT EXISTS reset_requests (
     created_at TEXT NOT NULL,
     resolved_at TEXT
 );
+CREATE TABLE IF NOT EXISTS committees (
+    slug TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    needs TEXT NOT NULL DEFAULT '',          -- skills/traits the committee is looking for
+    capacity INTEGER NOT NULL DEFAULT 2,
+    director_slug TEXT NOT NULL DEFAULT '',  -- a Think Tank member, if the director is one
+    director_name TEXT NOT NULL DEFAULT '',  -- otherwise typed in by the admin
+    director_email TEXT NOT NULL DEFAULT '',
+    meeting_day TEXT NOT NULL DEFAULT '',    -- Mon..Fri, '' = not set
+    meeting_time TEXT NOT NULL DEFAULT '',   -- HH:MM local
+    meeting_note TEXT NOT NULL DEFAULT '',   -- e.g. "1st & 3rd Tuesday"
+    active INTEGER NOT NULL DEFAULT 1,
+    sort INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS coaches (
+    slug TEXT PRIMARY KEY,                   -- Think Tank slug
+    capacity INTEGER NOT NULL DEFAULT 2,
+    active INTEGER NOT NULL DEFAULT 1
+);
+CREATE TABLE IF NOT EXISTS fit_profiles (
+    user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    source_hash TEXT NOT NULL,               -- re-extract only when the profile changes
+    profile_json TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS match_runs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT NOT NULL,
+    matrix_json TEXT NOT NULL,
+    usage_json TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS placements (
+    user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    committee_slug TEXT NOT NULL,
+    coach_slug TEXT NOT NULL DEFAULT '',
+    why TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'proposed', -- proposed | approved
+    drafts_json TEXT NOT NULL DEFAULT '',
+    run_id INTEGER,
+    updated_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS slack_users (
+    slack_id TEXT PRIMARY KEY,
+    name TEXT NOT NULL DEFAULT '',
+    real_name TEXT NOT NULL DEFAULT '',
+    email TEXT NOT NULL DEFAULT '',
+    is_bot INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS slack_messages (
+    channel TEXT NOT NULL,
+    ts TEXT NOT NULL,                        -- Slack message timestamp (unique per channel)
+    slack_user TEXT NOT NULL DEFAULT '',
+    text TEXT NOT NULL DEFAULT '',
+    thread_ts TEXT NOT NULL DEFAULT '',
+    reply_count INTEGER NOT NULL DEFAULT 0,
+    source TEXT NOT NULL DEFAULT 'export',   -- export | live | demo
+    PRIMARY KEY (channel, ts)
+);
+CREATE TABLE IF NOT EXISTS meeting_notes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    committee TEXT NOT NULL DEFAULT '',
+    meeting_date TEXT NOT NULL,
+    title TEXT NOT NULL DEFAULT '',
+    text TEXT NOT NULL,
+    source TEXT NOT NULL DEFAULT 'upload',
+    uploaded_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS briefs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    week_of TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    brief_json TEXT NOT NULL,                -- pseudonymized, as the model wrote it
+    alias_map_json TEXT NOT NULL,            -- alias -> person, for the admin view only
+    usage_json TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
@@ -140,6 +216,9 @@ MIGRATIONS = {
         "temp_password_hash": "TEXT",
         "temp_password_expires": "TEXT",
         "must_change_password": "INTEGER NOT NULL DEFAULT 0",
+        "committee_prefs": "TEXT NOT NULL DEFAULT '[]'",
+        "availability": "TEXT NOT NULL DEFAULT ''",
+        "is_sample": "INTEGER NOT NULL DEFAULT 0",
     },
 }
 
@@ -158,6 +237,8 @@ def init() -> None:
         _migrate(c)
         if c.execute("SELECT COUNT(*) FROM events").fetchone()[0] == 0:
             _seed_samples(c)
+    from . import placements  # noqa: PLC0415  (seeds committees + coach pool once)
+    placements.seed_defaults()
 
 
 def _seed_samples(c: sqlite3.Connection) -> None:
@@ -297,21 +378,32 @@ def archive_announcement(ann_id: int) -> bool:
 # Intern accounts
 # ---------------------------------------------------------------------------
 USER_FIELDS = ("first_name", "last_name", "phone", "slack_email", "city", "state", "school",
-               "interests", "hobbies", "goals", "fun_fact", "linkedin_url", "share_with_cohort")
+               "interests", "hobbies", "goals", "fun_fact", "linkedin_url", "share_with_cohort",
+               "committee_prefs", "availability")
 # Everything except the photo bytes and password hash, for list/detail queries.
 _USER_COLS = ("id, first_name, last_name, phone, slack_email, city, state, school, interests, "
               "hobbies, goals, fun_fact, linkedin_url, share_with_cohort, created_at, updated_at, "
               "last_login, photo_updated, password_hash, session_version, temp_password_hash, "
-              "temp_password_expires, must_change_password")
+              "temp_password_expires, must_change_password, committee_prefs, availability, "
+              "is_sample")
 
 
-def create_user(data: dict[str, Any], password_hash: str) -> int:
+def _user_val(k: str, v: Any) -> Any:
+    if k == "share_with_cohort":
+        return int(v)
+    if k == "committee_prefs":
+        return v if isinstance(v, str) else json.dumps(list(v or []))
+    return v
+
+
+def create_user(data: dict[str, Any], password_hash: str, is_sample: bool = False) -> int:
+    data = {"committee_prefs": [], "availability": "", **data}
     with conn() as c:
         cur = c.execute(
-            f"INSERT INTO users ({', '.join(USER_FIELDS)}, password_hash, created_at, updated_at) "
-            f"VALUES ({', '.join('?' * len(USER_FIELDS))}, ?, ?, ?)",
-            (*(int(data[k]) if k == "share_with_cohort" else data[k] for k in USER_FIELDS),
-             password_hash, _now(), _now()),
+            f"INSERT INTO users ({', '.join(USER_FIELDS)}, password_hash, is_sample, created_at, "
+            f"updated_at) VALUES ({', '.join('?' * len(USER_FIELDS))}, ?, ?, ?, ?)",
+            (*(_user_val(k, data[k]) for k in USER_FIELDS), password_hash, int(is_sample),
+             _now(), _now()),
         )
         return int(cur.lastrowid)
 
@@ -320,8 +412,7 @@ def update_user(user_id: int, data: dict[str, Any]) -> None:
     keys = [k for k in USER_FIELDS if k in data]
     with conn() as c:
         c.execute(f"UPDATE users SET {', '.join(f'{k} = ?' for k in keys)}, updated_at = ? WHERE id = ?",
-                  (*(int(data[k]) if k == "share_with_cohort" else data[k] for k in keys),
-                   _now(), user_id))
+                  (*(_user_val(k, data[k]) for k in keys), _now(), user_id))
 
 
 def get_user(user_id: int) -> dict[str, Any] | None:
