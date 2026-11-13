@@ -99,6 +99,15 @@
           <button class="btn primary wide" type="submit">Save new password</button>
         </form>
 
+        <form id="force-form" data-pane="force" hidden>
+          <h2>Set a new password</h2>
+          <p class="muted small">You signed in with a temporary password. Choose a new one to continue (at least 12 characters).</p>
+          <label>New password<input type="password" id="fc-pw" minlength="12" autocomplete="new-password" required></label>
+          <label>Confirm new password<input type="password" id="fc-pw2" minlength="12" autocomplete="new-password" required></label>
+          <button class="btn primary wide" type="submit">Save and continue</button>
+          <p class="fine"><a href="#" id="force-signout">Sign out instead</a></p>
+        </form>
+
         <form id="admin-login-form" data-pane="admin" hidden>
           <p class="muted small">For the Program Chair only.</p>
           <label>Admin username<input id="ad-user" autocomplete="username" required></label>

@@ -137,6 +137,9 @@ MIGRATIONS = {
         "photo": "BLOB",
         "photo_updated": "TEXT",
         "session_version": "INTEGER NOT NULL DEFAULT 0",
+        "temp_password_hash": "TEXT",
+        "temp_password_expires": "TEXT",
+        "must_change_password": "INTEGER NOT NULL DEFAULT 0",
     },
 }
 
@@ -298,7 +301,8 @@ USER_FIELDS = ("first_name", "last_name", "phone", "slack_email", "city", "state
 # Everything except the photo bytes and password hash, for list/detail queries.
 _USER_COLS = ("id, first_name, last_name, phone, slack_email, city, state, school, interests, "
               "hobbies, goals, fun_fact, linkedin_url, share_with_cohort, created_at, updated_at, "
-              "last_login, photo_updated, password_hash, session_version")
+              "last_login, photo_updated, password_hash, session_version, temp_password_hash, "
+              "temp_password_expires, must_change_password")
 
 
 def create_user(data: dict[str, Any], password_hash: str) -> int:
@@ -364,10 +368,35 @@ def delete_user(user_id: int) -> bool:
 # Passwords + resets
 # ---------------------------------------------------------------------------
 def set_password(user_id: int, password_hash: str) -> None:
-    """New password, and bump session_version so every existing sign-in cookie dies."""
+    """New password, and bump session_version so every existing sign-in cookie dies.
+    Also clears any temporary password and the forced-change flag."""
     with conn() as c:
         c.execute("UPDATE users SET password_hash = ?, session_version = session_version + 1, "
-                  "updated_at = ? WHERE id = ?", (password_hash, _now(), user_id))
+                  "temp_password_hash = NULL, temp_password_expires = NULL, "
+                  "must_change_password = 0, updated_at = ? WHERE id = ?",
+                  (password_hash, _now(), user_id))
+
+
+def set_temp_password(user_id: int, temp_hash: str, expires_at: str) -> None:
+    """Stored next to the real password, not over it, so a stranger who requests a reset
+    for someone else's email can't lock them out."""
+    with conn() as c:
+        c.execute("UPDATE users SET temp_password_hash = ?, temp_password_expires = ? WHERE id = ?",
+                  (temp_hash, expires_at, user_id))
+
+
+def consume_temp_password(user_id: int) -> None:
+    """Single use: signing in with it clears it and requires a new password."""
+    with conn() as c:
+        c.execute("UPDATE users SET temp_password_hash = NULL, temp_password_expires = NULL, "
+                  "must_change_password = 1 WHERE id = ?", (user_id,))
+
+
+def clear_temp_password(user_id: int) -> None:
+    """They remembered their real password, so the emailed one is no longer needed."""
+    with conn() as c:
+        c.execute("UPDATE users SET temp_password_hash = NULL, temp_password_expires = NULL "
+                  "WHERE id = ?", (user_id,))
 
 
 def add_reset_request(user_id: int) -> None:

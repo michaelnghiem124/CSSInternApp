@@ -30,6 +30,9 @@
     if (res.status === 401 && !path.startsWith("/api/auth") && !path.startsWith("/api/admin/login")) {
       showGate(); throw new Error("Please sign in.");
     }
+    if (res.status === 403 && data?.detail === "password_change_required") {
+      showForceChange(); throw new Error("Choose a new password to continue.");
+    }
     if (!res.ok) {
       const msg = data?.message || (typeof data?.detail === "string" ? data.detail : data?.detail?.[0]?.msg) || `Request failed (${res.status})`;
       const err = new Error(msg); err.status = res.status; err.data = data; throw err;
@@ -282,7 +285,7 @@
 
   function greet() {
     const d = document.createElement("div"); d.className = "msg bot";
-    d.innerHTML = `<div class="bubble">Hi${ME ? " " + esc(ME.first_name) : ""}! I'm the Think Tank matchmaker. ${ME ? "I already know the interests, hobbies, and goals from your registration, so you can ask me who to meet right away. Adding a resume on the left makes the matches sharper. " : ""}${META.llm_ready ? "Add your resume on the left (or just tell me what you're into) and I'll suggest who to meet at the Summit, why, and how to start the conversation." : "<strong>The AI matchmaker is offline because no API key is configured.</strong> The Think Tank directory and the talks calendar still work."}</div>`;
+    d.innerHTML = `<div class="bubble">Hi${ME ? " " + esc(ME.first_name) : ""}! I'm the Think Tank matchmaker. ${ME && (ME.interests || ME.hobbies || ME.goals) ? "I already know the interests, hobbies, and goals from your registration, so you can ask me who to meet right away. Adding a resume on the left makes the matches sharper. " : ""}${META.llm_ready ? "Add your resume on the left (or just tell me what you're into) and I'll suggest who to meet at the Summit, why, and how to start the conversation." : "<strong>The AI matchmaker is offline because no API key is configured.</strong> The Think Tank directory and the talks calendar still work."}</div>`;
     log.appendChild(d);
   }
 
@@ -471,8 +474,11 @@
 
   $("#login-form-intern").addEventListener("submit", async (e) => {
     e.preventDefault();
-    try { await api("/api/auth/login", { method: "POST", body: { email: $("#li-email").value, password: $("#li-pw").value } }); location.hash = "#match"; location.reload(); }
-    catch (err) { gateError(err.message); }
+    try {
+      const r = await api("/api/auth/login", { method: "POST", body: { email: $("#li-email").value, password: $("#li-pw").value } });
+      if (r.must_change_password) { showForceChange(); return; }
+      location.hash = "#match"; location.reload();
+    } catch (err) { gateError(err.message); }
   });
   $("#admin-login-form").addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -506,7 +512,7 @@
       const r = await api("/api/auth/forgot", { method: "POST", body: { email } });
       gatePane("login"); $("#li-email").value = email;
       gateMsg(r.email_enabled
-        ? "If that email has an account, a reset link is on its way. Check your inbox (and spam). The link expires in 24 hours."
+        ? "If that email has an account, we've emailed it a temporary password (check spam too). Sign in with it below, then choose a new password. It expires in 24 hours."
         : "Request sent. If that email has an account, the Program Chair will send you a one-time reset link on Slack. It expires 24 hours after it's created.");
     } catch (err) { gateError(err.message); }
   });
@@ -530,6 +536,22 @@
       gatePane("login"); $("#li-email").value = r.email; $("#li-pw").focus();
       gateMsg("Password updated. Sign in with your new password.");
     } catch (err) { gateError(err.message); }
+  });
+
+  function showForceChange() {
+    showGate(); gatePane("force"); $("#fc-pw").focus();
+  }
+  $("#force-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if ($("#fc-pw").value !== $("#fc-pw2").value) { gateError("Passwords don't match."); return; }
+    try {
+      await api("/api/me/new-password", { method: "POST", body: { new_password: $("#fc-pw").value } });
+      alertLater("Password updated. You're all set.");
+      location.hash = "#match"; location.reload();
+    } catch (err) { gateError(err.message); }
+  });
+  $("#force-signout").addEventListener("click", async (e) => {
+    e.preventDefault(); await api("/api/auth/logout", { method: "POST" }); location.hash = ""; location.reload();
   });
 
   $("#signout-btn").addEventListener("click", async () => { await api("/api/auth/logout", { method: "POST" }); location.hash = ""; location.reload(); });
@@ -692,6 +714,7 @@
     if (location.hash.startsWith("#reset=")) { await startReset(location.hash.slice(7)); return; }
     if (!META.signed_in) { showGate(); return; }
     ME = (await api("/api/me")).user;
+    if (ME && ME.must_change_password) { showForceChange(); return; }
     $("#gate").hidden = true; $("#app-nav").hidden = false; $("#app-main").hidden = false;
     $("#admin-tab").hidden = !META.is_admin;
     $("#who-name").textContent = ME ? `${ME.first_name} ${ME.last_name}` : `${META.admin_name} · Admin`;

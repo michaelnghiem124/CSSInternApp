@@ -137,10 +137,42 @@ def hash_reset_token(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 
+TEMP_PASSWORD_TTL_HOURS = 24
+# No 0/O, 1/l/I, so it's easy to read from an email and type on a phone.
+_TEMP_ALPHABET = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+
+
+def new_temp_password(user_id: int) -> str:
+    """xxxx-xxxx-xxxx-xxxx: 16 random characters (~92 bits). Only its scrypt hash is kept."""
+    from datetime import datetime, timedelta
+
+    raw = "".join(secrets.choice(_TEMP_ALPHABET) for _ in range(16))
+    temp = "-".join(raw[i:i + 4] for i in range(0, 16, 4))
+    expires = (datetime.now() + timedelta(hours=TEMP_PASSWORD_TTL_HOURS)).isoformat(timespec="seconds")
+    db.set_temp_password(user_id, hash_password(temp), expires)
+    return temp
+
+
+def temp_password_matches(user: dict, password: str) -> bool:
+    from datetime import datetime
+
+    h, exp = user.get("temp_password_hash"), user.get("temp_password_expires")
+    if not h or not exp or exp < datetime.now().isoformat(timespec="seconds"):
+        return False
+    return verify_password(password.strip(), h)
+
+
+# While an intern still owes a new password (they signed in with an emailed temporary one),
+# these are the only endpoints that work for them.
+FORCED_CHANGE_ALLOWED = {"/api/me", "/api/me/new-password"}
+
+
 def require_user(request: Request) -> dict:
     """Interns, or the admin (who can see everything an intern sees)."""
     user = current_user(request)
     if user:
+        if user.get("must_change_password") and request.url.path not in FORCED_CHANGE_ALLOWED:
+            raise HTTPException(403, "password_change_required")
         return user
     if is_admin(request):
         return {"id": 0, "first_name": config.ADMIN_NAME.split()[0],

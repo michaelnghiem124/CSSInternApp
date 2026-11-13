@@ -185,9 +185,11 @@ def _public_user(u: dict, include_private: bool = False) -> dict:
             "interests", "hobbies", "goals", "fun_fact", "linkedin_url", "share_with_cohort",
             "created_at"]
     if include_private:
-        keep += ["phone", "last_login", "updated_at"]
+        keep += ["phone", "last_login", "updated_at", "must_change_password"]
     d = {k: u.get(k) for k in keep}
     d["share_with_cohort"] = bool(d["share_with_cohort"])
+    if "must_change_password" in d:
+        d["must_change_password"] = bool(d["must_change_password"])
     # Cache-busting URL; the endpoint itself checks the viewer is signed in.
     d["photo_url"] = (f"/api/users/{u['id']}/photo?v={u['photo_updated']}"
                       if u.get("photo_updated") else "")
@@ -220,13 +222,23 @@ def login(body: LoginBody, request: Request, response: Response):
         raise HTTPException(429, "Too many attempts. Wait a minute.")
     u = db.get_user_by_email(body.email.strip().lower())
     ok = auth.verify_password(body.password, u["password_hash"] if u else auth._DUMMY_HASH)
+    used_temp = False
+    if u and not ok and auth.temp_password_matches(u, body.password):
+        ok = used_temp = True
     if not (u and ok):
         db.log_safety(_ip(request), "login_failed", body.email[:80])
         raise HTTPException(401, "Email or password is incorrect.")
+    if used_temp:
+        db.consume_temp_password(u["id"])  # single use; must_change_password = 1
+        db.log_safety(_ip(request), "temp_password_used", f"user {u['id']}")
+    elif u.get("temp_password_hash"):
+        db.clear_temp_password(u["id"])  # they remembered the real one
     db.touch_login(u["id"])
+    u = db.get_user(u["id"])
     auth.set_cookie(response, request, auth.USER_COOKIE, auth.user_cookie_value(u),
                     auth.USER_SESSION_SECONDS)
-    return {"user": _public_user(u, include_private=True)}
+    return {"user": _public_user(u, include_private=True),
+            "must_change_password": bool(u["must_change_password"])}
 
 
 # ---------------------------------------------------------------------------
@@ -263,16 +275,18 @@ def forgot_password(body: ForgotBody, request: Request):
     if not forgot_limiter.allow(_ip(request)):
         raise HTTPException(429, "Too many requests. Wait a minute.")
     u = db.get_user_by_email(body.email.strip().lower())
-    emailed = False
     if u:
-        db.add_reset_request(u["id"])
+        emailed = False
         if mailer.enabled():
-            token = auth.new_reset_token(u["id"], "email")
-            emailed = mailer.send_reset_email(u["slack_email"], u["first_name"],
-                                              _reset_link(request, token), auth.RESET_TTL_HOURS)
-            if emailed:
-                db.resolve_reset_requests(u["id"])
-        db.log_safety(_ip(request), "reset_requested", f"user {u['id']}")
+            temp = auth.new_temp_password(u["id"])
+            emailed = mailer.send_temp_password_email(
+                u["slack_email"], u["first_name"], temp, auth.TEMP_PASSWORD_TTL_HOURS,
+                str(request.base_url).rstrip("/"))
+        if not emailed:
+            # No email set up (or sending failed): the Chair sees it on the Admin page.
+            db.add_reset_request(u["id"])
+        db.log_safety(_ip(request), "reset_requested",
+                      f"user {u['id']} ({'temp password emailed' if emailed else 'admin queue'})")
     return {"ok": True, "email_enabled": mailer.enabled()}
 
 
@@ -305,6 +319,27 @@ def reset_password(body: ResetBody, request: Request, response: Response):
     db.log_safety(_ip(request), "password_reset", f"user {u['id']}")
     response.delete_cookie(auth.USER_COOKIE)
     return {"ok": True, "email": u["slack_email"]}
+
+
+class NewPasswordBody(BaseModel):
+    new_password: str = Field(max_length=200)
+
+
+@app.post("/api/me/new-password")
+def forced_new_password(body: NewPasswordBody, request: Request, response: Response,
+                        user: Annotated[dict, Depends(auth.require_user)]):
+    """Only for an intern who just signed in with an emailed temporary password."""
+    if user.get("is_admin_view") or not user.get("must_change_password"):
+        raise HTTPException(400, "Use Change password in Edit my profile instead.")
+    auth.check_password_strength(body.new_password, user["slack_email"])
+    if auth.verify_password(body.new_password, user["password_hash"]):
+        raise HTTPException(400, "Choose a password you haven't used here before.")
+    db.set_password(user["id"], auth.hash_password(body.new_password))
+    db.resolve_reset_requests(user["id"])
+    fresh = db.get_user(user["id"])
+    auth.set_cookie(response, request, auth.USER_COOKIE, auth.user_cookie_value(fresh),
+                    auth.USER_SESSION_SECONDS)
+    return {"ok": True}
 
 
 @app.post("/api/me/password")

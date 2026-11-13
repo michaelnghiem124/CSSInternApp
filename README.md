@@ -55,13 +55,29 @@ The whole site sits behind a sign-in. Only the sign-in/register screen is public
 
 **Passwords:** at least 12 characters. Interns can change theirs under **Cohort → Edit my profile**; this requires the current password and signs out their other devices.
 
-**Forgotten passwords:**
-1. On the sign-in screen the intern chooses **Forgot your password?** and enters their email. The response is the same whether or not the account exists.
-2. The request appears in a **Password reset requests** banner on the Admin page. The admin clicks **Create reset link** there, or from any intern's profile, and sends the link on Slack.
-3. The link works **once** and expires after **24 hours**. Making a new link cancels older ones.
-4. Opening it lets the intern choose a new password, which also **signs out every device** they were signed in on. Only a SHA-256 hash of each link token is stored, and the token travels in the URL fragment, so it never reaches server logs.
+**Forgotten passwords:** the intern chooses **Forgot your password?** and enters their email. The response is the same whether or not the account exists. What happens next depends on whether email is set up.
 
-**Optional email delivery:** set `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, and `SMTP_FROM` in `.env`, and the link is emailed to the intern automatically.
+- **With email set up (recommended).** A **temporary password**, 16 random characters such as `MXh6-AYjX-JERu-Qzev`, is emailed to the registered address.
+  - It works **once** and expires after **24 hours**.
+  - Signing in with it opens a **Set a new password** screen. Every other page and API call is blocked until a new 12+ character password is saved, and the new password can't be the old one.
+  - The intern's **old password keeps working until the temporary one is used**, so nobody can lock an intern out by requesting resets for their email. Signing in with the old password cancels the temporary one.
+  - Only a scrypt hash of the temporary password is stored.
+- **Without email, or if sending fails.** The request appears in a **Password reset requests** banner on the Admin page. The admin clicks **Create reset link** and sends the one-time link (24 hours) on Slack. Only a SHA-256 hash of the link token is stored, and the token travels in the URL fragment, so it never reaches server logs.
+
+Either way, setting the new password **signs out every other device**.
+
+**Setting up email (Gmail example):**
+1. Turn on 2-Step Verification for the Google account that will send the email.
+2. Create an **App password** at myaccount.google.com → Security → App passwords.
+3. Add these lines to `.env`, then restart the server:
+
+```
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=the-account@gmail.com
+SMTP_PASSWORD=the-16-character-app-password
+SMTP_FROM=CSS Intern Hub <the-account@gmail.com>
+```
 
 **Testing from a fresh clone:** run the setup script to create your own admin login. Sign in as admin to see every tab and the access code, then register a test intern with that code.
 
