@@ -146,6 +146,10 @@ RUN_TOTAL_TOKEN_LIMIT = _int("RUN_TOTAL_TOKEN_LIMIT", 120_000)
 # ---------------------------------------------------------------------------
 ADMIN_NAME = os.environ.get("ADMIN_NAME", "Michael Nghiem")
 ADMIN_TITLE = os.environ.get("ADMIN_TITLE", "Chair, Intern Cyber Security Program")
+# The address interns use to reach the site, shown in emails. Set it once deployed
+# (e.g. https://intern-hub.onrender.com); otherwise the address of the current request is used.
+PUBLIC_URL = os.environ.get("PUBLIC_URL", "").strip().rstrip("/")
+
 # Written by scripts/set_admin_password.py. No default: admin sign-in is off until set.
 ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "").strip()
 ADMIN_PASSWORD_HASH = os.environ.get("ADMIN_PASSWORD_HASH", "").strip()

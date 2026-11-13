@@ -66,6 +66,11 @@ The whole site sits behind a sign-in. Only the sign-in/register screen is public
 
 Either way, setting the new password **signs out every other device**.
 
+**The email itself** is branded so interns can tell it's genuine. It uses the Summit's navy header and logo, greets the intern by first name, names the account it was sent to and the Program Chair, shows the sign-in address as plain text, and closes with a "didn't ask for this?" note. A plain-text version is included for mail clients that don't show HTML.
+
+- **Logo in every client:** save the Summit's logo as `frontend/img/css-logo.png` and it's embedded in each email. Without that file, the email loads the logo from cybersecuritysummit.org, and clients that block remote images still show the "CYBER SECURITY SUMMIT" header text.
+- **Real web address in emails:** once deployed, set `PUBLIC_URL=https://your-site` in `.env` so the email links to the real site instead of localhost.
+
 **Setting up email (Gmail example):**
 1. Turn on 2-Step Verification for the Google account that will send the email.
 2. Create an **App password** at myaccount.google.com → Security → App passwords.

@@ -265,7 +265,7 @@ class ChangePasswordBody(BaseModel):
 def _reset_link(request: Request, token: str) -> str:
     # The token rides in the URL fragment (#...), which browsers never send to the server,
     # so it doesn't land in access logs or Referer headers.
-    return f"{str(request.base_url).rstrip('/')}/#reset={token}"
+    return f"{config.PUBLIC_URL or str(request.base_url).rstrip('/')}/#reset={token}"
 
 
 @app.post("/api/auth/forgot")
@@ -281,7 +281,7 @@ def forgot_password(body: ForgotBody, request: Request):
             temp = auth.new_temp_password(u["id"])
             emailed = mailer.send_temp_password_email(
                 u["slack_email"], u["first_name"], temp, auth.TEMP_PASSWORD_TTL_HOURS,
-                str(request.base_url).rstrip("/"))
+                config.PUBLIC_URL or str(request.base_url).rstrip("/"))
         if not emailed:
             # No email set up (or sending failed): the Chair sees it on the Admin page.
             db.add_reset_request(u["id"])
