@@ -39,14 +39,12 @@ Open <http://localhost:8000>.
 
 The whole site sits behind a sign-in. Only the sign-in/register screen is public.
 
-- **Interns** choose **Register** and enter the **program access code**, which the admin sees and can rotate on the Admin page. Registration asks for:
-  - first and last name, cell phone, Slack email (used to sign in), city and state
-  - school (optional)
-  - interests, hobbies, and goals for the program
-  - a password
+- **Interns** choose **Register** and enter the **program access code**, which the admin sees and can rotate on the Admin page.
+  - **Required:** first name, last name, cell phone, preferred email (used to sign in), city, state, and a password.
+  - **Optional:** profile photo, school or current employer, LinkedIn profile, interests, hobbies, what they want from the program, and one fun fact.
 
-  The matchmaker uses the interests, hobbies, and goals straight away; a resume is optional.
-- **Cohort tab:** interns who opt in see each other's name, location, school, Slack email, interests, hobbies, and goals. **Phone numbers are visible only to the admin.**
+  Photos are re-encoded server-side to a 480×480 JPEG, which strips EXIF data such as GPS location, and they're served only to signed-in users. The matchmaker uses the interests, hobbies, and goals straight away; a resume is optional.
+- **Cohort tab:** interns who opt in see each other's photo, name, location, school or employer, email, LinkedIn, interests, hobbies, goals, and fun fact. **Phone numbers are visible only to the admin.**
 - **Admin (Program Chair):** one account. Set it once:
 
   ```bash

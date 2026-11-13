@@ -61,10 +61,12 @@ def _profile_from_registration(user: dict) -> agents.InternProfile | None:
     return agents.InternProfile(
         first_name=user["first_name"], school=user.get("school", ""),
         interests=split(user["interests"]), hobbies=split(user["hobbies"]),
-        background=[f"From {user['city']}, {user['state']}"],
+        background=[f"From {user['city']}, {user['state']}"]
+                   + ([f"School or employer: {user['school']}"] if user.get("school") else [])
+                   + ([f"Fun fact: {user['fun_fact']}"] if user.get("fun_fact") else []),
         career_goal=(user["goals"] or "")[:300],
         summary=f"{user['first_name']} is a Cyber Security Summit intern from {user['city']}, "
-                f"{user['state']}. Goals for the program: {(user['goals'] or 'not stated')[:300]}",
+                f"{user['state']}. Goals for the program: {(user['goals'] or 'not stated yet')[:300]}",
     )
 
 
@@ -107,16 +109,40 @@ class ProfileFields(BaseModel):
     slack_email: EmailStr
     city: str = Field(min_length=1, max_length=80)
     state: str
-    school: str = Field("", max_length=120)
-    interests: str = Field(min_length=2, max_length=1000)
+    school: str = Field("", max_length=120, description="School or current employer.")
+    interests: str = Field("", max_length=1000)
     hobbies: str = Field("", max_length=1000)
-    goals: str = Field(min_length=2, max_length=1500)
+    goals: str = Field("", max_length=1500)
+    fun_fact: str = Field("", max_length=300)
+    linkedin_url: str = Field("", max_length=200)
     share_with_cohort: bool = True
 
-    @field_validator("first_name", "last_name", "city", "school", "interests", "hobbies", "goals")
+    @field_validator("first_name", "last_name", "city", "school", "interests", "hobbies", "goals",
+                     "fun_fact")
     @classmethod
     def trim(cls, v: str) -> str:
         return v.strip()
+
+    @field_validator("first_name", "last_name", "city")
+    @classmethod
+    def not_blank(cls, v: str) -> str:
+        if not v:
+            raise ValueError("This field is required.")
+        return v
+
+    @field_validator("linkedin_url")
+    @classmethod
+    def linkedin(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            return ""
+        if not v.startswith(("http://", "https://")):
+            v = "https://" + v
+        m = re.match(r"^https?://([a-z]{2,3}\.)?(www\.)?linkedin\.com/(in|pub)/[A-Za-z0-9\-_%.]+/?$", v,
+                     re.IGNORECASE)
+        if not m:
+            raise ValueError("Use your LinkedIn profile link, like linkedin.com/in/your-name.")
+        return re.sub(r"^http://", "https://", v)
 
     @field_validator("phone")
     @classmethod
@@ -156,11 +182,15 @@ class AdminLoginBody(BaseModel):
 
 def _public_user(u: dict, include_private: bool = False) -> dict:
     keep = ["id", "first_name", "last_name", "slack_email", "city", "state", "school",
-            "interests", "hobbies", "goals", "share_with_cohort", "created_at"]
+            "interests", "hobbies", "goals", "fun_fact", "linkedin_url", "share_with_cohort",
+            "created_at"]
     if include_private:
         keep += ["phone", "last_login", "updated_at"]
     d = {k: u.get(k) for k in keep}
     d["share_with_cohort"] = bool(d["share_with_cohort"])
+    # Cache-busting URL; the endpoint itself checks the viewer is signed in.
+    d["photo_url"] = (f"/api/users/{u['id']}/photo?v={u['photo_updated']}"
+                      if u.get("photo_updated") else "")
     return d
 
 
@@ -225,6 +255,62 @@ def update_me(body: ProfileFields, request: Request,
     db.update_user(user["id"], {**body.model_dump(), "slack_email": email})
     STATES.pop(safety.hash_session(f"user:{user['id']}"), None)  # matchmaker re-reads it
     return {"user": _public_user(db.get_user(user["id"]), include_private=True)}
+
+
+PHOTO_MAX_BYTES = 5_000_000
+PHOTO_SIZE = 480
+
+
+def _process_photo(data: bytes) -> bytes:
+    """Re-encode as a square JPEG. Re-encoding drops EXIF (including GPS location) and
+    anything that isn't really an image."""
+    from PIL import Image, ImageOps, UnidentifiedImageError
+
+    Image.MAX_IMAGE_PIXELS = 40_000_000
+    try:
+        img = Image.open(io.BytesIO(data))
+        if img.format not in ("JPEG", "PNG", "WEBP", "MPO", "HEIF", "GIF"):
+            raise HTTPException(400, "Upload a JPG, PNG, or WEBP photo.")
+        img = ImageOps.exif_transpose(img).convert("RGB")
+    except (UnidentifiedImageError, OSError, Image.DecompressionBombError):
+        raise HTTPException(400, "That file isn't a photo we can read. Try a JPG or PNG.")
+    img = ImageOps.fit(img, (PHOTO_SIZE, PHOTO_SIZE), Image.Resampling.LANCZOS)
+    out = io.BytesIO()
+    img.save(out, "JPEG", quality=85, optimize=True)
+    return out.getvalue()
+
+
+@app.post("/api/me/photo")
+async def upload_photo(user: Annotated[dict, Depends(auth.require_user)],
+                       file: Annotated[UploadFile, File()]):
+    if user.get("is_admin_view"):
+        raise HTTPException(400, "The admin account has no intern profile.")
+    data = await file.read(PHOTO_MAX_BYTES + 1)
+    if len(data) > PHOTO_MAX_BYTES:
+        raise HTTPException(400, "That photo is over 5 MB.")
+    db.set_photo(user["id"], _process_photo(data))
+    return {"user": _public_user(db.get_user(user["id"]), include_private=True)}
+
+
+@app.delete("/api/me/photo")
+def delete_photo(user: Annotated[dict, Depends(auth.require_user)]):
+    if not user.get("is_admin_view"):
+        db.set_photo(user["id"], None)
+    return {"ok": True}
+
+
+@app.get("/api/users/{user_id}/photo")
+def user_photo(user_id: int, request: Request, viewer: Annotated[dict, Depends(auth.require_user)]):
+    u = db.get_user(user_id)
+    # Other interns only see photos of people who share with the cohort; the admin and the
+    # owner always can.
+    allowed = u and (u["share_with_cohort"] or viewer.get("id") == user_id
+                     or viewer.get("is_admin_view") or auth.is_admin(request))
+    data = db.get_photo(user_id) if allowed else None
+    if not data:
+        raise HTTPException(404, "No photo.")
+    return RawResponse(data, media_type="image/jpeg",
+                       headers={"Cache-Control": "private, max-age=86400"})
 
 
 @app.get("/api/cohort")
@@ -651,10 +737,12 @@ def admin_delete_intern(user_id: int):
 @app.get("/api/admin/interns.csv", dependencies=[Depends(auth.require_admin)])
 def admin_interns_csv():
     cols = ["first_name", "last_name", "phone", "slack_email", "city", "state", "school",
-            "interests", "hobbies", "goals", "share_with_cohort", "created_at", "last_login"]
+            "interests", "hobbies", "goals", "fun_fact", "linkedin_url", "share_with_cohort",
+            "created_at", "last_login"]
     buf = io.StringIO()
     w = csv.writer(buf)
-    w.writerow(cols)
+    w.writerow([c.replace("slack_email", "preferred_email").replace("school", "school_or_employer")
+                for c in cols])
     for u in db.list_users():
         # Neutralize spreadsheet formulas in user-typed fields (CSV injection).
         w.writerow([("'" + str(u[c])) if str(u[c] or "").startswith(("=", "+", "-", "@"))

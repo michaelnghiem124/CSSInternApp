@@ -50,27 +50,35 @@
         </div>
 
         <form id="login-form-intern" data-pane="login">
-          <label>Slack email<input type="email" id="li-email" autocomplete="username" required></label>
+          <label>Preferred email<input type="email" id="li-email" autocomplete="username" required></label>
           <label>Password<input type="password" id="li-pw" autocomplete="current-password" required></label>
           <button class="btn primary wide" type="submit">Sign in</button>
           <p class="fine">New intern? Choose <a href="#" data-goto="register">Register</a> and use the access code from the Program Chair.</p>
         </form>
 
         <form id="register-form" data-pane="register" class="form-grid" hidden>
-          <label class="span2">Program access code<input id="rg-code" required autocomplete="off" placeholder="From the Program Chair"></label>
-          <label>First name<input id="rg-first" required maxlength="60" autocomplete="given-name"></label>
-          <label>Last name<input id="rg-last" required maxlength="60" autocomplete="family-name"></label>
-          <label>Cell phone<input id="rg-phone" type="tel" required maxlength="30" autocomplete="tel" placeholder="(612) 555-0123"></label>
-          <label>Slack email<input id="rg-email" type="email" required autocomplete="email" placeholder="Used to sign in"></label>
-          <label>City<input id="rg-city" required maxlength="80" autocomplete="address-level2"></label>
-          <label>State<select id="rg-state" required><option value="">Choose…</option></select></label>
-          <label class="span2">School <small class="muted">optional</small><input id="rg-school" maxlength="120"></label>
-          <label class="span2">Interests <small class="muted">cyber topics, career paths, sectors</small><textarea id="rg-interests" rows="2" required maxlength="1000" placeholder="e.g. incident response, cyber policy, healthcare security"></textarea></label>
+          <label class="span2">Program access code <span class="req">*</span><input id="rg-code" required autocomplete="off" placeholder="From the Program Chair"></label>
+          <div class="span2 photo-pick">
+            <label class="photo-drop" for="rg-photo"><img id="rg-photo-preview" alt="" hidden><span id="rg-photo-ph">📷</span></label>
+            <div><strong>Profile photo</strong> <small class="muted">optional · JPG or PNG</small><br>
+              <input type="file" id="rg-photo" accept="image/jpeg,image/png,image/webp,image/heic"></div>
+          </div>
+          <label>First name <span class="req">*</span><input id="rg-first" required maxlength="60" autocomplete="given-name"></label>
+          <label>Last name <span class="req">*</span><input id="rg-last" required maxlength="60" autocomplete="family-name"></label>
+          <label>Cell phone <span class="req">*</span><input id="rg-phone" type="tel" required maxlength="30" autocomplete="tel" placeholder="(612) 555-0123"></label>
+          <label>Preferred email <span class="req">*</span><input id="rg-email" type="email" required autocomplete="email" placeholder="You'll sign in with this"></label>
+          <label>City <span class="req">*</span><input id="rg-city" required maxlength="80" autocomplete="address-level2"></label>
+          <label>State <span class="req">*</span><select id="rg-state" required><option value="">Choose…</option></select></label>
+          <div class="span2 optional-head">Optional, but it helps the matchmaker and your cohort get to know you</div>
+          <label class="span2">School or current employer<input id="rg-school" maxlength="120"></label>
+          <label class="span2">LinkedIn profile<input id="rg-linkedin" maxlength="200" placeholder="linkedin.com/in/your-name"></label>
+          <label class="span2">Interests <small class="muted">cyber topics, career paths, sectors</small><textarea id="rg-interests" rows="2" maxlength="1000" placeholder="e.g. incident response, cyber policy, healthcare security"></textarea></label>
           <label class="span2">Hobbies<textarea id="rg-hobbies" rows="2" maxlength="1000" placeholder="e.g. hockey, cooking, volunteering"></textarea></label>
-          <label class="span2">What do you want to get out of the intern program?<textarea id="rg-goals" rows="3" required maxlength="1500"></textarea></label>
-          <label>Password<input type="password" id="rg-pw" required minlength="8" autocomplete="new-password" placeholder="8+ characters"></label>
-          <label>Confirm password<input type="password" id="rg-pw2" required minlength="8" autocomplete="new-password"></label>
-          <label class="check span2"><input type="checkbox" id="rg-share" checked> Show my profile to other interns (name, city, Slack email, school, interests, hobbies, goals). Your phone number is only visible to the Program Chair.</label>
+          <label class="span2">What do you want to get out of the intern program?<textarea id="rg-goals" rows="3" maxlength="1500"></textarea></label>
+          <label class="span2">One fun fact about me<input id="rg-fun" maxlength="300" placeholder="e.g. I've visited 30 national parks"></label>
+          <label>Password <span class="req">*</span><input type="password" id="rg-pw" required minlength="8" autocomplete="new-password" placeholder="8+ characters"></label>
+          <label>Confirm password <span class="req">*</span><input type="password" id="rg-pw2" required minlength="8" autocomplete="new-password"></label>
+          <label class="check span2"><input type="checkbox" id="rg-share" checked> Show my profile to other interns (photo, name, city, email, school or employer, LinkedIn, interests, hobbies, goals, fun fact). Your phone number is only visible to the Program Chair.</label>
           <div class="span2"><button class="btn primary wide" type="submit">Create my account</button></div>
         </form>
 
@@ -174,7 +182,7 @@
       <div class="section-head">
         <div>
           <h1>Your intern cohort</h1>
-          <p class="muted">Interns who chose to share their profile. Reach out on Slack.</p>
+          <p class="muted">Interns who chose to share their profile. Say hi on Slack or LinkedIn.</p>
         </div>
         <div class="head-actions"><button class="btn" type="button" id="edit-me-btn">Edit my profile</button></div>
       </div>
@@ -279,16 +287,23 @@
     <div style="padding:26px">
       <h2>My profile</h2>
       <form id="me-form" class="form-grid">
-        <label>First name<input id="me-first" required maxlength="60"></label>
-        <label>Last name<input id="me-last" required maxlength="60"></label>
-        <label>Cell phone<input id="me-phone" type="tel" required maxlength="30"></label>
-        <label>Slack email<input id="me-email" type="email" required></label>
-        <label>City<input id="me-city" required maxlength="80"></label>
-        <label>State<select id="me-state" required></select></label>
-        <label class="span2">School<input id="me-school" maxlength="120"></label>
-        <label class="span2">Interests<textarea id="me-interests" rows="2" required maxlength="1000"></textarea></label>
+        <div class="span2 photo-pick">
+          <label class="photo-drop" for="me-photo"><img id="me-photo-preview" alt="" hidden><span id="me-photo-ph">📷</span></label>
+          <div><strong>Profile photo</strong><br><input type="file" id="me-photo" accept="image/jpeg,image/png,image/webp,image/heic">
+            <button class="btn small ghost" type="button" id="me-photo-remove" hidden>Remove photo</button></div>
+        </div>
+        <label>First name <span class="req">*</span><input id="me-first" required maxlength="60"></label>
+        <label>Last name <span class="req">*</span><input id="me-last" required maxlength="60"></label>
+        <label>Cell phone <span class="req">*</span><input id="me-phone" type="tel" required maxlength="30"></label>
+        <label>Preferred email <span class="req">*</span><input id="me-email" type="email" required></label>
+        <label>City <span class="req">*</span><input id="me-city" required maxlength="80"></label>
+        <label>State <span class="req">*</span><select id="me-state" required></select></label>
+        <label class="span2">School or current employer<input id="me-school" maxlength="120"></label>
+        <label class="span2">LinkedIn profile<input id="me-linkedin" maxlength="200" placeholder="linkedin.com/in/your-name"></label>
+        <label class="span2">Interests<textarea id="me-interests" rows="2" maxlength="1000"></textarea></label>
         <label class="span2">Hobbies<textarea id="me-hobbies" rows="2" maxlength="1000"></textarea></label>
-        <label class="span2">What I want from the program<textarea id="me-goals" rows="3" required maxlength="1500"></textarea></label>
+        <label class="span2">What I want from the program<textarea id="me-goals" rows="3" maxlength="1500"></textarea></label>
+        <label class="span2">One fun fact about me<input id="me-fun" maxlength="300"></label>
         <label class="check span2"><input type="checkbox" id="me-share"> Show my profile to other interns (never my phone number)</label>
         <div class="span2 form-actions"><button class="btn primary" type="submit">Save</button><span class="error" id="me-error" hidden></span></div>
       </form>

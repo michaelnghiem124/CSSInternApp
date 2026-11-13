@@ -73,6 +73,10 @@ CREATE TABLE IF NOT EXISTS users (
     interests TEXT NOT NULL DEFAULT '',
     hobbies TEXT NOT NULL DEFAULT '',
     goals TEXT NOT NULL DEFAULT '',
+    fun_fact TEXT NOT NULL DEFAULT '',
+    linkedin_url TEXT NOT NULL DEFAULT '',
+    photo BLOB,
+    photo_updated TEXT,
     share_with_cohort INTEGER NOT NULL DEFAULT 1,
     password_hash TEXT NOT NULL,
     created_at TEXT NOT NULL,
@@ -110,9 +114,29 @@ def conn() -> Iterator[sqlite3.Connection]:
         c.close()
 
 
+# Columns added after v1. CREATE TABLE IF NOT EXISTS won't add them to an existing table.
+MIGRATIONS = {
+    "users": {
+        "fun_fact": "TEXT NOT NULL DEFAULT ''",
+        "linkedin_url": "TEXT NOT NULL DEFAULT ''",
+        "photo": "BLOB",
+        "photo_updated": "TEXT",
+    },
+}
+
+
+def _migrate(c: sqlite3.Connection) -> None:
+    for table, cols in MIGRATIONS.items():
+        have = {r[1] for r in c.execute(f"PRAGMA table_info({table})")}
+        for name, decl in cols.items():
+            if name not in have:
+                c.execute(f"ALTER TABLE {table} ADD COLUMN {name} {decl}")
+
+
 def init() -> None:
     with conn() as c:
         c.executescript(SCHEMA)
+        _migrate(c)
         if c.execute("SELECT COUNT(*) FROM events").fetchone()[0] == 0:
             _seed_samples(c)
 
@@ -254,7 +278,11 @@ def archive_announcement(ann_id: int) -> bool:
 # Intern accounts
 # ---------------------------------------------------------------------------
 USER_FIELDS = ("first_name", "last_name", "phone", "slack_email", "city", "state", "school",
-               "interests", "hobbies", "goals", "share_with_cohort")
+               "interests", "hobbies", "goals", "fun_fact", "linkedin_url", "share_with_cohort")
+# Everything except the photo bytes and password hash, for list/detail queries.
+_USER_COLS = ("id, first_name, last_name, phone, slack_email, city, state, school, interests, "
+              "hobbies, goals, fun_fact, linkedin_url, share_with_cohort, created_at, updated_at, "
+              "last_login, photo_updated, password_hash")
 
 
 def create_user(data: dict[str, Any], password_hash: str) -> int:
@@ -278,13 +306,13 @@ def update_user(user_id: int, data: dict[str, Any]) -> None:
 
 def get_user(user_id: int) -> dict[str, Any] | None:
     with conn() as c:
-        r = c.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+        r = c.execute(f"SELECT {_USER_COLS} FROM users WHERE id = ?", (user_id,)).fetchone()
     return dict(r) if r else None
 
 
 def get_user_by_email(email: str) -> dict[str, Any] | None:
     with conn() as c:
-        r = c.execute("SELECT * FROM users WHERE slack_email = ?", (email,)).fetchone()
+        r = c.execute(f"SELECT {_USER_COLS} FROM users WHERE slack_email = ?", (email,)).fetchone()
     return dict(r) if r else None
 
 
@@ -295,8 +323,20 @@ def touch_login(user_id: int) -> None:
 
 def list_users(cohort_only: bool = False) -> list[dict[str, Any]]:
     with conn() as c:
-        q = "SELECT * FROM users" + (" WHERE share_with_cohort = 1" if cohort_only else "")
+        q = f"SELECT {_USER_COLS} FROM users" + (" WHERE share_with_cohort = 1" if cohort_only else "")
         return [dict(r) for r in c.execute(q + " ORDER BY last_name COLLATE NOCASE, first_name")]
+
+
+def set_photo(user_id: int, data: bytes | None) -> None:
+    with conn() as c:
+        c.execute("UPDATE users SET photo = ?, photo_updated = ? WHERE id = ?",
+                  (data, _now() if data else None, user_id))
+
+
+def get_photo(user_id: int) -> bytes | None:
+    with conn() as c:
+        r = c.execute("SELECT photo FROM users WHERE id = ?", (user_id,)).fetchone()
+    return r[0] if r else None
 
 
 def delete_user(user_id: int) -> bool:

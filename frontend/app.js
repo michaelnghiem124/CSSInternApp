@@ -485,16 +485,43 @@
       access_code: $("#rg-code").value.trim(), first_name: $("#rg-first").value, last_name: $("#rg-last").value,
       phone: $("#rg-phone").value, slack_email: $("#rg-email").value, city: $("#rg-city").value, state: $("#rg-state").value,
       school: $("#rg-school").value, interests: $("#rg-interests").value, hobbies: $("#rg-hobbies").value,
-      goals: $("#rg-goals").value, share_with_cohort: $("#rg-share").checked, password: $("#rg-pw").value,
+      goals: $("#rg-goals").value, fun_fact: $("#rg-fun").value, linkedin_url: $("#rg-linkedin").value,
+      share_with_cohort: $("#rg-share").checked, password: $("#rg-pw").value,
     };
-    try { await api("/api/auth/register", { method: "POST", body }); location.hash = "#match"; location.reload(); }
-    catch (err) { gateError(err.message); }
+    try { await api("/api/auth/register", { method: "POST", body }); }
+    catch (err) { gateError(err.message); return; }
+    const photo = $("#rg-photo").files[0];
+    if (photo) {
+      try { await uploadPhoto(photo); }
+      catch (err) { alertLater(`Your account was created, but the photo didn't upload: ${err.message} You can add it from Cohort → Edit my profile.`); }
+    }
+    location.hash = "#match"; location.reload();
   });
   $("#signout-btn").addEventListener("click", async () => { await api("/api/auth/logout", { method: "POST" }); location.hash = ""; location.reload(); });
 
+  // ---------- photos ----------
+  function alertLater(msg) { try { sessionStorage.setItem("css_flash", msg); } catch { /* ignore */ } }
+  function previewPhoto(input, img, ph) {
+    input.addEventListener("change", () => {
+      const f = input.files[0];
+      if (!f) return;
+      if (f.size > 5e6) { toast("That photo is over 5 MB."); input.value = ""; return; }
+      img.src = URL.createObjectURL(f); img.hidden = false; ph.hidden = true;
+    });
+  }
+  previewPhoto($("#rg-photo"), $("#rg-photo-preview"), $("#rg-photo-ph"));
+  previewPhoto($("#me-photo"), $("#me-photo-preview"), $("#me-photo-ph"));
+  async function uploadPhoto(file) {
+    const fd = new FormData(); fd.append("file", file);
+    return (await api("/api/me/photo", { method: "POST", body: fd })).user;
+  }
+
   // ---------- cohort ----------
   let COHORT = [];
-  const initAvatar = (u) => `<span class="avatar init">${esc(((u.first_name || "")[0] || "") + ((u.last_name || "")[0] || ""))}</span>`;
+  const initAvatar = (u, cls = "") => u.photo_url
+    ? `<img class="avatar ${cls}" src="${esc(u.photo_url)}" alt="${esc(u.first_name)} ${esc(u.last_name)}" loading="lazy">`
+    : `<span class="avatar init ${cls}">${esc(((u.first_name || "")[0] || "") + ((u.last_name || "")[0] || ""))}</span>`;
+  const splitList = (t) => (t || "").split(/[,;\n]/).map((x) => x.trim()).filter(Boolean);
   async function loadCohort() {
     COHORT = await api("/api/cohort");
     renderCohort();
@@ -505,10 +532,11 @@
     $("#cohort-grid").innerHTML = list.map((u) => `<div class="person intern">
       <div class="top">${initAvatar(u)}<div><div class="name">${esc(u.first_name)} ${esc(u.last_name)}${ME && u.id === ME.id ? ' <span class="badge">You</span>' : ""}</div>
         <div class="loc">${esc(u.city)}, ${esc(u.state)}${u.school ? " · " + esc(u.school) : ""}</div></div></div>
-      <div><div class="lbl small muted">Interests</div><div class="chips">${u.interests.split(/[,;\n]/).filter((x) => x.trim()).slice(0, 6).map((x) => `<span class="chip accent">${esc(x.trim())}</span>`).join("")}</div></div>
-      ${u.hobbies ? `<div><div class="lbl small muted">Hobbies</div><div class="chips">${u.hobbies.split(/[,;\n]/).filter((x) => x.trim()).slice(0, 6).map((x) => `<span class="chip gold">${esc(x.trim())}</span>`).join("")}</div></div>` : ""}
-      <p class="goal"><strong>Wants to:</strong> ${esc(u.goals)}</p>
-      <a class="slack" href="mailto:${esc(u.slack_email)}">${esc(u.slack_email)}</a>
+      ${splitList(u.interests).length ? `<div><div class="lbl small muted">Interests</div><div class="chips">${splitList(u.interests).slice(0, 6).map((x) => `<span class="chip accent">${esc(x)}</span>`).join("")}</div></div>` : ""}
+      ${splitList(u.hobbies).length ? `<div><div class="lbl small muted">Hobbies</div><div class="chips">${splitList(u.hobbies).slice(0, 6).map((x) => `<span class="chip gold">${esc(x)}</span>`).join("")}</div></div>` : ""}
+      ${u.goals ? `<p class="goal"><strong>Wants to:</strong> ${esc(u.goals)}</p>` : ""}
+      ${u.fun_fact ? `<p class="fun">✨ ${esc(u.fun_fact)}</p>` : ""}
+      <div class="links"><a href="mailto:${esc(u.slack_email)}">✉ ${esc(u.slack_email)}</a>${u.linkedin_url ? `<a href="${esc(u.linkedin_url)}" target="_blank" rel="noopener">LinkedIn ↗</a>` : ""}</div>
     </div>`).join("") || `<div class="empty">${COHORT.length ? "No one matches that search." : "No interns have shared a profile yet."}</div>`;
   }
   $("#cohort-q").addEventListener("input", renderCohort);
@@ -516,8 +544,12 @@
   const meDialog = $("#me-dialog");
   $("#edit-me-btn").addEventListener("click", () => {
     if (!ME) { toast("The admin account has no intern profile."); return; }
-    const m = { first: "first_name", last: "last_name", phone: "phone", email: "slack_email", city: "city", state: "state", school: "school", interests: "interests", hobbies: "hobbies", goals: "goals" };
+    const m = { first: "first_name", last: "last_name", phone: "phone", email: "slack_email", city: "city", state: "state", school: "school", interests: "interests", hobbies: "hobbies", goals: "goals", fun: "fun_fact", linkedin: "linkedin_url" };
     Object.entries(m).forEach(([id, k]) => ($("#me-" + id).value = ME[k] || ""));
+    $("#me-photo").value = "";
+    $("#me-photo-preview").hidden = !ME.photo_url; $("#me-photo-ph").hidden = !!ME.photo_url;
+    if (ME.photo_url) $("#me-photo-preview").src = ME.photo_url;
+    $("#me-photo-remove").hidden = !ME.photo_url;
     $("#me-share").checked = ME.share_with_cohort; $("#me-error").hidden = true;
     meDialog.showModal();
   });
@@ -525,9 +557,18 @@
     e.preventDefault();
     const body = { first_name: $("#me-first").value, last_name: $("#me-last").value, phone: $("#me-phone").value, slack_email: $("#me-email").value,
       city: $("#me-city").value, state: $("#me-state").value, school: $("#me-school").value, interests: $("#me-interests").value,
-      hobbies: $("#me-hobbies").value, goals: $("#me-goals").value, share_with_cohort: $("#me-share").checked };
-    try { ME = (await api("/api/me", { method: "PUT", body })).user; meDialog.close(); toast("Profile saved"); $("#who-name").textContent = `${ME.first_name} ${ME.last_name}`; loadCohort(); }
+      hobbies: $("#me-hobbies").value, goals: $("#me-goals").value, fun_fact: $("#me-fun").value,
+      linkedin_url: $("#me-linkedin").value, share_with_cohort: $("#me-share").checked };
+    try {
+      ME = (await api("/api/me", { method: "PUT", body })).user;
+      if ($("#me-photo").files[0]) ME = await uploadPhoto($("#me-photo").files[0]);
+      meDialog.close(); toast("Profile saved"); $("#who-name").textContent = `${ME.first_name} ${ME.last_name}`; loadCohort(); }
     catch (err) { $("#me-error").textContent = err.message; $("#me-error").hidden = false; }
+  });
+  $("#me-photo-remove").addEventListener("click", async () => {
+    await api("/api/me/photo", { method: "DELETE" });
+    ME = (await api("/api/me")).user; $("#me-photo-preview").hidden = true; $("#me-photo-ph").hidden = false;
+    $("#me-photo-remove").hidden = true; toast("Photo removed"); loadCohort();
   });
   $$("#me-dialog .dialog-close, #intern-dialog .dialog-close").forEach((b) => b.addEventListener("click", () => b.closest("dialog").close()));
 
@@ -538,13 +579,14 @@
     const q = $("#intern-q").value.trim().toLowerCase();
     const list = INTERNS.filter((u) => !q || Object.values(u).join(" ").toLowerCase().includes(q));
     $("#intern-count").textContent = `· ${INTERNS.length} registered`;
-    $("#intern-table").innerHTML = `<thead><tr><th>Name</th><th>Location</th><th>Slack email</th><th>Phone</th><th>Interests</th><th>Joined</th><th></th></tr></thead><tbody>${
+    $("#intern-table").innerHTML = `<thead><tr><th></th><th>Name</th><th>Location</th><th>Email</th><th>Phone</th><th>Interests</th><th>Joined</th><th></th></tr></thead><tbody>${
       list.map((u) => `<tr class="clickable" data-intern="${u.id}">
+        <td>${initAvatar(u, "sm")}</td>
         <td><strong>${esc(u.first_name)} ${esc(u.last_name)}</strong>${u.school ? `<br><span class="muted small">${esc(u.school)}</span>` : ""}</td>
         <td>${esc(u.city)}, ${esc(u.state)}</td><td>${esc(u.slack_email)}</td><td style="white-space:nowrap">${esc(u.phone)}</td>
         <td>${esc(u.interests.slice(0, 90))}${u.interests.length > 90 ? "…" : ""}</td>
         <td style="white-space:nowrap">${esc((u.created_at || "").slice(0, 10))}</td>
-        <td><button class="btn small" type="button" data-view="${u.id}">View</button></td></tr>`).join("") || `<tr><td colspan="7" class="muted">${INTERNS.length ? "No match." : "No interns have registered yet. Share the access code above."}</td></tr>`}</tbody>`;
+        <td><button class="btn small" type="button" data-view="${u.id}">View</button></td></tr>`).join("") || `<tr><td colspan="8" class="muted">${INTERNS.length ? "No match." : "No interns have registered yet. Share the access code above."}</td></tr>`}</tbody>`;
   }
   $("#intern-q").addEventListener("input", renderInterns);
   $("#intern-table").addEventListener("click", (e) => {
@@ -552,8 +594,10 @@
     const u = INTERNS.find((x) => x.id == row.dataset.intern);
     const row_ = (k, v) => `<dt>${k}</dt><dd>${esc(v || "—")}</dd>`;
     $("#intern-body").innerHTML = `<div class="intern-detail">
-      <div class="pd-head">${initAvatar(u)}<div><h2>${esc(u.first_name)} ${esc(u.last_name)}</h2><div class="muted">${esc(u.city)}, ${esc(u.state)}</div></div></div>
-      <dl>${row_("Cell phone", u.phone)}${row_("Slack email", u.slack_email)}${row_("School", u.school)}${row_("Interests", u.interests)}${row_("Hobbies", u.hobbies)}${row_("Program goals", u.goals)}
+      <div class="pd-head">${u.photo_url ? `<img class="photo-lg" src="${esc(u.photo_url)}" alt="">` : initAvatar(u, "lg")}<div><h2>${esc(u.first_name)} ${esc(u.last_name)}</h2><div class="muted">${esc(u.city)}, ${esc(u.state)}</div></div></div>
+      <dl>${row_("Cell phone", u.phone)}${row_("Preferred email", u.slack_email)}${row_("School / employer", u.school)}
+      <dt>LinkedIn</dt><dd>${u.linkedin_url ? `<a href="${esc(u.linkedin_url)}" target="_blank" rel="noopener">${esc(u.linkedin_url.replace(/^https:\/\/(www\.)?/, ""))}</a>` : "—"}</dd>
+      ${row_("Interests", u.interests)}${row_("Hobbies", u.hobbies)}${row_("Program goals", u.goals)}${row_("Fun fact", u.fun_fact)}
       ${row_("Shares with cohort", u.share_with_cohort ? "Yes" : "No")}${row_("Registered", (u.created_at || "").replace("T", " "))}${row_("Last sign-in", (u.last_login || "").replace("T", " "))}</dl>
       <div class="event-actions"><a class="btn" href="tel:${esc(u.phone)}">Call</a><a class="btn" href="mailto:${esc(u.slack_email)}">Email</a>
       <button class="btn danger" type="button" id="del-intern">Delete account</button></div></div>`;
@@ -586,6 +630,7 @@
     PEOPLE = await api("/api/people");
     PEOPLE.forEach((p) => (PEOPLE_BY_SLUG[p.slug] = p));
     greet();
+    try { const f = sessionStorage.getItem("css_flash"); if (f) { sessionStorage.removeItem("css_flash"); setTimeout(() => toast(f), 600); } } catch { /* ignore */ }
     const st = await api("/api/chat/state");
     if (st.profile) renderProfile(st.profile);
     showTab();

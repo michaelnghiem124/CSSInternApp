@@ -329,3 +329,16 @@ h3.sub { font-size: .85rem; margin: 18px 0 8px; color: var(--navy-2); }
 .dialog.confirm h2 { font-size: 1.15rem; }
 .btn.danger-fill { background: var(--danger); border-color: var(--danger); color: #fff; }
 .btn.danger-fill:hover { background: #a93226; border-color: #a93226; }
+
+/* ---------- profile fields + photos ---------- */
+.req { color: var(--danger); }
+.optional-head { margin: 18px 0 0; padding-top: 12px; border-top: 1px solid var(--line); font-size: .8rem; color: var(--muted); font-weight: 600; }
+.photo-pick { display: flex; gap: 14px; align-items: center; margin-top: 12px; font-size: .88rem; }
+.photo-pick input[type=file] { border: 0; padding: 6px 0 0; font-size: .82rem; }
+.photo-drop { width: 72px; height: 72px; border-radius: 50%; background: #eef2f7; border: 2px dashed #b9c6d8; display: grid; place-items: center; overflow: hidden; cursor: pointer; margin: 0; flex: none; font-size: 1.5rem; }
+.photo-drop img { width: 100%; height: 100%; object-fit: cover; }
+img.avatar { object-fit: cover; }
+.intern .fun { font-size: .84rem; background: #fde7fd; color: #6b0b6b; padding: 6px 10px; border-radius: 8px; margin: 0; }
+.intern .links { display: flex; gap: 12px; flex-wrap: wrap; margin-top: auto; }
+.intern .links a { font-size: .82rem; font-weight: 600; text-decoration: none; }
+.intern-detail .photo-lg { width: 96px; height: 96px; border-radius: 50%; object-fit: cover; }
