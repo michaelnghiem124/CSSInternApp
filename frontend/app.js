@@ -476,7 +476,7 @@
     e.preventDefault();
     try {
       const r = await api("/api/auth/login", { method: "POST", body: { email: $("#li-email").value, password: $("#li-pw").value } });
-      if (r.must_change_password) { showForceChange(); return; }
+      if (r.must_change_password) { setTempMode(false); showForceChange(r.user && r.user.slack_email); return; }
       location.hash = "#match"; location.reload();
     } catch (err) { gateError(err.message); }
   });
@@ -487,7 +487,7 @@
   });
   $("#register-form").addEventListener("submit", async (e) => {
     e.preventDefault();
-    if ($("#rg-pw").value !== $("#rg-pw2").value) { gateError("Passwords don't match."); return; }
+    if (!rulesPass("rg-pw")) { gateError(RULES_MSG); return; }
     const body = {
       access_code: $("#rg-code").value.trim(), first_name: $("#rg-first").value, last_name: $("#rg-last").value,
       phone: $("#rg-phone").value, slack_email: $("#rg-email").value, city: $("#rg-city").value, state: $("#rg-state").value,
@@ -504,6 +504,73 @@
     }
     location.hash = "#match"; location.reload();
   });
+  // ---------- password fields: show toggle + requirement checklist ----------
+  document.addEventListener("change", (e) => {
+    const cb = e.target.closest("[data-show]");
+    if (!cb) return;
+    cb.dataset.show.split(",").forEach((id) => { const f = document.getElementById(id); if (f) f.type = cb.checked ? "text" : "password"; });
+  });
+
+  let RESET_EMAIL = "", FORCE_EMAIL = "";
+  const RULE_EMAIL = { "rg-pw": () => $("#rg-email").value, "rs-pw": () => RESET_EMAIL, "fc-pw": () => FORCE_EMAIL, "pw-new": () => (ME && ME.slack_email) || "" };
+
+  // Each checklist re-evaluates as the person types. While typing, unmet rules stay neutral;
+  // after a submit attempt they turn red, so nobody is scolded mid-word.
+  function checkRules(ul, strict = false) {
+    const pw = document.getElementById(ul.dataset.pw).value;
+    const confirm = document.getElementById(ul.dataset.confirm).value;
+    const email = (RULE_EMAIL[ul.dataset.pw] || (() => ""))().trim().toLowerCase();
+    const tests = {
+      len: pw.length >= 12,
+      email: !(email && pw.toLowerCase() === email),
+      match: confirm.length > 0 && pw === confirm,
+      notcurrent: ul.dataset.pw !== "pw-new" || !pw || pw !== $("#pw-current").value,
+    };
+    let allOk = true;
+    $$("li[data-rule]", ul).forEach((li) => {
+      const rule = li.dataset.rule;
+      if (!(rule in tests)) return;          // "old" is checked by the server
+      const ok = tests[rule] && (rule !== "email" || pw.length > 0) && (rule !== "notcurrent" || pw.length > 0);
+      if (!ok) allOk = false;
+      li.classList.toggle("ok", ok);
+      li.classList.toggle("bad", !ok && strict);
+    });
+    return allOk;
+  }
+  $$(".pw-rules").forEach((ul) => {
+    const ids = [ul.dataset.pw, ul.dataset.confirm, "rg-email", "pw-current"];
+    ids.forEach((id) => document.getElementById(id)?.addEventListener("input", () => checkRules(ul)));
+  });
+  function rulesPass(pwId) {
+    const ul = document.querySelector(`.pw-rules[data-pw="${pwId}"]`);
+    return ul ? checkRules(ul, true) : true;
+  }
+  function resetRules(pwId) {
+    const ul = document.querySelector(`.pw-rules[data-pw="${pwId}"]`);
+    if (ul) $$("li", ul).forEach((li) => li.classList.remove("ok", "bad"));
+  }
+  const RULES_MSG = "Your new password doesn't meet the requirements yet. Check the list under it.";
+
+  // ---------- temporary-password sign-in mode ----------
+  function setTempMode(on) {
+    const pw = $("#li-pw");
+    $("#temp-banner").hidden = !on; $("#temp-cancel").hidden = !on;
+    $("#li-pw-label").textContent = on ? "Temporary password (from your email)" : "Password";
+    pw.placeholder = on ? "e.g. Ab3d-Ef7h-Jk9m-Np2q" : "";
+    pw.autocomplete = on ? "one-time-code" : "current-password";
+    pw.classList.toggle("temp-mode", on);
+    $("#li-submit").textContent = on ? "Sign in with temporary password" : "Sign in";
+    pw.value = "";
+  }
+  $("#temp-cancel-link").addEventListener("click", (e) => { e.preventDefault(); setTempMode(false); $("#gate-msg").hidden = true; $("#li-pw").focus(); });
+  function setForgotCopy() {
+    const on = !!META.email_enabled;
+    $("#fg-help").textContent = on
+      ? "Enter the email you registered with. We'll email you a temporary password that works once. After you sign in with it, you'll choose a new password."
+      : "Enter the email you registered with. The Program Chair will send you a one-time reset link on Slack.";
+    $("#fg-submit").textContent = on ? "Email me a temporary password" : "Request a reset link";
+  }
+
   // ---------- forgot / reset password ----------
   $("#forgot-form").addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -511,9 +578,12 @@
     try {
       const r = await api("/api/auth/forgot", { method: "POST", body: { email } });
       gatePane("login"); $("#li-email").value = email;
-      gateMsg(r.email_enabled
-        ? "If that email has an account, we've emailed it a temporary password (check spam too). Sign in with it below, then choose a new password. It expires in 24 hours."
-        : "Request sent. If that email has an account, the Program Chair will send you a one-time reset link on Slack. It expires 24 hours after it's created.");
+      if (r.email_enabled) {
+        setTempMode(true); $("#li-pw").focus();
+        gateMsg("If that email has an account, a temporary password is on its way (check spam too).");
+      } else {
+        gateMsg("Request sent. If that email has an account, the Program Chair will send you a one-time reset link on Slack. It expires 24 hours after it's created.");
+      }
     } catch (err) { gateError(err.message); }
   });
 
@@ -525,11 +595,12 @@
     try {
       const r = await api(`/api/auth/reset/${encodeURIComponent(token)}`);
       $("#reset-title").textContent = r.first_name ? `Hi ${r.first_name}, choose a new password` : "Choose a new password";
+      RESET_EMAIL = r.email || "";
     } catch (err) { gatePane("forgot"); gateError(err.message); }
   }
   $("#reset-form").addEventListener("submit", async (e) => {
     e.preventDefault();
-    if ($("#rs-pw").value !== $("#rs-pw2").value) { gateError("Passwords don't match."); return; }
+    if (!rulesPass("rs-pw")) { gateError(RULES_MSG); return; }
     try {
       const r = await api("/api/auth/reset", { method: "POST", body: { token: RESET_TOKEN, password: $("#rs-pw").value } });
       RESET_TOKEN = ""; $("#reset-form").reset();
@@ -538,12 +609,13 @@
     } catch (err) { gateError(err.message); }
   });
 
-  function showForceChange() {
-    showGate(); gatePane("force"); $("#fc-pw").focus();
+  function showForceChange(email) {
+    if (email) FORCE_EMAIL = email;
+    showGate(); gatePane("force"); resetRules("fc-pw"); $("#fc-pw").focus();
   }
   $("#force-form").addEventListener("submit", async (e) => {
     e.preventDefault();
-    if ($("#fc-pw").value !== $("#fc-pw2").value) { gateError("Passwords don't match."); return; }
+    if (!rulesPass("fc-pw")) { gateError(RULES_MSG); return; }
     try {
       await api("/api/me/new-password", { method: "POST", body: { new_password: $("#fc-pw").value } });
       alertLater("Password updated. You're all set.");
@@ -625,10 +697,10 @@
   $("#pw-form").addEventListener("submit", async (e) => {
     e.preventDefault();
     const err = $("#pw-error"); err.hidden = true;
-    if ($("#pw-new").value !== $("#pw-new2").value) { err.textContent = "New passwords don't match."; err.hidden = false; return; }
+    if (!rulesPass("pw-new")) { err.textContent = RULES_MSG; err.hidden = false; return; }
     try {
       await api("/api/me/password", { method: "POST", body: { current_password: $("#pw-current").value, new_password: $("#pw-new").value } });
-      $("#pw-form").reset(); toast("Password changed. Other devices have been signed out.");
+      $("#pw-form").reset(); resetRules("pw-new"); toast("Password changed. Other devices have been signed out.");
     } catch (ex) { err.textContent = ex.message; err.hidden = false; }
   });
 
@@ -711,10 +783,12 @@
   async function boot() {
     META = await api("/api/meta");
     fillStates();
+    setForgotCopy();
+    $("#footer-admin").textContent = `${META.admin_name}, ${META.admin_title}`;
     if (location.hash.startsWith("#reset=")) { await startReset(location.hash.slice(7)); return; }
     if (!META.signed_in) { showGate(); return; }
     ME = (await api("/api/me")).user;
-    if (ME && ME.must_change_password) { showForceChange(); return; }
+    if (ME && ME.must_change_password) { showForceChange(ME.slack_email); return; }
     $("#gate").hidden = true; $("#app-nav").hidden = false; $("#app-main").hidden = false;
     $("#admin-tab").hidden = !META.is_admin;
     $("#who-name").textContent = ME ? `${ME.first_name} ${ME.last_name}` : `${META.admin_name} · Admin`;

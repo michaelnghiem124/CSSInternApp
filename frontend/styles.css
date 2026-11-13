@@ -354,3 +354,17 @@ img.avatar { object-fit: cover; }
 .reset-requests li { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: .88rem; }
 .link-box { display: flex; gap: 8px; margin-top: 12px; }
 .link-box input { font-family: ui-monospace, Menlo, monospace; font-size: .78rem; }
+
+/* ---------- password UX ---------- */
+label.show-pw { display: inline-flex; align-items: center; gap: 7px; font-weight: 500; font-size: .82rem; color: var(--muted); margin: 8px 0 0; cursor: pointer; }
+label.show-pw input { width: auto; margin: 0; }
+.pw-rules { list-style: none; padding: 10px 12px; margin: 10px 0 0; background: #f6f9fc; border: 1px solid var(--line); border-radius: 10px; display: grid; gap: 4px; font-size: .82rem; color: var(--muted); }
+.pw-rules li::before { content: "○"; display: inline-block; width: 1.3em; color: #9aa8b8; }
+.pw-rules li.ok { color: var(--ok); }
+.pw-rules li.ok::before { content: "✓"; color: var(--ok); font-weight: 700; }
+.pw-rules li.bad { color: var(--danger); }
+.pw-rules li.bad::before { content: "✕"; color: var(--danger); }
+.pw-rules li.info::before { content: "•"; }
+.temp-banner { background: #e2f4f9; border: 1px solid #b5e0ec; border-radius: 10px; padding: 10px 12px; font-size: .85rem; margin-top: 12px; line-height: 1.5; }
+.temp-banner code { font-size: .8rem; }
+#li-pw.temp-mode { font-family: ui-monospace, Menlo, monospace; letter-spacing: .04em; }

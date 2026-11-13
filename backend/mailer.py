@@ -59,7 +59,8 @@ def _send(to: str, subject: str, body: str) -> bool:
                           timeout=15) as s:
             s.starttls()
             if os.environ.get("SMTP_USER"):
-                s.login(os.environ["SMTP_USER"], os.environ.get("SMTP_PASSWORD", ""))
+                # Google shows app passwords as "abcd efgh ijkl mnop"; the spaces aren't part of it.
+                s.login(os.environ["SMTP_USER"], os.environ.get("SMTP_PASSWORD", "").replace(" ", ""))
             s.send_message(msg)
         return True
     except (OSError, smtplib.SMTPException):

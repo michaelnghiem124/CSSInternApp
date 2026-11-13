@@ -51,8 +51,15 @@
 
         <form id="login-form-intern" data-pane="login">
           <label>Preferred email<input type="email" id="li-email" autocomplete="username" required></label>
-          <label>Password<input type="password" id="li-pw" autocomplete="current-password" required></label>
-          <button class="btn primary wide" type="submit">Sign in</button>
+          <div class="temp-banner" id="temp-banner" hidden>
+            <strong>Check your email for a temporary password.</strong>
+            Enter it below exactly as shown (it looks like <code>Ab3d-Ef7h-Jk9m-Np2q</code>). It works once and expires in 24 hours.
+            Right after you sign in, you'll be asked to <strong>choose a new password</strong>.
+          </div>
+          <label><span id="li-pw-label">Password</span><input type="password" id="li-pw" autocomplete="current-password" required></label>
+          <label class="show-pw"><input type="checkbox" data-show="li-pw"> Show password</label>
+          <button class="btn primary wide" type="submit" id="li-submit">Sign in</button>
+          <p class="fine" id="temp-cancel" hidden><a href="#" id="temp-cancel-link">I remembered my password, sign in normally</a></p>
           <p class="fine"><a href="#" data-goto="forgot">Forgot your password?</a></p>
           <p class="fine">New intern? Choose <a href="#" data-goto="register">Register</a> and use the access code from the Program Chair.</p>
         </form>
@@ -79,31 +86,34 @@
           <label class="span2">One fun fact about me<input id="rg-fun" maxlength="300" placeholder="e.g. I've visited 30 national parks"></label>
           <label>Password <span class="req">*</span><input type="password" id="rg-pw" required minlength="12" autocomplete="new-password" placeholder="12+ characters"></label>
           <label>Confirm password <span class="req">*</span><input type="password" id="rg-pw2" required minlength="12" autocomplete="new-password"></label>
+          <div class="span2"><label class="show-pw"><input type="checkbox" data-show="rg-pw,rg-pw2"> Show password</label><ul class="pw-rules" data-pw="rg-pw" data-confirm="rg-pw2" aria-live="polite"><li data-rule="len">At least 12 characters</li><li data-rule="email">Not your email address</li><li data-rule="match">Both entries match</li></ul></div>
           <label class="check span2"><input type="checkbox" id="rg-share" checked> Show my profile to other interns (photo, name, city, email, school or employer, LinkedIn, interests, hobbies, goals, fun fact). Your phone number is only visible to the Program Chair.</label>
           <div class="span2"><button class="btn primary wide" type="submit">Create my account</button></div>
         </form>
 
         <form id="forgot-form" data-pane="forgot" hidden>
           <h2>Reset your password</h2>
-          <p class="muted small">Enter the email you registered with. We'll get a one-time reset link to you.</p>
+          <p class="muted small" id="fg-help">Enter the email you registered with. We'll get a one-time reset link to you.</p>
           <label>Preferred email<input type="email" id="fg-email" autocomplete="email" required></label>
-          <button class="btn primary wide" type="submit">Request a reset link</button>
+          <button class="btn primary wide" type="submit" id="fg-submit">Request a reset link</button>
           <p class="fine"><a href="#" data-goto="login">Back to sign in</a></p>
         </form>
 
         <form id="reset-form" data-pane="reset" hidden>
           <h2 id="reset-title">Choose a new password</h2>
-          <p class="muted small">At least 12 characters. A short phrase works well, like <em>purple-hockey-2027</em>. This signs you out on your other devices.</p>
+          <p class="muted small">A short phrase works well, like <em>purple-hockey-2027</em>. Saving signs you out on your other devices.</p>
           <label>New password<input type="password" id="rs-pw" minlength="12" autocomplete="new-password" required></label>
           <label>Confirm new password<input type="password" id="rs-pw2" minlength="12" autocomplete="new-password" required></label>
+          <label class="show-pw"><input type="checkbox" data-show="rs-pw,rs-pw2"> Show password</label><ul class="pw-rules" data-pw="rs-pw" data-confirm="rs-pw2" aria-live="polite"><li data-rule="len">At least 12 characters</li><li data-rule="email">Not your email address</li><li data-rule="old" class="info">Different from your previous password</li><li data-rule="match">Both entries match</li></ul>
           <button class="btn primary wide" type="submit">Save new password</button>
         </form>
 
         <form id="force-form" data-pane="force" hidden>
           <h2>Set a new password</h2>
-          <p class="muted small">You signed in with a temporary password. Choose a new one to continue (at least 12 characters).</p>
+          <p class="muted small">You signed in with the <strong>temporary password</strong> from your email. It's now used up, so choose your own password to continue. A short phrase works well, like <em>purple-hockey-2027</em>.</p>
           <label>New password<input type="password" id="fc-pw" minlength="12" autocomplete="new-password" required></label>
           <label>Confirm new password<input type="password" id="fc-pw2" minlength="12" autocomplete="new-password" required></label>
+          <label class="show-pw"><input type="checkbox" data-show="fc-pw,fc-pw2"> Show password</label><ul class="pw-rules" data-pw="fc-pw" data-confirm="fc-pw2" aria-live="polite"><li data-rule="len">At least 12 characters</li><li data-rule="email">Not your email address</li><li data-rule="old" class="info">Different from your previous password</li><li data-rule="match">Both entries match</li></ul>
           <button class="btn primary wide" type="submit">Save and continue</button>
           <p class="fine"><a href="#" id="force-signout">Sign out instead</a></p>
         </form>
@@ -112,6 +122,7 @@
           <p class="muted small">For the Program Chair only.</p>
           <label>Admin username<input id="ad-user" autocomplete="username" required></label>
           <label>Password<input type="password" id="ad-pw" autocomplete="current-password" required></label>
+          <label class="show-pw"><input type="checkbox" data-show="ad-pw"> Show password</label>
           <button class="btn primary wide" type="submit">Sign in as admin</button>
           <p class="fine" id="admin-not-configured" hidden>Admin sign-in isn't set up on this server yet. Run <code>.venv/bin/python -m scripts.set_admin_password</code>, then restart.</p>
         </form>
@@ -340,6 +351,7 @@
         <label class="span2">Current password<input type="password" id="pw-current" autocomplete="current-password" required></label>
         <label>New password<input type="password" id="pw-new" minlength="12" autocomplete="new-password" required placeholder="12+ characters"></label>
         <label>Confirm new password<input type="password" id="pw-new2" minlength="12" autocomplete="new-password" required></label>
+        <div class="span2"><label class="show-pw"><input type="checkbox" data-show="pw-current,pw-new,pw-new2"> Show password</label><ul class="pw-rules" data-pw="pw-new" data-confirm="pw-new2" aria-live="polite"><li data-rule="len">At least 12 characters</li><li data-rule="email">Not your email address</li><li data-rule="notcurrent">Different from your current password</li><li data-rule="match">Both entries match</li></ul></div>
         <div class="span2 form-actions"><button class="btn" type="submit">Change password</button><span class="error" id="pw-error" hidden></span></div>
       </form>
     </div>

@@ -299,7 +299,8 @@ def check_reset_token(token: str, request: Request):
         raise HTTPException(400, "This reset link is invalid, already used, or expired. "
                             "Ask for a new one.")
     u = db.get_user(row["user_id"])
-    return {"first_name": u["first_name"] if u else "", "expires_at": row["expires_at"]}
+    return {"first_name": u["first_name"] if u else "", "email": u["slack_email"] if u else "",
+            "expires_at": row["expires_at"]}
 
 
 @app.post("/api/auth/reset")
@@ -478,7 +479,13 @@ def admin_logout(response: Response):
 # ---------------------------------------------------------------------------
 @app.get("/")
 def index():
-    return FileResponse(config.FRONTEND_DIR / "index.html")
+    """Serve the page with ?v=<last-modified> on its CSS and JS, so browsers fetch the new
+    files after every update instead of reusing a stale cached copy."""
+    html = (config.FRONTEND_DIR / "index.html").read_text()
+    for name in ("styles.css", "app.js"):
+        version = int((config.FRONTEND_DIR / name).stat().st_mtime)
+        html = html.replace(f"/static/{name}\"", f"/static/{name}?v={version}\"")
+    return RawResponse(html, media_type="text/html", headers={"Cache-Control": "no-cache"})
 
 
 @app.get("/api/meta")
@@ -488,6 +495,7 @@ def meta(request: Request):
         "admin_title": config.ADMIN_TITLE,
         "is_admin": auth.is_admin(request),
         "admin_configured": auth.admin_configured(),
+        "email_enabled": mailer.enabled(),
         "signed_in": auth.current_user(request) is not None or auth.is_admin(request),
         "provider": config.provider(),
         "match_model": config.model_name("match"),
