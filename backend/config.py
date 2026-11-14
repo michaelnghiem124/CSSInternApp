@@ -81,6 +81,19 @@ def has_llm_key() -> bool:
     return bool(os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("PORTKEY_API_KEY"))
 
 
+def low_effort() -> dict:
+    """Ask for low reasoning effort where the provider allows it.
+
+    Claude accepts thinking="low" alongside tools. gpt-6-luna on Portkey's chat-completions
+    endpoint (Azure) rejects function tools whenever reasoning is on, and it reasons by
+    default, so on Portkey reasoning has to be turned off explicitly with 'none'. Every agent
+    here uses tools (structured output is itself a tool call).
+    """
+    if provider() == "portkey":
+        return {"openai_reasoning_effort": "none"}
+    return {"thinking": "low"}
+
+
 def build_model(tier: Literal["match", "fast"]):
     """A PydanticAI model object for the active provider and tier."""
     if provider() == "portkey":

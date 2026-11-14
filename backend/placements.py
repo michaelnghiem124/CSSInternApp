@@ -252,7 +252,7 @@ def extractor() -> Agent[None, InternFit]:
         _extractor = Agent(
             config.build_model("fast"), output_type=InternFit, name="fit_extractor",
             instructions=(config.PROMPTS_DIR / "fit_extractor.md").read_text(),
-            model_settings=ModelSettings(thinking="low", max_tokens=1500),
+            model_settings=ModelSettings(**config.low_effort(), max_tokens=1500),
         )
     return _extractor
 
@@ -337,7 +337,7 @@ def matcher() -> Agent[MatchDeps, AssignmentMatrix]:
         config.build_model("match"), deps_type=MatchDeps, output_type=AssignmentMatrix,
         name="placement_matcher",
         instructions=(config.PROMPTS_DIR / "placement_matcher.md").read_text(),
-        model_settings=ModelSettings(cache=True, thinking="low", max_tokens=16_000),
+        model_settings=ModelSettings(cache=True, **config.low_effort(), max_tokens=16_000),
     )
 
     @agent.output_validator
@@ -529,7 +529,7 @@ def drafter() -> Agent[None, IntroDrafts]:
             config.build_model("fast"), output_type=IntroDrafts, name="intro_drafter",
             instructions=(config.PROMPTS_DIR / "intro_drafter.md").read_text().format(
                 chair=config.ADMIN_NAME, chair_title=config.ADMIN_TITLE),
-            model_settings=ModelSettings(thinking="low", max_tokens=3000),
+            model_settings=ModelSettings(**config.low_effort(), max_tokens=3000),
         )
     return _drafter
 

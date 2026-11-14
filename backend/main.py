@@ -607,8 +607,14 @@ async def build_profile(
         db.log_safety(session, "injection_screened", " || ".join(removed))
 
     # Layer 2: the profile agent reads the cleaned text and flags anything subtler.
-    profile, report = await agents.read_profile(session, screened.clean_text,
-                                                intro_screened.clean_text)
+    try:
+        profile, report = await agents.read_profile(session, screened.clean_text,
+                                                    intro_screened.clean_text)
+    except Exception as exc:  # noqa: BLE001  provider outage, bad key, etc.
+        log.exception("profile read failed")
+        db.log_safety(session, "model_error", type(exc).__name__)
+        return JSONResponse({"blocked": "model_error", "message": _provider_message(exc)},
+                            status_code=502)
     st = state_for(session, user)
     st.profile = profile
     await agents.profile_update_turn(st)
@@ -658,8 +664,8 @@ async def chat(body: ChatBody, session: Annotated[str, Depends(session_key)],
     except Exception as exc:  # provider outage, bad key, etc.
         log.exception("chat failed")
         db.log_safety(session, "model_error", type(exc).__name__)
-        return JSONResponse({"blocked": "model_error", "message": "The matchmaker hit an error "
-                             "talking to the AI provider. Try again in a moment."}, status_code=502)
+        return JSONResponse({"blocked": "model_error", "message": _provider_message(exc)},
+                            status_code=502)
 
     people_map = directory.by_slug()
     recs = [{**r.model_dump(), "person": _card(people_map[r.slug])} for r in out.recommendations]
@@ -983,8 +989,21 @@ class PlacementBody(BaseModel):
 
 def _agent_error(exc: Exception) -> JSONResponse:
     log.exception("admin agent failed")
-    msg = str(exc) if isinstance(exc, ValueError) else "The AI provider returned an error. Try again."
+    msg = str(exc) if isinstance(exc, ValueError) else _provider_message(exc)
     return JSONResponse({"message": msg}, status_code=400 if isinstance(exc, ValueError) else 502)
+
+
+def _provider_message(exc: Exception) -> str:
+    """Plain-language reason an AI call failed, without exposing any key."""
+    text = f"{type(exc).__name__} {exc}".lower()
+    if "authentication" in text or "invalid x-api-key" in text or "401" in text:
+        return ("The AI service rejected this app's API key, so AI features are paused. "
+                "The Program Chair needs to update the key in .env and restart the app.")
+    if "credit" in text or "billing" in text or "402" in text:
+        return "The AI account is out of credits. The Program Chair needs to check billing."
+    if "rate" in text and "limit" in text or "429" in text or "overloaded" in text or "529" in text:
+        return "The AI service is busy right now. Wait a minute and try again."
+    return "The AI service returned an error. Try again in a moment."
 
 
 @app.get("/api/admin/committees", dependencies=[Depends(auth.require_admin)])

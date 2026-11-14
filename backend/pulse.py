@@ -387,7 +387,7 @@ def analyst() -> Agent[PulseDeps, ChairBrief]:
         instructions=(config.PROMPTS_DIR / "pulse_analyst.md").read_text().format(
             chair=config.ADMIN_NAME, checkin=CHECKIN_CHANNEL),
         toolsets=[_toolset()],
-        model_settings=ModelSettings(cache=True, thinking="low", max_tokens=8000),
+        model_settings=ModelSettings(cache=True, **config.low_effort(), max_tokens=8000),
     )
 
     @agent.output_validator

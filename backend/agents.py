@@ -96,8 +96,8 @@ class RunReport:
 #   growing conversation). Works for both Anthropic and OpenAI-protocol models.
 # thinking='low': chat-style matching does not need deep reasoning; low effort cut output
 #   tokens noticeably in testing without changing who got recommended.
-MATCH_SETTINGS = ModelSettings(cache=True, thinking="low", max_tokens=4_000)
-PROFILE_SETTINGS = ModelSettings(thinking="low", max_tokens=2_000)
+MATCH_SETTINGS = ModelSettings(cache=True, **config.low_effort(), max_tokens=4_000)
+PROFILE_SETTINGS = ModelSettings(**config.low_effort(), max_tokens=2_000)
 
 RUN_LIMITS = UsageLimits(
     request_limit=config.RUN_REQUEST_LIMIT,
