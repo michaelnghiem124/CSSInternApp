@@ -1,17 +1,17 @@
 """Branded email for password resets.
 
 Off unless SMTP settings are in the environment. When off, "Forgot password?" requests
-show up on the Admin page, and the Program Chair sends a reset link on Slack instead.
+show up on the Admin page, and the Program Lead sends a reset link on Slack instead.
 
     SMTP_HOST=smtp.gmail.com   SMTP_PORT=587
     SMTP_USER=...              SMTP_PASSWORD=...   (an app password, not your real one)
-    SMTP_FROM="Cyber Security Summit Intern Hub <you@example.com>"
+    SMTP_FROM="Intern Summit Hub <you@example.com>"
 
 Every message is multipart: a plain-text version and a branded HTML version. The HTML is
 built to be recognizable rather than phish-like:
   - Summit header and colors (the same branding interns see in the app)
   - addressed by first name, and says which email address it was sent to
-  - names the Program Chair, and shows the sign-in address as plain visible text
+  - names the Program Lead, and shows the sign-in address as plain visible text
   - says plainly what to do if you didn't ask for it, and that we never ask for a reply
     containing your password
 
@@ -58,7 +58,7 @@ def build_temp_password_email(to: str, first_name: str, temp_password: str, hour
     text = (
         f"Hi {first_name},\n\n"
         f"We received a request on {when} (Central) to reset the password for your Cyber Security "
-        f"Summit Intern Hub account ({to}).\n\n"
+        f"Summit Intern Summit Hub account ({to}).\n\n"
         f"Your temporary password is:\n\n    {temp_password}\n\n"
         f"To finish:\n"
         f"  1. Go to {site_url}\n"
@@ -67,7 +67,7 @@ def build_temp_password_email(to: str, first_name: str, temp_password: str, hour
         f"The temporary password works once and expires in {hours} hours.\n\n"
         f"Didn't ask for this? You can ignore this email. Your current password still works and "
         f"nothing has changed. We will never ask you to reply with your password.\n\n"
-        f"Questions? Message the Program Chair, {chair}, on Slack.\n\n"
+        f"Questions? Message the Program Lead, {chair}, on Slack.\n\n"
         f"Cyber Security Summit Intern Program, Minneapolis\n"
     )
     e = html.escape
@@ -75,7 +75,7 @@ def build_temp_password_email(to: str, first_name: str, temp_password: str, hour
     body = f"""
 <p style="margin:0 0 14px;font-size:16px;">Hi {e(first_name)},</p>
 <p style="margin:0 0 18px;">We received a request on <strong>{e(when)}</strong> (Central) to reset the
-password for your Intern Hub account <strong>{e(to)}</strong>. Here is your
+password for your Intern Summit Hub account <strong>{e(to)}</strong>. Here is your
 <strong>temporary password</strong>:</p>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px;">
   <tr><td align="center" style="background:#f0f9fc;border:1px dashed #9fd6e6;border-radius:12px;padding:18px 12px;">
@@ -86,35 +86,35 @@ password for your Intern Hub account <strong>{e(to)}</strong>. Here is your
 </table>
 <p style="margin:0 0 8px;font-weight:700;">To finish:</p>
 <ol style="margin:0 0 20px;padding-left:20px;">
-  <li style="margin:0 0 4px;">Go to the Intern Hub sign-in page</li>
+  <li style="margin:0 0 4px;">Go to the Intern Summit Hub sign-in page</li>
   <li style="margin:0 0 4px;">Sign in with your email and the temporary password above</li>
   <li style="margin:0;">Choose a new password (at least 12 characters)</li>
 </ol>
 <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 8px;">
   <tr><td style="background:{TEAL};border-radius:10px;">
-    <a href="{e(site_url)}" style="display:inline-block;padding:12px 22px;color:#ffffff;font-weight:700;text-decoration:none;font-size:15px;">Sign in to the Intern Hub</a>
+    <a href="{e(site_url)}" style="display:inline-block;padding:12px 22px;color:#ffffff;font-weight:700;text-decoration:none;font-size:15px;">Sign in to the Intern Summit Hub</a>
   </td></tr>
 </table>
 <p style="margin:0 0 22px;font-size:13px;color:{MUTED};">Or copy this address into your browser: <span style="color:{INK};">{e(site_url)}</span></p>
 {_security_note(chair)}
 """
-    return _message(to, "Your temporary Intern Hub password", text, body,
-                    preheader=f"Your one-time temporary password for the Intern Hub. Expires in {hours} hours.")
+    return _message(to, "Your temporary Intern Summit Hub password", text, body,
+                    preheader=f"Your one-time temporary password for the Intern Summit Hub. Expires in {hours} hours.")
 
 
 def build_reset_link_email(to: str, first_name: str, link: str, hours: int) -> EmailMessage:
     chair = f"{config.ADMIN_NAME}, {config.ADMIN_TITLE}"
     text = (
         f"Hi {first_name},\n\n"
-        f"Open this link to choose a new password for your Cyber Security Summit Intern Hub "
+        f"Open this link to choose a new password for your Intern Summit Hub "
         f"account ({to}). It works once and expires in {hours} hours:\n\n{link}\n\n"
         f"Didn't ask for this? Ignore this email. Your password hasn't changed.\n\n"
-        f"Questions? Message the Program Chair, {chair}, on Slack.\n"
+        f"Questions? Message the Program Lead, {chair}, on Slack.\n"
     )
     e = html.escape
     body = f"""
 <p style="margin:0 0 14px;font-size:16px;">Hi {e(first_name)},</p>
-<p style="margin:0 0 18px;">Use the button below to choose a new password for your Intern Hub account
+<p style="margin:0 0 18px;">Use the button below to choose a new password for your Intern Summit Hub account
 <strong>{e(to)}</strong>. The link works once and expires in {hours} hours.</p>
 <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 8px;">
   <tr><td style="background:{TEAL};border-radius:10px;">
@@ -124,8 +124,8 @@ def build_reset_link_email(to: str, first_name: str, link: str, hours: int) -> E
 <p style="margin:0 0 22px;font-size:13px;color:{MUTED};word-break:break-all;">Link: <span style="color:{INK};">{e(link)}</span></p>
 {_security_note(chair)}
 """
-    return _message(to, "Reset your Intern Hub password", text, body,
-                    preheader="Your one-time link to choose a new Intern Hub password.")
+    return _message(to, "Reset your Intern Summit Hub password", text, body,
+                    preheader="Your one-time link to choose a new Intern Summit Hub password.")
 
 
 def send_temp_password_email(to: str, first_name: str, temp_password: str, hours: int,
@@ -150,7 +150,7 @@ def _security_note(chair: str) -> str:
     <strong>Didn't ask for this?</strong> You can ignore this email. Your current password still works
     and nothing has changed.<br>
     <strong>Staying safe:</strong> we will never ask you to reply with your password or send it
-    anywhere else. Questions? Message the Program Chair, <strong>{e(chair)}</strong>, on Slack.
+    anywhere else. Questions? Message the Program Lead, <strong>{e(chair)}</strong>, on Slack.
   </td></tr>
 </table>"""
 
@@ -166,7 +166,7 @@ def _wrap(inner: str, preheader: str, to: str) -> str:
     logo_src, _ = _logo_src()
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
-<meta name="color-scheme" content="light"><title>Cyber Security Summit Intern Hub</title></head>
+<meta name="color-scheme" content="light"><title>Intern Summit Hub</title></head>
 <body style="margin:0;padding:0;background:#eef2f7;">
 <div style="display:none;max-height:0;overflow:hidden;opacity:0;">{e(preheader)}</div>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef2f7;">
@@ -178,14 +178,14 @@ def _wrap(inner: str, preheader: str, to: str) -> str:
           <img src="{logo_src}" width="200" alt="CYBER SECURITY SUMMIT" style="display:block;width:200px;max-width:100%;height:auto;border:0;color:#ffffff;font-family:Montserrat,Arial,sans-serif;font-size:18px;font-weight:800;letter-spacing:.04em;">
         </td>
         <td valign="middle" align="right">
-          <span style="display:inline-block;background:{NEON};color:{NAVY};font-family:Montserrat,Arial,sans-serif;font-weight:800;font-size:12px;letter-spacing:.1em;text-transform:uppercase;padding:5px 10px;border-radius:6px;">Intern Hub</span>
+          <span style="display:inline-block;background:{NEON};color:{NAVY};font-family:Montserrat,Arial,sans-serif;font-weight:800;font-size:12px;letter-spacing:.1em;text-transform:uppercase;padding:5px 10px;border-radius:6px;">Intern Summit Hub</span>
         </td>
       </tr></table>
     </td></tr>
     <tr><td style="padding:28px 28px 26px;">{inner}</td></tr>
     <tr><td style="background:#f6f8fb;border-top:1px solid {LINE};padding:16px 28px;font-size:12px;line-height:1.5;color:{MUTED};">
       Cyber Security Summit Intern Program &middot; Minneapolis, MN<br>
-      This message was sent to {e(to)} because a password reset was requested for that Intern Hub account.
+      This message was sent to {e(to)} because a password reset was requested for that Intern Summit Hub account.
     </td></tr>
   </table>
 </td></tr>
@@ -196,7 +196,7 @@ def _wrap(inner: str, preheader: str, to: str) -> str:
 def _message(to: str, subject: str, text: str, inner_html: str, preheader: str) -> EmailMessage:
     msg = EmailMessage()
     msg["Subject"] = subject
-    msg["From"] = os.environ.get("SMTP_FROM", "Cyber Security Summit Intern Hub <noreply@localhost>")
+    msg["From"] = os.environ.get("SMTP_FROM", "Intern Summit Hub <noreply@localhost>")
     msg["To"] = to
     msg["Date"] = formatdate(localtime=True)
     sender_domain = msg["From"].addresses[0].domain or "localhost"

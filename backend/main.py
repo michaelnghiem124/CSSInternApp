@@ -39,7 +39,7 @@ async def lifespan(_app: FastAPI):
     yield
 
 
-app = FastAPI(title="CSS Intern Hub", lifespan=lifespan)
+app = FastAPI(title="Intern Summit Hub", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=config.FRONTEND_DIR), name="static")
 
 
@@ -235,7 +235,7 @@ def register(body: RegisterBody, request: Request, response: Response):
         raise HTTPException(429, "Too many sign-up attempts. Wait a minute.")
     if body.access_code.strip().lower() != auth.access_code().lower():
         db.log_safety(_ip(request), "bad_access_code", "")
-        raise HTTPException(403, "That program access code isn't right. Ask the Program Chair for it.")
+        raise HTTPException(403, "That program access code isn't right. Ask the Program Lead for it.")
     if db.get_user_by_email(body.slack_email):
         raise HTTPException(409, "An account with that email already exists. Sign in instead.")
     auth.check_password_strength(body.password, str(body.slack_email))
@@ -316,7 +316,7 @@ def forgot_password(body: ForgotBody, request: Request):
                 u["slack_email"], u["first_name"], temp, auth.TEMP_PASSWORD_TTL_HOURS,
                 config.PUBLIC_URL or str(request.base_url).rstrip("/"))
         if not emailed:
-            # No email set up (or sending failed): the Chair sees it on the Admin page.
+            # No email set up (or sending failed): the Program Lead sees it on the Admin page.
             db.add_reset_request(u["id"])
         db.log_safety(_ip(request), "reset_requested",
                       f"user {u['id']} ({'temp password emailed' if emailed else 'admin queue'})")
@@ -820,8 +820,8 @@ def _vevent(e: dict) -> str:
 
 def _calendar(evts: list[dict]) -> PlainTextResponse:
     body = "\r\n".join(["BEGIN:VCALENDAR", "VERSION:2.0",
-                        "PRODID:-//CSS Intern Hub//EN", "CALSCALE:GREGORIAN",
-                        "X-WR-CALNAME:CSS Intern Think Tank Talks",
+                        "PRODID:-//Intern Summit Hub//EN", "CALSCALE:GREGORIAN",
+                        "X-WR-CALNAME:Intern Summit Hub - Think Tank Talks",
                         VTIMEZONE.replace("\n", "\r\n"), *(_vevent(e) for e in evts),
                         "END:VCALENDAR"]) + "\r\n"
     return PlainTextResponse(body, media_type="text/calendar",
@@ -1052,9 +1052,9 @@ def _provider_message(exc: Exception) -> str:
     text = f"{type(exc).__name__} {exc}".lower()
     if "authentication" in text or "invalid x-api-key" in text or "401" in text:
         return ("The AI service rejected this app's API key, so AI features are paused. "
-                "The Program Chair needs to update the key in .env and restart the app.")
+                "The Program Lead needs to update the key in .env and restart the app.")
     if "credit" in text or "billing" in text or "402" in text:
-        return "The AI account is out of credits. The Program Chair needs to check billing."
+        return "The AI account is out of credits. The Program Lead needs to check billing."
     if "rate" in text and "limit" in text or "429" in text or "overloaded" in text or "529" in text:
         return "The AI service is busy right now. Wait a minute and try again."
     return "The AI service returned an error. Try again in a moment."
@@ -1225,4 +1225,4 @@ def admin_pulse_brief_md(brief_id: int):
     if not b:
         raise HTTPException(404, "No such brief.")
     return PlainTextResponse(pulse.brief_markdown(b), media_type="text/markdown", headers={
-        "Content-Disposition": f'attachment; filename="chairs-monday-brief-{b["week_of"]}.md"'})
+        "Content-Disposition": f'attachment; filename="program-lead-monday-brief-{b["week_of"]}.md"'})

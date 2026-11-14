@@ -1,13 +1,13 @@
-# CSS Intern Hub
+# Intern Summit Hub
 
-An AI-powered resource for the **Cyber Security Summit Intern Program** (Minneapolis). Interns use it to find out which Think Tank members (CISOs, security directors, military cyber officers, government and legal leaders) they should meet, and why. The Program Chair uses it to put Think Tank talks on the interns' calendars.
+An AI-powered resource for the **Cyber Security Summit Intern Program** (Minneapolis). Interns use it to find out which Think Tank members (CISOs, security directors, military cyber officers, government and legal leaders) they should meet, and why. The Program Lead uses it to put Think Tank talks on the interns' calendars.
 
 - **Mentor Match**: an intern uploads a resume and says what they're curious about. Two agents read it and recommend 3 to 5 Think Tank members, each with a reason grounded in that person's published bio, shared ground, and conversation starters.
 - **Think Tank directory**: all 64 published bios (2 co-chairs, 49 members, 13 emeritus), searchable by name, employer, school, skill, or hobby, and filterable by sector.
-- **Talks calendar**: the Chair schedules CISO firesides, panels, and office hours. Interns RSVP and add talks to their own calendars (`.ics` with reminders 1 day and 1 hour before). Talks within 48 hours, and the Chair's announcements, show as banners on every page.
+- **Talks calendar**: the Program Lead schedules CISO firesides, panels, and office hours. Interns RSVP and add talks to their own calendars (`.ics` with reminders 1 day and 1 hour before). Talks within 48 hours, and the Program Lead's announcements, show as banners on every page.
 - **Admin**: intern profiles, talks and announcements, RSVP lists, a live dashboard of AI token usage, cost, and blocked safety events, plus two admin agents:
   - **Committee & Cyber Coach Matchmaker**: places every intern on a Summit committee and pairs them with a Think Tank Cyber Coach. It produces a ranked assignment matrix with one-sentence "why this match works" lines, and drafts intro emails and Slack DMs.
-  - **Cohort Pulse & Chair's Monday Brief**: reads Slack (through an MCP server) and committee meeting notes. It flags interns who need a nudge, wins to spotlight, and blockers to escalate, with names pseudonymized before the AI sees anything.
+  - **Cohort Pulse & Program Lead's Monday Brief**: reads Slack (through an MCP server) and committee meeting notes. It flags interns who need a nudge, wins to spotlight, and blockers to escalate, with names pseudonymized before the AI sees anything.
 
 ## Run it locally
 
@@ -47,7 +47,7 @@ The whole site sits behind a sign-in. Only the sign-in/register screen is public
 
   Photos are re-encoded server-side to a 480×480 JPEG, which strips EXIF data such as GPS location, and they're served only to signed-in users. Mentor Match uses the interests, hobbies, and goals straight away; a resume is optional.
 - **Cohort tab:** interns who opt in see each other's photo, name, location, school or employer, email, LinkedIn, interests, hobbies, goals, and fun fact. **Phone numbers are visible only to the admin.**
-- **Admin (Program Chair):** one account. Set it once:
+- **Admin (Program Lead):** one account. Set it once:
 
   ```bash
   .venv/bin/python -m scripts.set_admin_password
@@ -68,7 +68,7 @@ The whole site sits behind a sign-in. Only the sign-in/register screen is public
 
 Either way, setting the new password **signs out every other device**.
 
-**The email itself** is branded so interns can tell it's genuine. It uses the Summit's navy header and logo, greets the intern by first name, names the account it was sent to and the Program Chair, shows the sign-in address as plain text, and closes with a "didn't ask for this?" note. A plain-text version is included for mail clients that don't show HTML.
+**The email itself** is branded so interns can tell it's genuine. It uses the Summit's navy header and logo, greets the intern by first name, names the account it was sent to and the Program Lead, shows the sign-in address as plain text, and closes with a "didn't ask for this?" note. A plain-text version is included for mail clients that don't show HTML.
 
 - **Logo in every client:** save the Summit's logo as `frontend/img/css-logo.png` and it's embedded in each email. Without that file, the email loads the logo from cybersecuritysummit.org, and clients that block remote images still show the "CYBER SECURITY SUMMIT" header text.
 - **Real web address in emails:** once deployed, set `PUBLIC_URL=https://your-site` in `.env` so the email links to the real site instead of localhost.
@@ -83,7 +83,7 @@ SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USER=the-account@gmail.com
 SMTP_PASSWORD=the-16-character-app-password
-SMTP_FROM=CSS Intern Hub <the-account@gmail.com>
+SMTP_FROM=Intern Summit Hub <the-account@gmail.com>
 ```
 
 **Testing from a fresh clone:** run the setup script to create your own admin login. Sign in as admin to see every tab and the access code, then register a test intern with that code.
@@ -117,7 +117,7 @@ FastAPI (backend/main.py)
 - **Data.** `data/think_tank_raw.json` contains the bios as published at cybersecuritysummit.org/2026-think-tank. `data/think_tank.json` adds structured facts (title, sector, expertise, background, interests). `scripts/enrich_bios.py` extracted them once with Haiku: 64 calls, $0.023 total.
 - **Storage.** SQLite at `data/app.db` (gitignored), created on first run with three sample talks marked "Sample". It holds intern accounts, saved resumes, events, RSVPs, announcements, the access code, and token/safety logs.
   - **Resumes are saved to the intern's account**, so they don't have to upload again and Mentor Match picks up where they left off on any device. What's saved: the resume text (with instruction-like lines already removed, capped at 15,000 characters), the file name and date, and the profile Mentor Match built from it.
-  - Only the intern and the Program Chair can see a saved resume (Admin → intern → **View resume**). The intern can delete it any time with **Remove** in Mentor Match.
+  - Only the intern and the Program Lead can see a saved resume (Admin → intern → **View resume**). The intern can delete it any time with **Remove** in Mentor Match.
   - The committee Fit Extractor uses the resume's skills and background when placing interns.
   - **Chat conversations are not saved.** They live in server memory for 3 hours.
 - **Cost controls.** The roster sits in the Mentor Matcher's instructions, which never change between requests, so the provider caches them (`cache=True`). Thinking effort is `low`. The cheap model reads resumes, so the expensive model never sees raw resume text. Every reply shows its own token counts and cost.
@@ -144,7 +144,7 @@ Hard rules live in code, not in the prompt. Before the matcher runs, the code wo
 
 The admin can override any assignment from the matrix and approve placements before drafting intros. Committees (capacity, needs, director, meeting day and time) and the coach pool are edited on the same screen. Interns pick up to 3 committees and describe their availability at registration or in Edit my profile.
 
-### Cohort Pulse & Chair's Monday Brief (`backend/pulse.py`, `mcp_server/cohort_server.py`)
+### Cohort Pulse & Program Lead's Monday Brief (`backend/pulse.py`, `mcp_server/cohort_server.py`)
 
 - **Data sources.** Slack comes from a live sync (set `SLACK_BOT_TOKEN`) or an uploaded Slack export `.zip`. Committee meeting notes can be pasted, or uploaded as TXT, MD, DOCX, or PDF.
 - **The MCP boundary.** The Pulse Analyst (Sonnet 5.5) reads data only through the cohort MCP server's five read-only tools: `get_cohort_signals`, `list_channels`, `get_channel_messages`, `get_open_threads`, and `get_meeting_notes`. Every tool returns a privacy-safe view:
@@ -152,8 +152,8 @@ The admin can override any assignment from the matrix and approve placements bef
   - **Indirect prompt-injection guard:** messages or note lines that read like instructions to an AI are withheld and marked `[FLAGGED]`, and the prompt treats all tool output as data.
   - **Signals computed in code:** days since last post, check-ins this week and last, unanswered questions, and flagged messages. The model interprets them instead of counting.
 - **Output guard.** A validator rejects any brief that contains an email, a phone number, a real name, a made-up pseudonym, or a nudge aimed at someone who isn't an intern. Only after it passes does code swap pseudonyms back to names, and only for the admin. The admin can toggle to see exactly what the AI saw.
-- **Read-only.** The agent has no tool that can post to Slack or email anyone. Suggested DMs are text for the Chair to send.
-- **Output.** A `ChairBrief`: (a) interns to nudge, with evidence and a suggested DM, (b) wins to spotlight, (c) blockers to escalate and to whom, plus watch items, safety notes, and data coverage. It is saved and downloadable as Markdown.
+- **Read-only.** The agent has no tool that can post to Slack or email anyone. Suggested DMs are text for the Program Lead to send.
+- **Output.** A `MondayBrief`: (a) interns to nudge, with evidence and a suggested DM, (b) wins to spotlight, (c) blockers to escalate and to whom, plus watch items, safety notes, and data coverage. It is saved and downloadable as Markdown.
 
 **Measured cost (demo cohort of 10):** the committee matchmaker costs about $0.13 for a first run and much less on re-runs (cached profiles). A Monday Brief costs about $0.03, and an intro draft about $0.001.
 

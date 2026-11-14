@@ -192,7 +192,7 @@ class InternAssignment(BaseModel):
     why_this_match: str = Field(description="One sentence: why this committee + coach works for them.")
     coach_why: str = Field(description="One sentence: why this coach.")
     flags: list[str] = Field(default_factory=list,
-                             description="Anything the Chair should know: preference not met, thin profile...")
+                             description="Anything the Program Lead should know: preference not met, thin profile...")
 
 
 class Unplaced(BaseModel):
@@ -508,7 +508,7 @@ def latest_run() -> dict | None:
         })
     unplaced = [{**x, "name": f"{users[x['intern_id']]['first_name']} {users[x['intern_id']]['last_name']}"}
                 for x in matrix.get("unplaced", []) if x["intern_id"] in users]
-    # The model only knows intern ids; show the Chair names instead.
+    # The model only knows intern ids; show the Program Lead names instead.
     def _name(m: re.Match) -> str:
         u = users.get(int(m.group(1)))
         return f"{u['first_name']} {u['last_name']}" if u else m.group(0)

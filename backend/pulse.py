@@ -1,7 +1,7 @@
 """Cohort Pulse & Committee Accountability Monitor (admin only).
 
 Data in:  Slack (live via a bot token, or an uploaded Slack export .zip) and committee
-          meeting notes the Chair uploads. Stored in SQLite.
+          meeting notes the Program Lead uploads. Stored in SQLite.
 Agent:    the Pulse Analyst reads that data ONLY through the cohort MCP server
           (mcp_server/cohort_server.py), which hands it a privacy-safe view:
             - every person is a pseudonym (Intern-03, Member-01); real names, @mentions,
@@ -10,7 +10,7 @@ Agent:    the Pulse Analyst reads that data ONLY through the cohort MCP server
               AI are marked [FLAGGED] and their text withheld
             - participation signals (last post, missed check-ins, unanswered questions) are
               computed in code, so the model doesn't have to count
-Output:   a ChairBrief. An output validator rejects any brief that contains an email,
+Output:   a MondayBrief. An output validator rejects any brief that contains an email,
           phone number, real name, or a pseudonym that doesn't exist. Only after that does
           code swap pseudonyms back to names, for the admin screen.
 
@@ -53,7 +53,7 @@ MENTION_RE = re.compile(r"<@([A-Z0-9]+)(?:\|[^>]*)?>")
 ALIAS_RE = re.compile(r"\b(?:Intern|Member)-\d{2}\b")
 # Name parts that are also everyday words (or our own pseudonym prefixes) are never matched
 # on their own, or "Intern" in "Test Intern" would rewrite every use of the word "intern".
-GENERIC_WORDS = {"intern", "interns", "member", "members", "test", "tester", "chair", "admin",
+GENERIC_WORDS = {"intern", "interns", "member", "members", "test", "tester", "chair", "lead", "admin",
                  "director", "coach", "team", "summit", "cyber", "security", "user", "guest",
                  "sample", "demo", "new", "the", "and", "general"}
 
@@ -330,7 +330,7 @@ class Nudge(BaseModel):
     who: str = Field(description="Intern pseudonym, e.g. Intern-04.")
     reason: str = Field(description="One sentence.")
     evidence: list[str] = Field(description="Specific signals: dates, counts, overdue item.", max_length=4)
-    suggested_dm: str = Field(description="A short, kind check-in message the Chair could send. 1-3 sentences.")
+    suggested_dm: str = Field(description="A short, kind check-in message the Program Lead could send. 1-3 sentences.")
 
 
 class Win(BaseModel):
@@ -344,10 +344,10 @@ class Blocker(BaseModel):
     raised_by: str = Field("", description="Pseudonym, or empty.")
     blocker: str
     waiting_days: float
-    escalate_to: str = Field(description="Who should unblock it, by role: committee director, Program Chair...")
+    escalate_to: str = Field(description="Who should unblock it, by role: committee director, Program Lead...")
 
 
-class ChairBrief(BaseModel):
+class MondayBrief(BaseModel):
     headline: str = Field(description="One sentence on the state of the cohort this week.")
     nudges: list[Nudge] = Field(default_factory=list, max_length=8)
     wins: list[Win] = Field(default_factory=list, max_length=6)
@@ -374,15 +374,15 @@ def _toolset() -> MCPToolset:
     )
 
 
-_analyst: Agent[PulseDeps, ChairBrief] | None = None
+_analyst: Agent[PulseDeps, MondayBrief] | None = None
 
 
-def analyst() -> Agent[PulseDeps, ChairBrief]:
+def analyst() -> Agent[PulseDeps, MondayBrief]:
     global _analyst
     if _analyst is not None:
         return _analyst
-    agent: Agent[PulseDeps, ChairBrief] = Agent(
-        config.build_model("match"), deps_type=PulseDeps, output_type=ChairBrief, name="pulse_analyst",
+    agent: Agent[PulseDeps, MondayBrief] = Agent(
+        config.build_model("match"), deps_type=PulseDeps, output_type=MondayBrief, name="pulse_analyst",
         retries=3,
         instructions=(config.PROMPTS_DIR / "pulse_analyst.md").read_text().format(
             chair=config.ADMIN_NAME, checkin=CHECKIN_CHANNEL),
@@ -391,7 +391,7 @@ def analyst() -> Agent[PulseDeps, ChairBrief]:
     )
 
     @agent.output_validator
-    def privacy_guard(ctx: RunContext[PulseDeps], out: ChairBrief) -> ChairBrief:
+    def privacy_guard(ctx: RunContext[PulseDeps], out: MondayBrief) -> MondayBrief:
         blob = out.model_dump_json()
         problems = []
         if EMAIL_RE.search(blob):
@@ -433,7 +433,7 @@ async def generate_brief() -> dict:
     started = time.perf_counter()
     async with analyst():
         res = await analyst().run(
-            f"Write this week's Chair's Monday Brief. Today is {datetime.now():%A %B %d, %Y}.",
+            f"Write this week's Program Lead's Monday Brief. Today is {datetime.now():%A %B %d, %Y}.",
             deps=deps, usage_limits=UsageLimits(request_limit=12, tool_calls_limit=20,
                                                 total_tokens_limit=200_000))
     u = res.usage
@@ -474,7 +474,7 @@ def list_briefs() -> list[dict]:
 
 def brief_markdown(b: dict) -> str:
     x = b["brief"]
-    lines = [f"# Chair's Monday Brief, week of {b['week_of']}", "", x["headline"], ""]
+    lines = [f"# Program Lead's Monday Brief, week of {b['week_of']}", "", x["headline"], ""]
     if x["nudges"]:
         lines += ["## Interns who need a quick 1-on-1 nudge", ""]
         for n in x["nudges"]:

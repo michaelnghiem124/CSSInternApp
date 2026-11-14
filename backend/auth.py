@@ -3,9 +3,9 @@
 Two kinds of people:
 - Interns: register with the program access code, then sign in with their Slack email and
   a password. Everything in the app except sign-in and registration requires this.
-- The administrator (the Program Chair): a single account whose username and password hash
+- The administrator (the Program Lead): a single account whose username and password hash
   live in .env, written by `scripts/set_admin_password.py`. There is no default password;
-  until the Chair runs that script, admin sign-in is disabled.
+  until the Program Lead runs that script, admin sign-in is disabled.
 
 Passwords are hashed with scrypt (stdlib). Sessions are HMAC-signed, HttpOnly cookies, so
 the server keeps no session table.

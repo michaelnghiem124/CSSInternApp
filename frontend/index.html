@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>CSS Intern Hub</title>
+  <title>Intern Summit Hub</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Open+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -14,9 +14,9 @@
 <body>
   <header class="topbar">
     <div class="wrap topbar-inner">
-      <a class="brand" href="#match" aria-label="Cyber Security Summit Intern Hub home">
+      <a class="brand" href="#match" aria-label="Intern Summit Hub home">
         <img class="brand-logo" src="https://www.cybersecuritysummit.org/wp-content/uploads/2024/05/CS_SUMMIT_Logotag_reverse_hi-res-768x203.png" alt="Cyber Security Summit" referrerpolicy="no-referrer" onerror="this.replaceWith(Object.assign(document.createElement('strong'),{textContent:'Cyber Security Summit'}))">
-        <span class="brand-tag">Intern Hub</span>
+        <span class="brand-tag">Intern Summit Hub</span>
       </a>
       <nav class="tabs" role="tablist" id="app-nav" hidden>
         <a href="#match" data-tab="match" role="tab">Mentor Match</a>
@@ -34,7 +34,7 @@
     <div class="gate-inner">
       <div class="gate-intro">
         <div class="eyebrow">Cyber Security Summit · Intern Program</div>
-        <h1>Welcome to the <span class="hl">Intern Hub.</span></h1>
+        <h1>Welcome to the <span class="hl">Intern Summit Hub.</span></h1>
         <p>Meet the Think Tank, find the CISOs and leaders you should talk to, connect with your fellow interns, and never miss a talk.</p>
         <ul class="gate-points">
           <li>Mentor Match: AI-picked Think Tank mentors from 64 bios</li>
@@ -61,11 +61,11 @@
           <button class="btn primary wide" type="submit" id="li-submit">Sign in</button>
           <p class="fine" id="temp-cancel" hidden><a href="#" id="temp-cancel-link">I remembered my password, sign in normally</a></p>
           <p class="fine"><a href="#" data-goto="forgot">Forgot your password?</a></p>
-          <p class="fine">New intern? Choose <a href="#" data-goto="register">Register</a> and use the access code from the Program Chair.</p>
+          <p class="fine">New intern? Choose <a href="#" data-goto="register">Register</a> and use the access code from the Program Lead.</p>
         </form>
 
         <form id="register-form" data-pane="register" class="form-grid" hidden>
-          <label class="span2">Program access code <span class="req">*</span><input id="rg-code" required autocomplete="off" placeholder="From the Program Chair"></label>
+          <label class="span2">Program access code <span class="req">*</span><input id="rg-code" required autocomplete="off" placeholder="From the Program Lead"></label>
           <div class="span2 photo-pick">
             <label class="photo-drop" for="rg-photo"><img id="rg-photo-preview" alt="" hidden><span id="rg-photo-ph">📷</span></label>
             <div><strong>Profile photo</strong> <small class="muted">optional · JPG or PNG</small><br>
@@ -89,7 +89,7 @@
           <label>Password <span class="req">*</span><input type="password" id="rg-pw" required minlength="12" autocomplete="new-password" placeholder="12+ characters"></label>
           <label>Confirm password <span class="req">*</span><input type="password" id="rg-pw2" required minlength="12" autocomplete="new-password"></label>
           <div class="span2"><label class="show-pw"><input type="checkbox" data-show="rg-pw,rg-pw2"> Show password</label><ul class="pw-rules" data-pw="rg-pw" data-confirm="rg-pw2" aria-live="polite"><li data-rule="len">At least 12 characters</li><li data-rule="email">Not your email address</li><li data-rule="match">Both entries match</li></ul></div>
-          <label class="check span2"><input type="checkbox" id="rg-share" checked> Show my profile to other interns (photo, name, city, email, school or employer, LinkedIn, interests, hobbies, goals, fun fact). Your phone number is only visible to the Program Chair.</label>
+          <label class="check span2"><input type="checkbox" id="rg-share" checked> Show my profile to other interns (photo, name, city, email, school or employer, LinkedIn, interests, hobbies, goals, fun fact). Your phone number is only visible to the Program Lead.</label>
           <div class="span2"><button class="btn primary wide" type="submit">Create my account</button></div>
         </form>
 
@@ -121,7 +121,7 @@
         </form>
 
         <form id="admin-login-form" data-pane="admin" hidden>
-          <p class="muted small">For the Program Chair only.</p>
+          <p class="muted small">For the Program Lead only.</p>
           <label>Admin username<input id="ad-user" autocomplete="username" required></label>
           <label>Password<input type="password" id="ad-pw" autocomplete="current-password" required></label>
           <label class="show-pw"><input type="checkbox" data-show="ad-pw"> Show password</label>
@@ -156,7 +156,7 @@
             <label for="intro">About you <small class="muted">interests, hobbies, goals</small></label>
             <textarea id="intro" rows="4" maxlength="4000" placeholder="e.g. Sophomore studying CS. Curious about incident response and cyber policy. I play hockey and love cooking."></textarea>
             <button class="btn primary" id="profile-btn" type="submit">Build my profile</button>
-            <p class="fine">Your resume is saved to your Intern Hub profile so you don't have to upload it again. Only you and the Program Chair can see it, and you can remove it any time. Chat conversations aren't saved.</p>
+            <p class="fine">Your resume is saved to your Intern Summit Hub profile so you don't have to upload it again. Only you and the Program Lead can see it, and you can remove it any time. Chat conversations aren't saved.</p>
           </form>
           <div id="profile-view" hidden></div>
         </aside>
@@ -309,7 +309,7 @@
         <div data-asec-panel="pulse" hidden>
           <div class="card agent-hero">
             <div>
-              <h2>Cohort Pulse &amp; Chair's Monday Brief</h2>
+              <h2>Cohort Pulse &amp; Program Lead's Monday Brief</h2>
               <p class="muted small">The <b>Pulse Analyst</b> agent reads Slack and committee meeting notes <b>only through the cohort MCP server</b>, which replaces every name, email, phone number, and link with pseudonyms before the model sees anything and withholds messages that try to give the AI instructions. Names are restored only here, on your screen.</p>
             </div>
             <div class="agent-actions">
@@ -344,7 +344,7 @@
 
           <div class="card brief-card" id="brief-card" hidden>
             <div class="chat-head">
-              <h2 id="brief-title">Chair's Monday Brief</h2>
+              <h2 id="brief-title">Program Lead's Monday Brief</h2>
               <div class="head-actions">
                 <button class="btn small ghost" type="button" id="brief-toggle-alias">Show pseudonymized version</button>
                 <a class="btn small" id="brief-download" href="#" download>Download .md</a>

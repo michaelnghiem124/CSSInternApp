@@ -1,4 +1,4 @@
-"""Set (or change) the Program Chair's admin username and password.
+"""Set (or change) the Program Lead's admin username and password.
 
 Run it yourself in a terminal; the password is typed at a hidden prompt and only its scrypt
 hash is saved, to .env in the project folder (which git ignores):

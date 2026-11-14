@@ -1,4 +1,4 @@
-/* CSS Intern Hub: single-page frontend. No framework, no build step. */
+/* Intern Summit Hub: single-page frontend. No framework, no build step. */
 (() => {
   "use strict";
 
@@ -98,7 +98,7 @@
     const count = $("#talk-count");
     count.textContent = events.length; count.hidden = !events.length;
     $("#notices").innerHTML =
-      anns.map((a) => `<div class="notice"><span class="tag">From the Chair</span><span>${esc(a.message)}</span></div>`).join("") +
+      anns.map((a) => `<div class="notice"><span class="tag">From the Program Lead</span><span>${esc(a.message)}</span></div>`).join("") +
       soon.map((e) => `<div class="notice talk"><span class="tag">${new Date(e.starts_at) < Date.now() ? "Happening now" : "Coming up"}</span>
         <span><strong>${esc(e.title)}</strong> · ${esc(fmtDate(e.starts_at, { weekday: "short", hour: "numeric", minute: "2-digit" }))} CT
         ${e.prep_note ? `· ${esc(e.prep_note)}` : ""}</span> <a href="#calendar">Details</a></div>`).join("");
@@ -584,7 +584,7 @@
     const on = !!META.email_enabled;
     $("#fg-help").textContent = on
       ? "Enter the email you registered with. We'll email you a temporary password that works once. After you sign in with it, you'll choose a new password."
-      : "Enter the email you registered with. The Program Chair will send you a one-time reset link on Slack.";
+      : "Enter the email you registered with. The Program Lead will send you a one-time reset link on Slack.";
     $("#fg-submit").textContent = on ? "Email me a temporary password" : "Request a reset link";
   }
 
@@ -599,7 +599,7 @@
         setTempMode(true); $("#li-pw").focus();
         gateMsg("If that email has an account, a temporary password is on its way (check spam too).");
       } else {
-        gateMsg("Request sent. If that email has an account, the Program Chair will send you a one-time reset link on Slack. It expires 24 hours after it's created.");
+        gateMsg("Request sent. If that email has an account, the Program Lead will send you a one-time reset link on Slack. It expires 24 hours after it's created.");
       }
     } catch (err) { gateError(err.message); }
   });
@@ -1062,7 +1062,7 @@
     if (!BRIEF) return;
     const x = SHOW_ALIAS ? BRIEF.pseudonymized : BRIEF.brief, u = BRIEF.usage;
     $("#brief-card").hidden = false;
-    $("#brief-title").textContent = `Chair's Monday Brief · week of ${BRIEF.week_of}`;
+    $("#brief-title").textContent = `Program Lead's Monday Brief · week of ${BRIEF.week_of}`;
     $("#brief-toggle-alias").textContent = SHOW_ALIAS ? "Show real names" : "Show what the AI saw (pseudonyms)";
     $("#brief-download").href = `/api/admin/pulse/briefs/${BRIEF.id}/markdown`;
     const sec = (title, items, fn) => (items.length ? `<h3>${title}</h3>${items.map(fn).join("")}` : "");
