@@ -573,6 +573,7 @@ def intern_opportunities(user: Annotated[dict, Depends(auth.require_user)]):
     last = db.get_setting("opportunities_last_refresh")
     return {"postings": items, "last_refresh": _json.loads(last)["finished"] if last else None,
             "employers": [s["org"] for s in opportunities.SOURCES if s["platform"] != "usajobs" or opportunities.usajobs_enabled()],
+            "members": opportunities.org_members(),
             "no_feed": opportunities.no_feed_orgs() + [
                 {"org": s["org"], "emeritus_only": False,
                  "reason": "Federal roles come from USAJOBS, which turns on with a free USAJOBS API key."}

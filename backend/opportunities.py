@@ -107,6 +107,19 @@ def people_orgs(src: dict) -> list[str]:
     return src.get("people_orgs") or [src["org"]]
 
 
+def org_members() -> dict[str, dict]:
+    """For each employer with a feed: its current Think Tank members (Co-chairs included) and
+    its Emeritus members, by name, so the Explorer can show who represents it."""
+    people = directory.load_people()
+    out = {}
+    for src in SOURCES:
+        names = set(people_orgs(src))
+        here = [p for p in people if p.org in names]
+        out[src["org"]] = {"think_tank": [p.name for p in here if p.section != "Emeritus"],
+                           "emeritus": [p.name for p in here if p.section == "Emeritus"]}
+    return out
+
+
 def no_feed_orgs() -> list[dict]:
     """Every Think Tank / Emeritus organization not covered by a job feed."""
     covered = {o for s in SOURCES for o in people_orgs(s)}

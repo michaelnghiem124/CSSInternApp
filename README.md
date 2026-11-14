@@ -161,7 +161,7 @@ The admin can override any assignment from the matrix and approve placements bef
 
 ### Opportunities pilot (`backend/opportunities.py`, `backend/explorer.py`, `backend/cyber_domains.py`)
 
-**Opportunities** shows internships, co-ops, and entry-level roles at Think Tank organizations, each with the Think Tank member who works there for a warm introduction. Interns get two views: the **Explorer** (ask a question, see it evaluated visually) and **Browse all roles** (filterable list). Mentor Match can also suggest openings in chat.
+**Job Opportunity Match** (the second tab, after Mentor Match) shows internships, co-ops, and entry-level roles at Think Tank organizations, each with the Think Tank member who works there for a warm introduction. Interns get two views: the **Explorer** (ask a question, see it evaluated visually) and **Browse all roles** (filterable list). Mentor Match can also suggest openings in chat.
 
 - **Connectors (plain code, no AI).** They read each employer's **official public job feed**, the same one its careers page uses. 25 Think Tank and Emeritus organizations, plus 4 federal ones:
   - Workday: 3M, Medtronic, the Federal Reserve, Ameriprise, Land O'Lakes, Securian, Ecolab, nVent, U.S. Bank, Center for Internet Security, Progressive Leasing, Donaldson
@@ -184,7 +184,7 @@ The admin can override any assignment from the matrix and approve placements bef
 - **What interns see.** Postings that are internship, co-op, or entry-level, score at least 40, are in the US, and aren't hidden by the Program Lead (Admin → Opportunities, which also shows each role's domains and evidence). The rubric cut the Federal Reserve from 26 shown roles to 9: its economics, regional-affairs, legal, statistics, and records internships no longer show.
 - **Opportunities Explorer (Sonnet 5.5 / gpt-6-luna, structured `ExplorerAnswer`).** An intern asks a question ("Is there an entry-level SOC analyst role?"), and the page streams each step as it actually happens:
   1. Their resume and profile are mapped onto the 12 domains (code, free); the domains appear under their photo.
-  2. Every employer's open roles are pre-scored in code against the question and resume; each employer's tile lights up as it's checked. Only employers with open roles sit on the ring (two interleaved rings past 16); employers whose feeds have no openings right now wait in a side rail and are still checked.
+  2. Every employer's open roles are pre-scored in code against the question and resume; each employer's tile lights up as it's checked. Only employers with open roles sit on the ring (two interleaved rings past 16); employers whose feeds have no openings right now wait in a side rail and are still checked. Each tile carries a badge: a gold count of current Think Tank members there, or a grey E when only Emeritus members are.
   3. The 24 strongest candidates go to the agent, which ranks up to 6 with a fit score, the domain, a reason tied to resume evidence, and gaps to close (including eligibility). It says plainly when nothing is an exact match. An output validator rejects any id not in the candidate list.
   4. Matched employers glow gold with their fit; the cards below link to the employer's posting and the warm intro.
 

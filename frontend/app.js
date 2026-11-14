@@ -80,7 +80,7 @@
   // ---------- tabs ----------
   function showTab() {
     const tab = (location.hash || "#match").slice(1).split("/")[0];
-    const tabs = ["match", "directory", "opportunities", "cohort", "calendar"].concat(META.is_admin ? ["admin"] : []);
+    const tabs = ["match", "opportunities", "directory", "calendar", "cohort"].concat(META.is_admin ? ["admin"] : []);
     const valid = tabs.includes(tab) ? tab : (META.is_admin && !ME ? "admin" : "match");
     $$(".tab").forEach((s) => (s.hidden = s.id !== "tab-" + valid));
     $$(".tabs a").forEach((a) => a.classList.toggle("active", a.dataset.tab === valid));
@@ -1249,8 +1249,11 @@
 
   function orgTile(org) {
     const [abbr, color] = ORG_META[org] || [initials(org), "#1d4166"];
-    return `<div class="ox-org" data-org="${esc(org)}" style="--brand:${color}" title="${esc(org)}">
-      <div class="ox-logo"><span>${esc(abbr)}</span><img src="/api/org-logo/${orgKey(org)}" alt="" onload="this.parentNode.classList.add('has-img'); if (this.naturalWidth > 1.7 * this.naturalHeight) this.parentNode.classList.add('wide')" onerror="this.remove()"></div>
+    const m = (OPPS.members || {})[org] || { think_tank: [], emeritus: [] };
+    const who = [m.think_tank.length ? `Think Tank: ${m.think_tank.join(", ")}` : "", m.emeritus.length ? `Emeritus: ${m.emeritus.join(", ")}` : ""].filter(Boolean).join("\n");
+    const badge = m.think_tank.length ? `<b class="ox-tt">${m.think_tank.length}</b>` : m.emeritus.length ? `<b class="ox-tt emer">E</b>` : "";
+    return `<div class="ox-org" data-org="${esc(org)}" style="--brand:${color}" title="${esc(org + (who ? "\n" + who : ""))}">
+      <div class="ox-logo">${badge}<span>${esc(abbr)}</span><img src="/api/org-logo/${orgKey(org)}" alt="" onload="this.parentNode.classList.add('has-img'); if (this.naturalWidth > 1.7 * this.naturalHeight) this.parentNode.classList.add('wide')" onerror="this.remove()"></div>
       <div class="ox-name">${esc(orgShort(org))}</div><div class="ox-meta"></div></div>`;
   }
 
