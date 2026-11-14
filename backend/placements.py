@@ -259,7 +259,7 @@ def extractor() -> Agent[None, InternFit]:
 
 def _profile_hash(u: dict) -> str:
     keys = ("school", "interests", "hobbies", "goals", "fun_fact", "committee_prefs", "availability",
-            "mentor_profile_json")
+            "mentor_profile_json", "program_role", "background_summary")
     return hashlib.sha256(json.dumps([u.get(k) for k in keys]).encode()).hexdigest()[:16]
 
 
@@ -275,10 +275,13 @@ async def extract_fit(u: dict, committee_slugs: set[str]) -> tuple[InternFit, di
     from . import safety  # noqa: PLC0415
     prefs = json.loads(u.get("committee_prefs") or "[]")
     fields = {k: safety.screen(str(u.get(k) or "")).clean_text for k in
-              ("school", "interests", "hobbies", "goals", "fun_fact", "availability")}
+              ("school", "interests", "hobbies", "goals", "fun_fact", "availability", "program_role",
+               "background_summary")}
     prompt = (f"<profile>\nSchool or employer: {fields['school']}\nInterests: {fields['interests']}\n"
               f"Hobbies: {fields['hobbies']}\nGoals for the program: {fields['goals']}\n"
-              f"Fun fact: {fields['fun_fact']}\nCommittee preferences (slugs, in order): {prefs}\n"
+              f"Fun fact: {fields['fun_fact']}\nCurrent Summit role: {fields['program_role']}\n"
+              f"Background: {fields['background_summary']}\n"
+              f"Committee preferences (slugs, in order): {prefs}\n"
               f"Availability notes: {fields['availability']}\n"
               f"From their resume: {_resume_summary(u)}\n</profile>")
     started = time.perf_counter()

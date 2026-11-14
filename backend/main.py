@@ -63,12 +63,16 @@ def _profile_from_registration(user: dict) -> agents.InternProfile | None:
     return agents.InternProfile(
         first_name=user["first_name"], school=user.get("school", ""),
         interests=split(user["interests"]), hobbies=split(user["hobbies"]),
-        background=[f"From {user['city']}, {user['state']}"]
+        background=([f"From {user['city']}, {user['state']}"] if user.get("city") else [])
                    + ([f"School or employer: {user['school']}"] if user.get("school") else [])
+                   + ([f"Summit role: {user['program_role']}"] if user.get("program_role") else [])
+                   + ([user["background_summary"][:400]] if user.get("background_summary") else [])
                    + ([f"Fun fact: {user['fun_fact']}"] if user.get("fun_fact") else []),
         career_goal=(user["goals"] or "")[:300],
-        summary=f"{user['first_name']} is a Cyber Security Summit intern from {user['city']}, "
-                f"{user['state']}. Goals for the program: {(user['goals'] or 'not stated yet')[:300]}",
+        summary=(user.get("background_summary") or "")[:300] or
+                (f"{user['first_name']} is a Cyber Security Summit intern"
+                 + (f" from {user['city']}, {user['state']}" if user.get("city") else "")
+                 + f". Goals for the program: {(user['goals'] or 'not stated yet')[:300]}"),
     )
 
 
@@ -209,10 +213,10 @@ class AdminLoginBody(BaseModel):
 def _public_user(u: dict, include_private: bool = False) -> dict:
     keep = ["id", "first_name", "last_name", "slack_email", "city", "state", "school",
             "interests", "hobbies", "goals", "fun_fact", "linkedin_url", "share_with_cohort",
-            "created_at"]
+            "created_at", "program_role", "background_summary"]
     if include_private:
         keep += ["phone", "last_login", "updated_at", "must_change_password", "availability",
-                 "is_sample", "resume_filename", "resume_uploaded_at"]
+                 "is_sample", "resume_filename", "resume_uploaded_at", "email_pending"]
     d = {k: u.get(k) for k in keep}
     d["share_with_cohort"] = bool(d["share_with_cohort"])
     if include_private:
@@ -221,6 +225,7 @@ def _public_user(u: dict, include_private: bool = False) -> dict:
         except ValueError:
             d["committee_prefs"] = []
         d["is_sample"] = bool(u.get("is_sample"))
+        d["email_pending"] = bool(u.get("email_pending"))
     if "must_change_password" in d:
         d["must_change_password"] = bool(d["must_change_password"])
     # Cache-busting URL; the endpoint itself checks the viewer is signed in.
@@ -483,8 +488,15 @@ def cohort(user: Annotated[dict, Depends(auth.require_user)]):
     """Other interns who chose to share. Phone numbers are never included here. Fictional
     demo interns are visible to the admin (and to each other) but never to real interns."""
     show_samples = bool(user.get("is_admin_view") or user.get("is_sample"))
-    return [_public_user(u) for u in db.list_users(cohort_only=True)
-            if show_samples or not u.get("is_sample")]
+    out = []
+    for u in db.list_users(cohort_only=True):
+        if u.get("is_sample") and not show_samples:
+            continue
+        d = _public_user(u)
+        if u.get("email_pending"):
+            d["slack_email"] = ""  # placeholder login, not a real address
+        out.append(d)
+    return out
 
 
 @app.post("/api/admin/login")
@@ -566,8 +578,10 @@ def person(slug: str):
     p = directory.get_person(slug)
     if not p:
         raise HTTPException(404, "Not found")
-    talks = [e for e in db.list_events(upcoming_only=True) if slug in e["speaker_slugs"]]
-    return {**_card(p, full=True), "talks": talks}
+    now = datetime.now().strftime("%Y-%m-%dT%H:%M")
+    mine = [e for e in db.list_events() if slug in e["speaker_slugs"]]
+    return {**_card(p, full=True), "talks": [e for e in mine if e["ends_at"] >= now],
+            "past_talks": [e for e in mine if e["ends_at"] < now]}
 
 
 # ---------------------------------------------------------------------------
@@ -943,6 +957,28 @@ def admin_usage():
 @app.get("/api/admin/interns", dependencies=[Depends(auth.require_admin)])
 def admin_interns():
     return [_public_user(u, include_private=True) for u in db.list_users()]
+
+
+class ContactBody(BaseModel):
+    email: EmailStr
+    phone: str = Field("", max_length=30)
+    city: str = Field("", max_length=80)
+    state: str = Field("", max_length=20)
+
+
+@app.put("/api/admin/interns/{user_id}/contact", dependencies=[Depends(auth.require_admin)])
+def admin_set_contact(user_id: int, body: ContactBody):
+    if not db.get_user(user_id):
+        raise HTTPException(404, "No such intern.")
+    email = str(body.email).lower()
+    other = db.get_user_by_email(email)
+    if other and other["id"] != user_id:
+        raise HTTPException(409, "Another account already uses that email.")
+    state = body.state.strip()
+    if state and state.upper() not in US_STATES and state != "Other":
+        raise HTTPException(400, "Pick a US state (two letters) or Other.")
+    db.set_contact(user_id, email, body.phone.strip(), body.city.strip(), state.upper() if state != "Other" else state)
+    return {"ok": True}
 
 
 @app.get("/api/admin/interns/{user_id}/resume", dependencies=[Depends(auth.require_admin)])

@@ -125,6 +125,7 @@
         ${list("Background", f.background)}${list("Outside work", f.personal_interests)}
         ${list("Education", f.education)}${list("Certifications", f.certifications)}
       </div>
+      ${p.past_talks && p.past_talks.length ? `<h3 class="sub">Gave a Think Tank Talk</h3>${p.past_talks.map((e) => `<div class="prep">${esc(fmtDate(e.starts_at, { month: "long", day: "numeric", year: "numeric" }))} · ${esc(e.description.split(". ")[0])}</div>`).join("")}` : ""}
       ${p.talks.length ? `<h3 class="sub">Upcoming talks</h3>${p.talks.map((e) => `<div class="prep"><strong>${esc(e.title)}</strong> · ${esc(fmtDate(e.starts_at, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }))} CT</div>`).join("")}` : ""}
       <div class="event-actions">
         <a class="btn" href="${esc(p.profile_url)}" target="_blank" rel="noopener">Summit profile ↗</a>
@@ -304,10 +305,15 @@
     log.appendChild(d);
   }
 
+  const placeOf = (u) => [u.city, u.state].filter(Boolean).join(", ");
+
   // ---------- calendar ----------
   async function loadEvents() {
-    const events = await api("/api/events");
-    if (!events.length) { $("#event-list").innerHTML = `<div class="empty">No talks scheduled yet. Check back soon.</div>`; return; }
+    const all = await api("/api/events?include_past=true");
+    const events = all.filter((e) => new Date(e.ends_at) >= new Date());
+    const past = all.filter((e) => new Date(e.ends_at) < new Date()).reverse();
+    renderPast(past);
+    if (!events.length) { $("#event-list").innerHTML = `<div class="empty">No upcoming talks scheduled yet. Check back soon.</div>`; return; }
     let month = "";
     const rsvped = JSON.parse(store.get("css_rsvps") || "{}");
     $("#event-list").innerHTML = events.map((e) => {
@@ -338,6 +344,19 @@
         toast("You're on the list. Add it to your calendar for reminders."); loadEvents();
       } catch (err) { toast(err.message); }
     }));
+  }
+
+  function renderPast(past) {
+    $("#past-talks").innerHTML = past.length ? `<div class="section-head past-head"><div><h2>Past talks</h2>
+        <p class="muted">${past.length} Think Tank Talks this program year. Click a speaker for their bio.</p></div></div>
+      <div class="past-list">${past.map((e) => {
+        const d = new Date(e.starts_at);
+        const who = e.speakers.length
+          ? e.speakers.map((sp) => `<button class="speaker" type="button" data-person="${esc(sp.slug)}">${avatar(sp, "sm")}${esc(sp.name)}</button>`).join("")
+          : `<span class="speaker static">${esc(e.title.replace(/^Think Tank Talk:\s*/, ""))}</span>`;
+        return `<div class="past-talk"><div class="past-date">${esc(d.toLocaleString([], { month: "short", day: "numeric" }))}<small>${esc(d.toLocaleString([], { year: "numeric" }))}</small></div>
+          <div><div class="speakers">${who}</div><div class="muted small">${esc(e.description)}</div></div></div>`;
+      }).join("")}</div>` : "";
   }
 
   // ---------- admin ----------
@@ -677,12 +696,14 @@
     const list = COHORT.filter((u) => !q || Object.values(u).join(" ").toLowerCase().includes(q));
     $("#cohort-grid").innerHTML = list.map((u) => `<div class="person intern">
       <div class="top">${initAvatar(u)}<div><div class="name">${esc(u.first_name)} ${esc(u.last_name)}${ME && u.id === ME.id ? ' <span class="badge">You</span>' : ""}</div>
-        <div class="loc">${esc(u.city)}, ${esc(u.state)}${u.school ? " · " + esc(u.school) : ""}</div></div></div>
+        <div class="loc">${esc([placeOf(u), u.school].filter(Boolean).join(" · "))}</div></div></div>
+      ${u.program_role ? `<div class="role-line">${esc(u.program_role)}</div>` : ""}
+      ${u.background_summary ? `<p class="goal">${esc(u.background_summary)}</p>` : ""}
       ${splitList(u.interests).length ? `<div><div class="lbl small muted">Interests</div><div class="chips">${splitList(u.interests).slice(0, 6).map((x) => `<span class="chip accent">${esc(x)}</span>`).join("")}</div></div>` : ""}
       ${splitList(u.hobbies).length ? `<div><div class="lbl small muted">Hobbies</div><div class="chips">${splitList(u.hobbies).slice(0, 6).map((x) => `<span class="chip gold">${esc(x)}</span>`).join("")}</div></div>` : ""}
       ${u.goals ? `<p class="goal"><strong>Wants to:</strong> ${esc(u.goals)}</p>` : ""}
       ${u.fun_fact ? `<p class="fun">✨ ${esc(u.fun_fact)}</p>` : ""}
-      <div class="links"><a href="mailto:${esc(u.slack_email)}">✉ ${esc(u.slack_email)}</a>${u.linkedin_url ? `<a href="${esc(u.linkedin_url)}" target="_blank" rel="noopener">LinkedIn ↗</a>` : ""}</div>
+      <div class="links">${u.slack_email ? `<a href="mailto:${esc(u.slack_email)}">✉ ${esc(u.slack_email)}</a>` : ""}${u.linkedin_url ? `<a href="${esc(u.linkedin_url)}" target="_blank" rel="noopener">LinkedIn ↗</a>` : ""}</div>
     </div>`).join("") || `<div class="empty">${COHORT.length ? "No one matches that search." : "No interns have shared a profile yet."}</div>`;
   }
   $("#cohort-q").addEventListener("input", renderCohort);
@@ -741,7 +762,7 @@
       list.map((u) => `<tr class="clickable" data-intern="${u.id}">
         <td>${initAvatar(u, "sm")}</td>
         <td><strong>${esc(u.first_name)} ${esc(u.last_name)}</strong>${u.is_sample ? ' <span class="badge sample">Sample</span>' : ""}${u.school ? `<br><span class="muted small">${esc(u.school)}</span>` : ""}</td>
-        <td>${esc(u.city)}, ${esc(u.state)}</td><td>${esc(u.slack_email)}</td><td style="white-space:nowrap">${esc(u.phone)}</td>
+        <td>${esc(placeOf(u) || "—")}</td><td>${u.email_pending ? '<span class="badge req">Email pending</span>' : esc(u.slack_email)}</td><td style="white-space:nowrap">${esc(u.phone || "—")}</td>
         <td>${esc(u.interests.slice(0, 90))}${u.interests.length > 90 ? "…" : ""}</td>
         <td style="white-space:nowrap">${esc((u.created_at || "").slice(0, 10))}</td>
         <td><button class="btn small" type="button" data-view="${u.id}">View</button></td></tr>`).join("") || `<tr><td colspan="8" class="muted">${INTERNS.length ? "No match." : "No interns have registered yet. Share the access code above."}</td></tr>`}</tbody>`;
@@ -752,13 +773,15 @@
     const u = INTERNS.find((x) => x.id == row.dataset.intern);
     const row_ = (k, v) => `<dt>${k}</dt><dd>${esc(v || "—")}</dd>`;
     $("#intern-body").innerHTML = `<div class="intern-detail">
-      <div class="pd-head">${u.photo_url ? `<img class="photo-lg" src="${esc(u.photo_url)}" alt="">` : initAvatar(u, "lg")}<div><h2>${esc(u.first_name)} ${esc(u.last_name)}</h2><div class="muted">${esc(u.city)}, ${esc(u.state)}</div></div></div>
-      <dl>${row_("Cell phone", u.phone)}${row_("Preferred email", u.slack_email)}${row_("School / employer", u.school)}
+      <div class="pd-head">${u.photo_url ? `<img class="photo-lg" src="${esc(u.photo_url)}" alt="">` : initAvatar(u, "lg")}<div><h2>${esc(u.first_name)} ${esc(u.last_name)}</h2><div class="muted">${esc(placeOf(u) || "Location not provided")}</div></div></div>
+      ${u.email_pending ? `<div class="flag">This intern was imported from your roster with a placeholder login. Add their real email below, then they can sign in with “Forgot your password?”.</div>` : ""}
+      <dl>${row_("Cell phone", u.phone)}${row_("Preferred email", u.email_pending ? "Pending (placeholder login)" : u.slack_email)}${row_("School / employer", u.school)}${row_("Summit role", u.program_role)}${row_("Background", u.background_summary)}
       <dt>LinkedIn</dt><dd>${u.linkedin_url ? `<a href="${esc(u.linkedin_url)}" target="_blank" rel="noopener">${esc(u.linkedin_url.replace(/^https:\/\/(www\.)?/, ""))}</a>` : "—"}</dd>
       ${row_("Interests", u.interests)}${row_("Hobbies", u.hobbies)}${row_("Program goals", u.goals)}${row_("Fun fact", u.fun_fact)}${row_("Committee picks", (u.committee_prefs || []).map((sl, i) => `${i + 1}. ${(COMMITTEES_PUBLIC.find((c) => c.slug === sl) || {}).name || sl}`).join("\n"))}${row_("Availability", u.availability)}
       <dt>Resume</dt><dd>${u.resume_uploaded_at ? `${esc(u.resume_filename || "Resume")} · ${esc(u.resume_uploaded_at.slice(0, 10))} <button class="btn small ghost" type="button" data-view-resume="${u.id}">View resume</button>` : "—"}</dd>
       ${row_("Shares with cohort", u.share_with_cohort ? "Yes" : "No")}${row_("Registered", (u.created_at || "").replace("T", " "))}${row_("Last sign-in", (u.last_login || "").replace("T", " "))}</dl>
       <div class="event-actions"><a class="btn" href="tel:${esc(u.phone)}">Call</a><a class="btn" href="mailto:${esc(u.slack_email)}">Email</a>
+      <button class="btn" type="button" data-edit-contact="${u.id}">Edit contact info</button>
       <button class="btn" type="button" data-reset-link="${u.id}">Create password reset link</button>
       <button class="btn danger" type="button" id="del-intern">Delete account</button></div></div>`;
     $("#del-intern").onclick = async () => {
@@ -801,6 +824,26 @@
       <p class="muted small">${esc(r.resume ? r.resume.filename : "")} · uploaded ${esc(r.resume ? r.resume.uploaded_at.replace("T", " ").slice(0, 16) : "")}. Lines that looked like instructions to an AI were removed before saving.</p>
       ${p.summary ? `<div class="profile-view"><p class="small">${esc(p.summary)}</p>${chips("Skills", p.skills)}${chips("Interests", p.interests)}${chips("Background", p.background)}</div>` : ""}
       <pre class="resume-text">${esc(r.text || "(no text)")}</pre>` });
+  });
+
+  document.addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-edit-contact]"); if (!b) return;
+    const u = INTERNS.find((x) => x.id == b.dataset.editContact);
+    const opts = (META.us_states || []).map((s2) => `<option ${s2 === u.state ? "selected" : ""}>${esc(s2)}</option>`).join("");
+    const p = modal({ title: `Contact info for ${u.first_name} ${u.last_name}`, ok: "Save", html: true, body: `
+      <form id="contact-form" class="form-grid" onsubmit="return false">
+        <label class="span2">Email <small class="muted">they'll sign in with this</small><input id="ct-email" type="email" required value="${esc(u.email_pending ? "" : u.slack_email)}"></label>
+        <label>Cell phone<input id="ct-phone" maxlength="30" value="${esc(u.phone || "")}"></label>
+        <label>City<input id="ct-city" maxlength="80" value="${esc(u.city || "")}"></label>
+        <label>State<select id="ct-state"><option value="">—</option>${opts}</select></label>
+        <p class="error span2" id="ct-error" hidden></p>
+      </form>` });
+    const ok = await p;
+    if (!ok) return;
+    try {
+      await api(`/api/admin/interns/${u.id}/contact`, { method: "PUT", body: { email: $("#ct-email").value.trim(), phone: $("#ct-phone").value, city: $("#ct-city").value, state: $("#ct-state").value } });
+      toast("Contact info saved"); $("#intern-dialog").close(); loadInterns();
+    } catch (err) { toast(err.message); }
   });
 
   async function loadAccessCode() { $("#access-code").textContent = (await api("/api/admin/access-code")).code; }

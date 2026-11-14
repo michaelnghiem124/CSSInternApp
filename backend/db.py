@@ -223,6 +223,9 @@ MIGRATIONS = {
         "resume_filename": "TEXT NOT NULL DEFAULT ''",
         "resume_uploaded_at": "TEXT",
         "mentor_profile_json": "TEXT NOT NULL DEFAULT ''",  # what Mentor Match built from it
+        "program_role": "TEXT NOT NULL DEFAULT ''",        # committee / Summit role(s)
+        "background_summary": "TEXT NOT NULL DEFAULT ''",  # short bio, e.g. from the roster
+        "email_pending": "INTEGER NOT NULL DEFAULT 0",     # imported with a placeholder login
     },
 }
 
@@ -386,13 +389,14 @@ def archive_announcement(ann_id: int) -> bool:
 # ---------------------------------------------------------------------------
 USER_FIELDS = ("first_name", "last_name", "phone", "slack_email", "city", "state", "school",
                "interests", "hobbies", "goals", "fun_fact", "linkedin_url", "share_with_cohort",
-               "committee_prefs", "availability")
+               "committee_prefs", "availability", "program_role", "background_summary")
 # Everything except the photo bytes and password hash, for list/detail queries.
 _USER_COLS = ("id, first_name, last_name, phone, slack_email, city, state, school, interests, "
               "hobbies, goals, fun_fact, linkedin_url, share_with_cohort, created_at, updated_at, "
               "last_login, photo_updated, password_hash, session_version, temp_password_hash, "
               "temp_password_expires, must_change_password, committee_prefs, availability, "
-              "is_sample, resume_filename, resume_uploaded_at, mentor_profile_json, "
+              "is_sample, resume_filename, resume_uploaded_at, mentor_profile_json, program_role, "
+              "background_summary, email_pending, "
               "length(resume_text) AS resume_chars")
 
 
@@ -405,7 +409,7 @@ def _user_val(k: str, v: Any) -> Any:
 
 
 def create_user(data: dict[str, Any], password_hash: str, is_sample: bool = False) -> int:
-    data = {"committee_prefs": [], "availability": "", **data}
+    data = {"committee_prefs": [], "availability": "", "program_role": "", "background_summary": "", **data}
     with conn() as c:
         cur = c.execute(
             f"INSERT INTO users ({', '.join(USER_FIELDS)}, password_hash, is_sample, created_at, "
@@ -433,6 +437,13 @@ def get_user_by_email(email: str) -> dict[str, Any] | None:
     with conn() as c:
         r = c.execute(f"SELECT {_USER_COLS} FROM users WHERE slack_email = ?", (email,)).fetchone()
     return dict(r) if r else None
+
+
+def set_contact(user_id: int, email: str, phone: str, city: str, state: str) -> None:
+    """Admin correction of contact details. A real email clears the 'pending' flag."""
+    with conn() as c:
+        c.execute("UPDATE users SET slack_email = ?, phone = ?, city = ?, state = ?, email_pending = 0, "
+                  "updated_at = ? WHERE id = ?", (email, phone, city, state, _now(), user_id))
 
 
 def touch_login(user_id: int) -> None:
