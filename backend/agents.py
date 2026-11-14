@@ -1,16 +1,16 @@
-"""The two agents.
+"""Mentor Match: the two intern-facing agents.
 
-1. Profile Reader (cheap model). Turns a resume + self-introduction into a structured
+1. Mentor Match Profile Reader (cheap model). Turns a resume + self-introduction into a structured
    InternProfile and flags injection attempts hidden in the documents. Runs once per
    upload, not every chat turn.
 
-2. Matchmaker (stronger model). Chats with the intern, uses tools over the Think Tank
+2. Mentor Matcher (stronger model). Chats with the intern, uses tools over the Think Tank
    directory and the talk calendar, and returns structured recommendations. Its
    instructions hold the full roster and never change between requests, so the provider
    can cache them; the intern's profile rides in the conversation instead.
 
 Code, not the model, decides the hand-off: the profile is produced first and passed into
-the matchmaker's conversation. That keeps the expensive model away from raw resume text.
+the Mentor Matcher's conversation. That keeps the expensive model away from raw resume text.
 """
 
 from __future__ import annotations
@@ -126,7 +126,7 @@ def _log(session: str, r: RunReport, outcome: str = "ok") -> None:
 
 
 # ---------------------------------------------------------------------------
-# Agent 1: Profile Reader
+# Agent 1: Mentor Match Profile Reader
 # ---------------------------------------------------------------------------
 _profile_agent: Agent[None, InternProfile] | None = None
 
@@ -139,7 +139,7 @@ def profile_agent() -> Agent[None, InternProfile]:
             output_type=InternProfile,
             instructions=(config.PROMPTS_DIR / "profile.md").read_text(),
             model_settings=PROFILE_SETTINGS,
-            name="profile_reader",
+            name="mentor_profile_reader",
         )
     return _profile_agent
 
@@ -149,7 +149,7 @@ async def read_profile(session: str, resume_text: str, intro: str) -> tuple[Inte
     prompt = (f"<resume>\n{resume_text[:config.MAX_RESUME_CHARS]}\n</resume>\n\n"
               f"<intro>\n{intro[:config.MAX_MESSAGE_CHARS]}\n</intro>")
     result = await profile_agent().run(prompt, usage_limits=UsageLimits(request_limit=3))
-    report = _report("profile_reader", "fast", result, started, [])
+    report = _report("mentor_profile_reader", "fast", result, started, [])
     _log(session, report)
     if result.output.injection_detected:
         db.log_safety(session, "injection_in_resume", result.output.injection_note or "flagged")
@@ -157,7 +157,7 @@ async def read_profile(session: str, resume_text: str, intro: str) -> tuple[Inte
 
 
 # ---------------------------------------------------------------------------
-# Agent 2: Matchmaker
+# Agent 2: Mentor Matcher
 # ---------------------------------------------------------------------------
 @dataclass
 class MatchDeps:
@@ -169,7 +169,7 @@ _match_agent: Agent[MatchDeps, MatchReply] | None = None
 
 
 def _instructions() -> str:
-    tpl = (config.PROMPTS_DIR / "matchmaker.md").read_text()
+    tpl = (config.PROMPTS_DIR / "mentor_match.md").read_text()
     return tpl.format(admin_name=config.ADMIN_NAME, admin_title=config.ADMIN_TITLE,
                       roster=directory.roster_text())
 
@@ -192,7 +192,7 @@ def match_agent() -> Agent[MatchDeps, MatchReply]:
         output_type=MatchReply,
         instructions=_instructions(),
         model_settings=MATCH_SETTINGS,
-        name="matchmaker",
+        name="mentor_matcher",
     )
 
     @agent.tool
@@ -257,7 +257,7 @@ async def chat_turn(state: ChatState, session: str, message: str) -> tuple[Match
     except UsageLimitExceeded as exc:
         db.log_safety(session, "run_limit", str(exc))
         raise
-    report = _report("matchmaker", "match", result, started, deps.tools_used)
+    report = _report("mentor_matcher", "match", result, started, deps.tools_used)
     _log(session, report)
     state.history = result.all_messages()
     state.turns += 1
@@ -266,6 +266,6 @@ async def chat_turn(state: ChatState, session: str, message: str) -> tuple[Match
 
 async def profile_update_turn(state: ChatState) -> None:
     """When a resume arrives mid-conversation, restart history so the new profile is the
-    first thing the matchmaker sees (and the cached prefix stays the same)."""
+    first thing the Mentor Matcher sees (and the cached prefix stays the same)."""
     state.history = []
     state.turns = 0

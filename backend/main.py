@@ -56,7 +56,7 @@ def session_key(user: Annotated[dict, Depends(auth.require_user)]) -> str:
 
 
 def _profile_from_registration(user: dict) -> agents.InternProfile | None:
-    """What the intern told us at sign-up, as a matchmaker profile. No model call needed."""
+    """What the intern told us at sign-up, as a Mentor Match profile. No model call needed."""
     if not user.get("slack_email"):
         return None
     split = lambda s: [x.strip() for x in re.split(r"[,;\n]", s or "") if x.strip()][:12]
@@ -406,7 +406,7 @@ def update_me(body: ProfileFields, request: Request,
     if other and other["id"] != user["id"]:
         raise HTTPException(409, "Another account already uses that email.")
     db.update_user(user["id"], {**body.model_dump(), "slack_email": email})
-    STATES.pop(safety.hash_session(f"user:{user['id']}"), None)  # matchmaker re-reads it
+    STATES.pop(safety.hash_session(f"user:{user['id']}"), None)  # Mentor Match re-reads it
     return {"user": _public_user(db.get_user(user["id"]), include_private=True)}
 
 

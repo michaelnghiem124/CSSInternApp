@@ -129,7 +129,7 @@
       <div class="event-actions">
         <a class="btn" href="${esc(p.profile_url)}" target="_blank" rel="noopener">Summit profile ↗</a>
         ${p.linkedin_url ? `<a class="btn" href="${esc(p.linkedin_url)}" target="_blank" rel="noopener">LinkedIn ↗</a>` : ""}
-        <button class="btn primary" type="button" id="ask-about">Ask the matchmaker about ${esc(p.name.split(" ")[0])}</button>
+        <button class="btn primary" type="button" id="ask-about">Ask Mentor Match about ${esc(p.name.split(" ")[0])}</button>
       </div>`;
     $("#ask-about").onclick = () => { dialog.close(); location.hash = "#match"; sendChat(`How should I approach ${p.name}, and what should I ask?`); };
     dialog.showModal();
@@ -285,7 +285,7 @@
 
   function greet() {
     const d = document.createElement("div"); d.className = "msg bot";
-    d.innerHTML = `<div class="bubble">Hi${ME ? " " + esc(ME.first_name) : ""}! I'm the Think Tank matchmaker. ${ME && (ME.interests || ME.hobbies || ME.goals) ? "I already know the interests, hobbies, and goals from your registration, so you can ask me who to meet right away. Adding a resume on the left makes the matches sharper. " : ""}${META.llm_ready ? "Add your resume on the left (or just tell me what you're into) and I'll suggest who to meet at the Summit, why, and how to start the conversation." : "<strong>The AI matchmaker is offline because no API key is configured.</strong> The Think Tank directory and the talks calendar still work."}</div>`;
+    d.innerHTML = `<div class="bubble">Hi${ME ? " " + esc(ME.first_name) : ""}! I'm Mentor Match, your guide to the Think Tank. ${ME && (ME.interests || ME.hobbies || ME.goals) ? "I already know the interests, hobbies, and goals from your registration, so you can ask me who to meet right away. Adding a resume on the left makes the matches sharper. " : ""}${META.llm_ready ? "Add your resume on the left (or just tell me what you're into) and I'll suggest who to meet at the Summit, why, and how to start the conversation." : "<strong>Mentor Match is offline because no API key is configured.</strong> The Think Tank directory and the talks calendar still work."}</div>`;
     log.appendChild(d);
   }
 
@@ -852,7 +852,7 @@
   function renderMatrix() {
     const m = MATCH;
     if (!m || !m.rows.length) {
-      $("#match-table").innerHTML = `<tbody><tr><td class="muted">No matches yet. Set committee capacities and meeting times below, then press <b>Run matchmaker</b>. (No interns? Load the demo cohort on the Interns tab.)</td></tr></tbody>`;
+      $("#match-table").innerHTML = `<tbody><tr><td class="muted">No matches yet. Set committee capacities and meeting times below, then press <b>Run matchmaker</b> (above). (No interns? Load the demo cohort on the Interns tab.)</td></tr></tbody>`;
       $("#match-meta").textContent = ""; $("#match-cost").textContent = ""; $("#match-notes").textContent = ""; $("#match-unplaced").innerHTML = "";
       return;
     }

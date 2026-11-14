@@ -229,6 +229,9 @@ def _migrate(c: sqlite3.Connection) -> None:
         for name, decl in cols.items():
             if name not in have:
                 c.execute(f"ALTER TABLE {table} ADD COLUMN {name} {decl}")
+    # v2.2: the intern-facing agents were renamed to Mentor Match.
+    for old, new in (("matchmaker", "mentor_matcher"), ("profile_reader", "mentor_profile_reader")):
+        c.execute("UPDATE usage_log SET agent = ? WHERE agent = ?", (new, old))
 
 
 def init() -> None:

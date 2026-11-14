@@ -94,7 +94,7 @@ label { display: block; font-weight: 600; font-size: .85rem; margin: 12px 0 6px;
 label input, label select, label textarea { margin-top: 6px; font-weight: 400; }
 textarea { resize: vertical; }
 
-/* ---------- matchmaker ---------- */
+/* ---------- Mentor Match ---------- */
 .hero {
   background: radial-gradient(1200px 300px at 85% -40%, rgba(33,254,254,.22), transparent 60%),
               linear-gradient(135deg, var(--navy) 0%, var(--navy-deep) 100%);

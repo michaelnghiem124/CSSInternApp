@@ -538,12 +538,12 @@ async def draft_intros(user_id: int) -> dict:
     with db.conn() as c:
         p = c.execute("SELECT * FROM placements WHERE user_id = ?", (user_id,)).fetchone()
     if not p:
-        raise ValueError("Run the matchmaker first.")
+        raise ValueError("Run the committee matchmaker first.")
     u = db.get_user(user_id)
     cm = {c["slug"]: c for c in list_committees()}.get(p["committee_slug"])
     coach = directory.get_person(p["coach_slug"])
     if not (u and cm):
-        raise ValueError("That placement is out of date. Re-run the matchmaker.")
+        raise ValueError("That placement is out of date. Re-run the committee matchmaker.")
     run = latest_run() or {"rows": []}
     row = next((r for r in run["rows"] if r["intern_id"] == user_id), {})
     director = cm["director_display"] or "the committee director (to be named)"

@@ -139,7 +139,7 @@ def search(query: str = "", sector: str = "", section: str = "", limit: int = 64
 
 
 def roster_text() -> str:
-    """One line per person. Goes into the matchmaker's cached instructions, so it must be
+    """One line per person. Goes into the Mentor Matcher's cached instructions, so it must be
     byte-identical between requests: sorted, no timestamps, no per-user data."""
     lines = []
     for p in sorted(load_people(), key=lambda x: x.slug):

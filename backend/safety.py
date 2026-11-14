@@ -1,7 +1,7 @@
 """Guardrails that run before and around every model call.
 
 Layered on purpose. The cheap deterministic checks here run first and cost nothing; the
-model-level defenses (the profile agent's injection flag, the matchmaker's output validator
+model-level defenses (the profile agent's injection flag, the Mentor Matcher's output validator
 that rejects anyone not on the roster) live in agents.py.
 """
 
@@ -96,7 +96,7 @@ class Blocked(Exception):
 def preflight(session: str, text: str, turns_so_far: int) -> None:
     """Checks that must pass before a chat turn is sent to a model. Raises Blocked."""
     if not config.has_llm_key():
-        raise Blocked("no_key", "The matchmaker is offline: no API key is configured.")
+        raise Blocked("no_key", "Mentor Match is offline: no API key is configured.")
     if len(text) > config.MAX_MESSAGE_CHARS:
         db.log_safety(session, "too_long", f"{len(text)} chars")
         raise Blocked("too_long", f"Please keep messages under {config.MAX_MESSAGE_CHARS:,} "
@@ -111,5 +111,5 @@ def preflight(session: str, text: str, turns_so_far: int) -> None:
     used = db.tokens_used_today()
     if used >= config.DAILY_TOKEN_BUDGET:
         db.log_safety(session, "budget", f"{used:,} tokens used today")
-        raise Blocked("budget", "The matchmaker has used today's budget. It resets at midnight; "
+        raise Blocked("budget", "Mentor Match has used today's budget. It resets at midnight; "
                       "the Directory and Calendar still work.")

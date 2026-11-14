@@ -2,7 +2,7 @@
 
 An AI-powered resource for the **Cyber Security Summit Intern Program** (Minneapolis). Interns use it to find out which Think Tank members (CISOs, security directors, military cyber officers, government and legal leaders) they should meet, and why. The Program Chair uses it to put Think Tank talks on the interns' calendars.
 
-- **Matchmaker**: an intern uploads a resume and says what they're curious about. Two agents read it and recommend 3 to 5 Think Tank members, each with a reason grounded in that person's published bio, shared ground, and conversation starters.
+- **Mentor Match**: an intern uploads a resume and says what they're curious about. Two agents read it and recommend 3 to 5 Think Tank members, each with a reason grounded in that person's published bio, shared ground, and conversation starters.
 - **Think Tank directory**: all 64 published bios (2 co-chairs, 49 members, 13 emeritus), searchable by name, employer, school, skill, or hobby, and filterable by sector.
 - **Talks calendar**: the Chair schedules CISO firesides, panels, and office hours. Interns RSVP and add talks to their own calendars (`.ics` with reminders 1 day and 1 hour before). Talks within 48 hours, and the Chair's announcements, show as banners on every page.
 - **Admin**: intern profiles, talks and announcements, RSVP lists, a live dashboard of AI token usage, cost, and blocked safety events, plus two admin agents:
@@ -24,7 +24,7 @@ python3 -m venv .venv
 
 | Key | Model used |
 |---|---|
-| `ANTHROPIC_API_KEY` | Claude Sonnet 5.5 (matchmaker) + Claude Haiku 5.5 (profile reader). Used if present. |
+| `ANTHROPIC_API_KEY` | Claude Sonnet 5.5 (Mentor Matcher, Placement Matcher, Pulse Analyst) + Claude Haiku 5.5 (profile readers, intro drafter). Used if present. |
 | `PORTKEY_API_KEY` | `gpt-6-luna` through the course's Portkey gateway, for both agents. |
 
 To use your own `.env` here instead of the one above: `cp .env.example .env` and fill in one key.
@@ -45,7 +45,7 @@ The whole site sits behind a sign-in. Only the sign-in/register screen is public
   - **Required:** first name, last name, cell phone, preferred email (used to sign in), city, state, and a password.
   - **Optional:** profile photo, school or current employer, LinkedIn profile, interests, hobbies, what they want from the program, and one fun fact.
 
-  Photos are re-encoded server-side to a 480×480 JPEG, which strips EXIF data such as GPS location, and they're served only to signed-in users. The matchmaker uses the interests, hobbies, and goals straight away; a resume is optional.
+  Photos are re-encoded server-side to a 480×480 JPEG, which strips EXIF data such as GPS location, and they're served only to signed-in users. Mentor Match uses the interests, hobbies, and goals straight away; a resume is optional.
 - **Cohort tab:** interns who opt in see each other's photo, name, location, school or employer, email, LinkedIn, interests, hobbies, goals, and fun fact. **Phone numbers are visible only to the admin.**
 - **Admin (Program Chair):** one account. Set it once:
 
@@ -90,9 +90,9 @@ SMTP_FROM=CSS Intern Hub <the-account@gmail.com>
 
 Passwords are hashed with scrypt. Sessions are signed HttpOnly cookies (14 days for interns, 8 hours for admin). Sign-in and registration are rate-limited.
 
-**Try it fast:** `samples/sample_resume_jordan.txt` is a fictional student resume you can upload in the Matchmaker. `samples/injected_resume.txt` contains a hidden prompt injection, for watching the defenses work.
+**Try it fast:** `samples/sample_resume_jordan.txt` is a fictional student resume you can upload in Mentor Match. `samples/injected_resume.txt` contains a hidden prompt injection, for watching the defenses work.
 
-Without any API key, the Directory, Calendar, and Admin pages still work, and the Matchmaker says it is offline.
+Without any API key, the Directory, Calendar, and Admin pages still work, and Mentor Match says it is offline.
 
 ## How it works
 
@@ -103,11 +103,11 @@ FastAPI (backend/main.py)
    ├─ safety.preflight ─ length caps · per-session rate limit · turn cap · daily token budget
    ├─ safety.screen ──── strips instruction-like lines from resumes and messages (free, deterministic)
    │
-   ├─ Agent 1: Profile Reader (Haiku 5.5 / gpt-6-luna)
+   ├─ Mentor Match Profile Reader (Haiku 5.5 / gpt-6-luna)
    │     resume + intro → InternProfile (skills, interests, hobbies, background)
    │     flags hidden instructions it notices → injection_detected
    │
-   └─ Agent 2: Matchmaker (Sonnet 5.5 / gpt-6-luna)
+   └─ Mentor Matcher (Sonnet 5.5 / gpt-6-luna)
          cached instructions = program context + compact roster of all 64 members
          tools: get_bio(slug) · search_directory(query, sector) · upcoming_talks()
          output: MatchReply (reply, recommendations[], suggested_event_ids[])
@@ -116,7 +116,7 @@ FastAPI (backend/main.py)
 
 - **Data.** `data/think_tank_raw.json` contains the bios as published at cybersecuritysummit.org/2026-think-tank. `data/think_tank.json` adds structured facts (title, sector, expertise, background, interests). `scripts/enrich_bios.py` extracted them once with Haiku: 64 calls, $0.023 total.
 - **Storage.** SQLite at `data/app.db` (gitignored), created on first run with three sample talks marked "Sample". It holds intern accounts, events, RSVPs, announcements, the access code, and token/safety logs. **Resumes and chat text are never written to disk.** Conversations live in server memory for 3 hours.
-- **Cost controls.** The roster sits in the matchmaker's instructions, which never change between requests, so the provider caches them (`cache=True`). Thinking effort is `low`. The cheap model reads resumes, so the expensive model never sees raw resume text. Every reply shows its own token counts and cost.
+- **Cost controls.** The roster sits in the Mentor Matcher's instructions, which never change between requests, so the provider caches them (`cache=True`). Thinking effort is `low`. The cheap model reads resumes, so the expensive model never sees raw resume text. Every reply shows its own token counts and cost.
 
 ## Admin agents
 
@@ -151,7 +151,7 @@ The admin can override any assignment from the matrix and approve placements bef
 - **Read-only.** The agent has no tool that can post to Slack or email anyone. Suggested DMs are text for the Chair to send.
 - **Output.** A `ChairBrief`: (a) interns to nudge, with evidence and a suggested DM, (b) wins to spotlight, (c) blockers to escalate and to whom, plus watch items, safety notes, and data coverage. It is saved and downloadable as Markdown.
 
-**Measured cost (demo cohort of 10):** the matchmaker costs about $0.13 for a first run and much less on re-runs (cached profiles). A Monday Brief costs about $0.03, and an intro draft about $0.001.
+**Measured cost (demo cohort of 10):** the committee matchmaker costs about $0.13 for a first run and much less on re-runs (cached profiles). A Monday Brief costs about $0.03, and an intro draft about $0.001.
 
 ## Configuration
 
@@ -170,7 +170,7 @@ Start command: `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`.
 ## Project layout
 
 ```
-backend/     main.py (API) · agents.py (intern matchmaker) · placements.py (committee matchmaker)
+backend/     main.py (API) · agents.py (Mentor Match) · placements.py (committee matchmaker)
              pulse.py (Monday Brief) · demo.py · auth.py · mailer.py · safety.py · db.py · config.py · prompts/
 mcp_server/  cohort_server.py (read-only, privacy-safe Slack + notes tools)
 frontend/    index.html · styles.css · app.js
