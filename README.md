@@ -115,7 +115,11 @@ FastAPI (backend/main.py)
 ```
 
 - **Data.** `data/think_tank_raw.json` contains the bios as published at cybersecuritysummit.org/2026-think-tank. `data/think_tank.json` adds structured facts (title, sector, expertise, background, interests). `scripts/enrich_bios.py` extracted them once with Haiku: 64 calls, $0.023 total.
-- **Storage.** SQLite at `data/app.db` (gitignored), created on first run with three sample talks marked "Sample". It holds intern accounts, events, RSVPs, announcements, the access code, and token/safety logs. **Resumes and chat text are never written to disk.** Conversations live in server memory for 3 hours.
+- **Storage.** SQLite at `data/app.db` (gitignored), created on first run with three sample talks marked "Sample". It holds intern accounts, saved resumes, events, RSVPs, announcements, the access code, and token/safety logs.
+  - **Resumes are saved to the intern's account**, so they don't have to upload again and Mentor Match picks up where they left off on any device. What's saved: the resume text (with instruction-like lines already removed, capped at 15,000 characters), the file name and date, and the profile Mentor Match built from it.
+  - Only the intern and the Program Chair can see a saved resume (Admin → intern → **View resume**). The intern can delete it any time with **Remove** in Mentor Match.
+  - The committee Fit Extractor uses the resume's skills and background when placing interns.
+  - **Chat conversations are not saved.** They live in server memory for 3 hours.
 - **Cost controls.** The roster sits in the Mentor Matcher's instructions, which never change between requests, so the provider caches them (`cache=True`). Thinking effort is `low`. The cheap model reads resumes, so the expensive model never sees raw resume text. Every reply shows its own token counts and cost.
 
 ## Admin agents

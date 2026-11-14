@@ -219,6 +219,10 @@ MIGRATIONS = {
         "committee_prefs": "TEXT NOT NULL DEFAULT '[]'",
         "availability": "TEXT NOT NULL DEFAULT ''",
         "is_sample": "INTEGER NOT NULL DEFAULT 0",
+        "resume_text": "TEXT NOT NULL DEFAULT ''",        # screened text, capped at MAX_RESUME_CHARS
+        "resume_filename": "TEXT NOT NULL DEFAULT ''",
+        "resume_uploaded_at": "TEXT",
+        "mentor_profile_json": "TEXT NOT NULL DEFAULT ''",  # what Mentor Match built from it
     },
 }
 
@@ -388,7 +392,8 @@ _USER_COLS = ("id, first_name, last_name, phone, slack_email, city, state, schoo
               "hobbies, goals, fun_fact, linkedin_url, share_with_cohort, created_at, updated_at, "
               "last_login, photo_updated, password_hash, session_version, temp_password_hash, "
               "temp_password_expires, must_change_password, committee_prefs, availability, "
-              "is_sample")
+              "is_sample, resume_filename, resume_uploaded_at, mentor_profile_json, "
+              "length(resume_text) AS resume_chars")
 
 
 def _user_val(k: str, v: Any) -> Any:
@@ -439,6 +444,27 @@ def list_users(cohort_only: bool = False) -> list[dict[str, Any]]:
     with conn() as c:
         q = f"SELECT {_USER_COLS} FROM users" + (" WHERE share_with_cohort = 1" if cohort_only else "")
         return [dict(r) for r in c.execute(q + " ORDER BY last_name COLLATE NOCASE, first_name")]
+
+
+def save_resume(user_id: int, text: str, filename: str, profile_json: str) -> None:
+    """Keep the resume (already screened for injected instructions) and the Mentor Match
+    profile built from it, so the intern doesn't have to upload again."""
+    with conn() as c:
+        c.execute("UPDATE users SET resume_text = ?, resume_filename = ?, resume_uploaded_at = ?, "
+                  "mentor_profile_json = ? WHERE id = ?",
+                  (text, filename, _now() if text else None, profile_json, user_id))
+
+
+def get_resume_text(user_id: int) -> str:
+    with conn() as c:
+        r = c.execute("SELECT resume_text FROM users WHERE id = ?", (user_id,)).fetchone()
+    return r[0] if r else ""
+
+
+def clear_resume(user_id: int) -> None:
+    with conn() as c:
+        c.execute("UPDATE users SET resume_text = '', resume_filename = '', resume_uploaded_at = NULL, "
+                  "mentor_profile_json = '' WHERE id = ?", (user_id,))
 
 
 def set_photo(user_id: int, data: bytes | None) -> None:

@@ -258,7 +258,8 @@ def extractor() -> Agent[None, InternFit]:
 
 
 def _profile_hash(u: dict) -> str:
-    keys = ("school", "interests", "hobbies", "goals", "fun_fact", "committee_prefs", "availability")
+    keys = ("school", "interests", "hobbies", "goals", "fun_fact", "committee_prefs", "availability",
+            "mentor_profile_json")
     return hashlib.sha256(json.dumps([u.get(k) for k in keys]).encode()).hexdigest()[:16]
 
 
@@ -278,7 +279,8 @@ async def extract_fit(u: dict, committee_slugs: set[str]) -> tuple[InternFit, di
     prompt = (f"<profile>\nSchool or employer: {fields['school']}\nInterests: {fields['interests']}\n"
               f"Hobbies: {fields['hobbies']}\nGoals for the program: {fields['goals']}\n"
               f"Fun fact: {fields['fun_fact']}\nCommittee preferences (slugs, in order): {prefs}\n"
-              f"Availability notes: {fields['availability']}\n</profile>")
+              f"Availability notes: {fields['availability']}\n"
+              f"From their resume: {_resume_summary(u)}\n</profile>")
     started = time.perf_counter()
     res = await extractor().run(prompt, usage_limits=UsageLimits(request_limit=3))
     fit = res.output
@@ -289,6 +291,21 @@ async def extract_fit(u: dict, committee_slugs: set[str]) -> tuple[InternFit, di
                   "profile_json = excluded.profile_json, created_at = excluded.created_at",
                   (u["id"], h, fit.model_dump_json(), datetime.now().isoformat(timespec="seconds")))
     return fit, _usage("fit_extractor", "fast", res, started)
+
+
+def _resume_summary(u: dict) -> str:
+    """Skills and background from the Mentor Match profile built from their saved resume."""
+    raw = u.get("mentor_profile_json") or ""
+    if not raw:
+        return "(no resume on file)"
+    try:
+        p = json.loads(raw)
+    except ValueError:
+        return "(no resume on file)"
+    parts = [f"skills: {', '.join(p.get('skills', [])[:15])}" if p.get("skills") else "",
+             f"background: {'; '.join(p.get('background', [])[:5])}" if p.get("background") else "",
+             f"program: {p.get('program')}" if p.get("program") else ""]
+    return " | ".join(x for x in parts if x) or "(resume had no extractable details)"
 
 
 # ---------------------------------------------------------------------------

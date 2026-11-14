@@ -189,10 +189,21 @@
       ${grp("Interests", p.interests)}${grp("Skills", (p.skills || []).slice(0, 10))}${grp("Hobbies", p.hobbies)}${grp("Background", p.background)}
       ${flags.join("")}
       ${extra.usage ? `<div class="usage-line">${usageBits(extra.usage)}</div>` : ""}
+      ${extra.resume ? `<div class="resume-saved">📄 <span><b>${esc(extra.resume.filename || "Resume")}</b> saved to your profile · ${esc(fmtDate(extra.resume.uploaded_at, { month: "short", day: "numeric" }))}</span>
+        <button class="btn ghost small" type="button" id="remove-resume">Remove</button></div>`
+        : (ME ? `<div class="fine">Built from your registration answers. Upload a resume to make the matches sharper.</div>` : "")}
       <button class="btn ghost small" type="button" id="edit-profile" style="margin-top:10px">Update profile</button>
     </div>`;
     $("#profile-view").hidden = false; $("#profile-form").hidden = true;
     $("#edit-profile").onclick = () => { $("#profile-form").hidden = false; $("#profile-view").hidden = true; };
+    const rm = $("#remove-resume");
+    if (rm) rm.onclick = async () => {
+      if (!await modal({ title: "Remove your resume?", body: "This deletes the saved resume and the profile Mentor Match built from it. Mentor Match will go back to using your registration answers.", ok: "Remove resume", danger: true })) return;
+      await api("/api/me/resume", { method: "DELETE" });
+      const st = await api("/api/chat/state");
+      if (st.profile) renderProfile(st.profile, { resume: st.resume }); else { $("#profile-view").hidden = true; $("#profile-form").hidden = false; }
+      toast("Resume removed");
+    };
   }
 
   $("#profile-form").addEventListener("submit", async (e) => {
@@ -279,13 +290,17 @@
   $("#suggestions").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) sendChat(b.textContent); });
   $("#reset-chat").addEventListener("click", async () => {
     await api("/api/chat/reset", { method: "POST" });
-    log.innerHTML = ""; $("#profile-view").hidden = true; $("#profile-form").hidden = false;
-    greet();
+    log.innerHTML = "";
+    // A new chat clears the conversation, not the saved resume or profile.
+    const st = await api("/api/chat/state");
+    if (st.profile) renderProfile(st.profile, { resume: st.resume });
+    else { $("#profile-view").hidden = true; $("#profile-form").hidden = false; }
+    greet(st.resume);
   });
 
-  function greet() {
+  function greet(resume) {
     const d = document.createElement("div"); d.className = "msg bot";
-    d.innerHTML = `<div class="bubble">Hi${ME ? " " + esc(ME.first_name) : ""}! I'm Mentor Match, your guide to the Think Tank. ${ME && (ME.interests || ME.hobbies || ME.goals) ? "I already know the interests, hobbies, and goals from your registration, so you can ask me who to meet right away. Adding a resume on the left makes the matches sharper. " : ""}${META.llm_ready ? "Add your resume on the left (or just tell me what you're into) and I'll suggest who to meet at the Summit, why, and how to start the conversation." : "<strong>Mentor Match is offline because no API key is configured.</strong> The Think Tank directory and the talks calendar still work."}</div>`;
+    d.innerHTML = `<div class="bubble">Hi${ME ? " " + esc(ME.first_name) : ""}! I'm Mentor Match, your guide to the Think Tank. ${resume ? `I have your saved resume (${esc(resume.filename || "resume")}) and profile, so you can ask me who to meet right away. ` : ME && (ME.interests || ME.hobbies || ME.goals) ? "I already know the interests, hobbies, and goals from your registration, so you can ask me who to meet right away. Adding a resume on the left makes the matches sharper. " : ""}${META.llm_ready ? "Add your resume on the left (or just tell me what you're into) and I'll suggest who to meet at the Summit, why, and how to start the conversation." : "<strong>Mentor Match is offline because no API key is configured.</strong> The Think Tank directory and the talks calendar still work."}</div>`;
     log.appendChild(d);
   }
 
@@ -741,6 +756,7 @@
       <dl>${row_("Cell phone", u.phone)}${row_("Preferred email", u.slack_email)}${row_("School / employer", u.school)}
       <dt>LinkedIn</dt><dd>${u.linkedin_url ? `<a href="${esc(u.linkedin_url)}" target="_blank" rel="noopener">${esc(u.linkedin_url.replace(/^https:\/\/(www\.)?/, ""))}</a>` : "—"}</dd>
       ${row_("Interests", u.interests)}${row_("Hobbies", u.hobbies)}${row_("Program goals", u.goals)}${row_("Fun fact", u.fun_fact)}${row_("Committee picks", (u.committee_prefs || []).map((sl, i) => `${i + 1}. ${(COMMITTEES_PUBLIC.find((c) => c.slug === sl) || {}).name || sl}`).join("\n"))}${row_("Availability", u.availability)}
+      <dt>Resume</dt><dd>${u.resume_uploaded_at ? `${esc(u.resume_filename || "Resume")} · ${esc(u.resume_uploaded_at.slice(0, 10))} <button class="btn small ghost" type="button" data-view-resume="${u.id}">View resume</button>` : "—"}</dd>
       ${row_("Shares with cohort", u.share_with_cohort ? "Yes" : "No")}${row_("Registered", (u.created_at || "").replace("T", " "))}${row_("Last sign-in", (u.last_login || "").replace("T", " "))}</dl>
       <div class="event-actions"><a class="btn" href="tel:${esc(u.phone)}">Call</a><a class="btn" href="mailto:${esc(u.slack_email)}">Email</a>
       <button class="btn" type="button" data-reset-link="${u.id}">Create password reset link</button>
@@ -774,6 +790,17 @@
   document.addEventListener("click", (e) => {
     const b = e.target.closest("[data-reset-link]");
     if (b) { e.preventDefault(); createResetLink(b.dataset.resetLink).catch((err) => toast(err.message)); }
+  });
+
+  document.addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-view-resume]"); if (!b) return;
+    const r = await api(`/api/admin/interns/${b.dataset.viewResume}/resume`);
+    const p = r.profile || {};
+    const chips = (label, items) => (items && items.length ? `<div class="group"><b>${label}</b><div class="chips">${items.map((x) => `<span class="chip">${esc(x)}</span>`).join("")}</div></div>` : "");
+    await modal({ title: `${r.name}: resume`, cancel: null, ok: "Close", html: true, body: `
+      <p class="muted small">${esc(r.resume ? r.resume.filename : "")} · uploaded ${esc(r.resume ? r.resume.uploaded_at.replace("T", " ").slice(0, 16) : "")}. Lines that looked like instructions to an AI were removed before saving.</p>
+      ${p.summary ? `<div class="profile-view"><p class="small">${esc(p.summary)}</p>${chips("Skills", p.skills)}${chips("Interests", p.interests)}${chips("Background", p.background)}</div>` : ""}
+      <pre class="resume-text">${esc(r.text || "(no text)")}</pre>` });
   });
 
   async function loadAccessCode() { $("#access-code").textContent = (await api("/api/admin/access-code")).code; }
@@ -1071,10 +1098,10 @@
     META.sectors.forEach((s) => $("#dir-sector").insertAdjacentHTML("beforeend", `<option>${esc(s)}</option>`));
     PEOPLE = await api("/api/people");
     PEOPLE.forEach((p) => (PEOPLE_BY_SLUG[p.slug] = p));
-    greet();
-    try { const f = sessionStorage.getItem("css_flash"); if (f) { sessionStorage.removeItem("css_flash"); setTimeout(() => toast(f), 600); } } catch { /* ignore */ }
     const st = await api("/api/chat/state");
-    if (st.profile) renderProfile(st.profile);
+    greet(st.resume);
+    try { const f = sessionStorage.getItem("css_flash"); if (f) { sessionStorage.removeItem("css_flash"); setTimeout(() => toast(f), 600); } } catch { /* ignore */ }
+    if (st.profile) renderProfile(st.profile, { resume: st.resume });
     showTab();
     loadNotices();
   }

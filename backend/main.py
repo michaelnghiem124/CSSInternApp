@@ -72,13 +72,25 @@ def _profile_from_registration(user: dict) -> agents.InternProfile | None:
     )
 
 
+def _saved_profile(user: dict) -> agents.InternProfile | None:
+    raw = (user or {}).get("mentor_profile_json") or ""
+    if not raw:
+        return None
+    try:
+        return agents.InternProfile.model_validate_json(raw)
+    except ValueError:
+        return None
+
+
 def state_for(key: str, user: dict | None = None) -> agents.ChatState:
     now = time.time()
     for k in [k for k, s in STATES.items() if now - s.last_seen > STATE_TTL_SECONDS]:
         del STATES[k]
     st = STATES.get(key)
     if st is None:
-        st = STATES[key] = agents.ChatState(profile=_profile_from_registration(user or {}))
+        # The profile built from their saved resume wins; registration answers otherwise.
+        profile = _saved_profile(user or {}) or _profile_from_registration(user or {})
+        st = STATES[key] = agents.ChatState(profile=profile)
     st.last_seen = now
     return st
 
@@ -200,7 +212,7 @@ def _public_user(u: dict, include_private: bool = False) -> dict:
             "created_at"]
     if include_private:
         keep += ["phone", "last_login", "updated_at", "must_change_password", "availability",
-                 "is_sample"]
+                 "is_sample", "resume_filename", "resume_uploaded_at"]
     d = {k: u.get(k) for k in keep}
     d["share_with_cohort"] = bool(d["share_with_cohort"])
     if include_private:
@@ -618,11 +630,23 @@ async def build_profile(
     st = state_for(session, user)
     st.profile = profile
     await agents.profile_update_turn(st)
+    saved = False
+    if not user.get("is_admin_view"):
+        if screened.clean_text.strip():
+            db.save_resume(user["id"], screened.clean_text, (file.filename if file else "") or "pasted text",
+                           profile.model_dump_json())
+        else:
+            # Intro only: keep the existing resume, refresh the profile built from it.
+            db.save_resume(user["id"], db.get_resume_text(user["id"]), user.get("resume_filename") or "",
+                           profile.model_dump_json())
+        saved = True
     return {
         "profile": profile.model_dump(),
         "usage": report.__dict__,
         "screened_lines": removed,
         "chars_read": len(text),
+        "saved": saved,
+        "resume": _resume_info(db.get_user(user["id"]) if saved else None),
     }
 
 
@@ -679,6 +703,24 @@ async def chat(body: ChatBody, session: Annotated[str, Depends(session_key)],
     }
 
 
+def _resume_info(u: dict | None) -> dict | None:
+    if not u or not u.get("resume_uploaded_at"):
+        return None
+    return {"filename": u.get("resume_filename") or "", "uploaded_at": u["resume_uploaded_at"],
+            "chars": u.get("resume_chars") or 0}
+
+
+@app.delete("/api/me/resume")
+def delete_my_resume(user: Annotated[dict, Depends(auth.require_user)],
+                     session: Annotated[str, Depends(session_key)]):
+    if user.get("is_admin_view"):
+        STATES.pop(session, None)
+        return {"ok": True}
+    db.clear_resume(user["id"])
+    STATES.pop(session, None)  # next chat starts from registration answers again
+    return {"ok": True}
+
+
 @app.post("/api/chat/reset")
 def chat_reset(session: Annotated[str, Depends(session_key)]):
     STATES.pop(session, None)
@@ -689,7 +731,9 @@ def chat_reset(session: Annotated[str, Depends(session_key)]):
 def chat_state(session: Annotated[str, Depends(session_key)],
                user: Annotated[dict, Depends(auth.require_user)]):
     st = state_for(session, user)
+    fresh = None if user.get("is_admin_view") else db.get_user(user["id"])
     return {"profile": st.profile.model_dump() if st and st.profile else None,
+            "resume": _resume_info(fresh),
             "turns": st.turns if st else 0, "max_turns": config.MAX_TURNS_PER_SESSION}
 
 
@@ -899,6 +943,16 @@ def admin_usage():
 @app.get("/api/admin/interns", dependencies=[Depends(auth.require_admin)])
 def admin_interns():
     return [_public_user(u, include_private=True) for u in db.list_users()]
+
+
+@app.get("/api/admin/interns/{user_id}/resume", dependencies=[Depends(auth.require_admin)])
+def admin_intern_resume(user_id: int):
+    u = db.get_user(user_id)
+    if not u:
+        raise HTTPException(404, "No such intern.")
+    profile = _saved_profile(u)
+    return {"name": f"{u['first_name']} {u['last_name']}", "resume": _resume_info(u),
+            "text": db.get_resume_text(user_id), "profile": profile.model_dump() if profile else None}
 
 
 @app.delete("/api/admin/interns/{user_id}", dependencies=[Depends(auth.require_admin)])
