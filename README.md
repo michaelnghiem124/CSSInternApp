@@ -161,7 +161,7 @@ The admin can override any assignment from the matrix and approve placements bef
 
 ### Opportunities pilot (`backend/opportunities.py`, `backend/explorer.py`, `backend/cyber_domains.py`)
 
-**Job Opportunity Match** (the second tab, after Mentor Match) shows internships, co-ops, and entry-level roles at Think Tank organizations, each with the Think Tank member who works there for a warm introduction. Interns get two views: the **Explorer** (ask a question, see it evaluated visually) and **Browse all roles** (filterable list). Mentor Match can also suggest openings in chat.
+**Opportunity Match** (the second tab, after Mentor Match) shows internships, co-ops, and entry-level roles at Think Tank organizations, each with the Think Tank member who works there for a warm introduction. Interns get two views: the **Explorer** (ask a question, see it evaluated visually) and **Browse all roles** (filterable list). Mentor Match can also suggest openings in chat.
 
 - **Connectors (plain code, no AI).** They read each employer's **official public job feed**, the same one its careers page uses. 25 Think Tank and Emeritus organizations, plus 4 federal ones:
   - Workday: 3M, Medtronic, the Federal Reserve, Ameriprise, Land O'Lakes, Securian, Ecolab, nVent, U.S. Bank, Center for Internet Security, Progressive Leasing, Donaldson

@@ -107,7 +107,7 @@
 
   // ---------- person dialog ----------
   const dialog = $("#person-dialog");
-  $(".dialog-close").addEventListener("click", () => dialog.close());
+  $(".dialog-close", dialog).addEventListener("click", () => dialog.close());
   dialog.addEventListener("click", (e) => { if (e.target === dialog) dialog.close(); });
 
   async function openPerson(slug) {
