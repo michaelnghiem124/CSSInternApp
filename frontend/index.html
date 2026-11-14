@@ -21,6 +21,7 @@
       <nav class="tabs" role="tablist" id="app-nav" hidden>
         <a href="#match" data-tab="match" role="tab">Mentor Match</a>
         <a href="#directory" data-tab="directory" role="tab">Think Tank</a>
+        <a href="#opportunities" data-tab="opportunities" role="tab">Opportunities</a>
         <a href="#cohort" data-tab="cohort" role="tab">Cohort</a>
         <a href="#calendar" data-tab="calendar" role="tab">Talks <span class="pill" id="talk-count" hidden></span></a>
         <a href="#admin" data-tab="admin" role="tab" id="admin-tab" hidden>Admin</a>
@@ -218,6 +219,25 @@
       <div id="past-talks"></div>
     </section>
 
+    <!-- ============ OPPORTUNITIES ============ -->
+    <section id="tab-opportunities" class="tab" hidden>
+      <div class="hero">
+        <div class="eyebrow">Pilot · Opportunities at Think Tank organizations</div>
+        <h1>Internships and entry-level roles <span class="hl">where you already have a connection.</span></h1>
+        <p>Open roles pulled weekly from the official job sites of Think Tank members' employers, screened by AI for internships, co-ops, and early-career fit. Each one shows who you know there.</p>
+      </div>
+      <div class="filters opp-filters">
+        <input type="search" id="opp-q" placeholder="Search titles, employers, cities…" aria-label="Search opportunities">
+        <select id="opp-kind" aria-label="Type"><option value="">All types</option><option>internship</option><option>co-op</option><option>new-grad / entry-level</option></select>
+        <select id="opp-field" aria-label="Field"><option value="">All fields</option><option>Cybersecurity</option><option>IT / Infrastructure</option><option>Software / Engineering</option><option>Data / Analytics</option><option>Risk / Audit / Compliance</option><option>Business / Other</option></select>
+        <select id="opp-loc" aria-label="Location"><option value="">Anywhere in the US</option><option>Minnesota</option><option>Remote (US)</option></select>
+        <select id="opp-sort" aria-label="Sort"><option value="fit">Best fit for me</option><option value="new">Newest</option></select>
+      </div>
+      <p class="muted small" id="opp-count"></p>
+      <div id="opp-list" class="opp-list"></div>
+      <p class="fine" id="opp-foot"></p>
+    </section>
+
     <!-- ============ COHORT ============ -->
     <section id="tab-cohort" class="tab" hidden>
       <div class="section-head">
@@ -247,6 +267,7 @@
           <button type="button" data-asec="interns" class="on">Interns</button>
           <button type="button" data-asec="placements">Placements <span class="ai-chip">AI</span></button>
           <button type="button" data-asec="pulse">Cohort Pulse <span class="ai-chip">AI</span></button>
+          <button type="button" data-asec="opportunities">Opportunities <span class="ai-chip">AI</span></button>
           <button type="button" data-asec="talks">Talks</button>
           <button type="button" data-asec="usage">AI usage</button>
         </nav>
@@ -352,6 +373,30 @@
               </div>
             </div>
             <div id="brief-body"></div>
+          </div>
+        </div>
+
+        <!-- ===== Opportunities (job-feed pilot) ===== -->
+        <div data-asec-panel="opportunities" hidden>
+          <div class="card agent-hero">
+            <div>
+              <h2>Opportunities pilot</h2>
+              <p class="muted small">Connectors read the <b>official public job feeds</b> (Workday, Oracle Cloud, iCIMS, Greenhouse; USAJOBS with a free key) of Think Tank organizations. A <b>Job Classifier</b> agent labels each new posting: internship, co-op, or entry-level; field; relevance; location; eligibility. Interns only see early-career, relevant, US roles you haven't hidden.</p>
+            </div>
+            <div class="agent-actions">
+              <button class="btn primary" type="button" id="opp-refresh">Refresh job feeds</button>
+              <span class="muted small" id="opp-progress"></span>
+            </div>
+          </div>
+          <div class="card">
+            <div class="chat-head"><h2>Sources</h2><span class="muted small" id="opp-last"></span></div>
+            <div class="table-wrap"><table id="opp-sources" class="table"></table></div>
+          </div>
+          <div class="card">
+            <div class="chat-head"><h2>Postings</h2>
+              <div class="seg" id="opp-admin-filter" role="group"><button type="button" data-v="visible" class="on">Shown to interns</button><button type="button" data-v="all">All classified</button></div>
+            </div>
+            <div class="table-wrap"><table id="opp-table" class="table"></table></div>
           </div>
         </div>
 

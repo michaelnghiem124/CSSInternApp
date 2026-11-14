@@ -157,6 +157,26 @@ The admin can override any assignment from the matrix and approve placements bef
 
 **Measured cost (demo cohort of 10):** the committee matchmaker costs about $0.13 for a first run and much less on re-runs (cached profiles). A Monday Brief costs about $0.03, and an intro draft about $0.001.
 
+### Opportunities pilot (`backend/opportunities.py`)
+
+**Opportunities** lists internships, co-ops, and entry-level roles at Think Tank organizations. It's on its own intern tab and is also a Mentor Match tool ("any security internships in Minnesota?"). Each opening names the Think Tank member who works there, for a warm introduction.
+
+- **Connectors (plain code, no AI).** They read each employer's **official public job feed**, the same one its careers page uses:
+  - Workday: 3M, Medtronic, the Federal Reserve, Ameriprise, Land O'Lakes, Securian
+  - Oracle Cloud: HealthPartners, Hormel
+  - iCIMS: Federated Insurance
+  - Greenhouse: Solera Health
+  - USAJOBS: CISA, once `USAJOBS_API_KEY` and `USAJOBS_EMAIL` are set (free at developer.usajobs.gov)
+
+  The connectors refresh weekly, wait 0.6 s between requests, send an honest User-Agent, and never get around a block or scrape LinkedIn or Indeed. Every link must point at the employer's own job host.
+- **Title pre-filter (code).** Workday's keyword search is fuzzy: "intern" also matches "Internal…" and "International…". A regex keeps likely early-career titles before any AI runs.
+- **Job Classifier agent (Haiku 5.5 / gpt-6-luna, structured `JobClassification`).** It labels each new or changed posting with type, field, a 0–100 relevance score for a cybersecurity intern, Minnesota/remote/elsewhere, term, eligibility flags, and deadline.
+  - Posting text is screened for instruction-like lines first, and the classifier flags injection attempts.
+  - Results are cached by content hash, so a posting is paid for once.
+  - Each refresh is capped at 200 classifications.
+- **What interns see.** Interns see only postings that are internship, co-op, or entry-level, score at least 35 on relevance, are in the US, and haven't been hidden by the Program Lead (Admin → Opportunities). The "Best fit for me" sort is a free, deterministic score: relevance, plus overlap with the intern's profile and resume, plus a bump for Minnesota or remote roles.
+- **Refreshing.** Use Admin → Opportunities → **Refresh job feeds**, or run `.venv/bin/python -m scripts.refresh_opportunities` (cron-friendly, for example Mondays at 6 AM).
+
 ## Configuration
 
 Every setting is in `backend/config.py` and can be overridden from `.env`: model names, prices, rate limit, daily token budget, per-run request/tool/token limits, and admin name/title.

@@ -442,3 +442,26 @@ label.show-pw input { width: auto; margin: 0; }
 .past-date small { display: block; font-weight: 500; color: var(--muted); font-size: .7rem; }
 .speaker.static { cursor: default; padding: 5px 12px; }
 .role-line { font-size: .78rem; font-weight: 600; color: var(--accent-ink); background: var(--accent-soft); border-radius: 8px; padding: 4px 8px; }
+
+/* ---------- opportunities ---------- */
+.opp-filters { grid-template-columns: 1fr 170px 190px 170px 150px; }
+.opp-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; }
+.opp { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 8px; }
+.opp .org { font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--accent-ink); }
+.opp h3 { margin: 0; font-size: 1.02rem; line-height: 1.3; }
+.opp .loc { font-size: .82rem; color: var(--muted); }
+.opp .summary { font-size: .86rem; margin: 0; }
+.opp .elig { font-size: .78rem; background: #fff8e6; border-radius: 8px; padding: 6px 10px; color: #7a5300; }
+.opp .elig ul { margin: 2px 0 0; padding-left: 16px; }
+.opp .warm { border-top: 1px dashed var(--line); padding-top: 8px; font-size: .82rem; }
+.opp .warm .speaker { margin: 4px 6px 0 0; }
+.opp .actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: auto; }
+.badge.kind { background: var(--navy); color: var(--neon); }
+.badge.field { background: var(--accent-soft); color: var(--accent-ink); }
+.badge.mn { background: #e8f6ee; color: #155f35; }
+.opp-mini { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-top: 8px; background: #fff; font-size: .86rem; }
+.opp-mini a { font-weight: 600; }
+@media (max-width: 900px) { .opp-filters { grid-template-columns: 1fr 1fr; } .opp-list { grid-template-columns: 1fr; } }
+.linkish { border: 0; background: none; padding: 0; color: var(--accent-ink); font: inherit; font-weight: 600; cursor: pointer; text-decoration: underline; }
+label.check-inline { display: inline-flex; gap: 6px; align-items: center; font-weight: 500; margin: 0; }
+label.check-inline input { width: auto; margin: 0; }

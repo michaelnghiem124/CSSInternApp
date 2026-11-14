@@ -249,6 +249,8 @@ def init() -> None:
             _seed_samples(c)
     from . import placements  # noqa: PLC0415  (seeds committees + coach pool once)
     placements.seed_defaults()
+    from . import opportunities  # noqa: PLC0415
+    opportunities.init()
 
 
 def _seed_samples(c: sqlite3.Connection) -> None:

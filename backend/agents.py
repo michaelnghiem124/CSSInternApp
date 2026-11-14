@@ -62,6 +62,9 @@ class MatchReply(BaseModel):
     recommendations: list[Recommendation] = Field(default_factory=list, max_length=6)
     suggested_event_ids: list[int] = Field(
         default_factory=list, description="IDs from upcoming_talks worth attending, if any.")
+    suggested_opportunity_ids: list[str] = Field(
+        default_factory=list, max_length=5,
+        description="Exact ids from find_opportunities for openings worth applying to, if any.")
 
 
 @dataclass
@@ -223,6 +226,26 @@ def match_agent() -> Agent[MatchDeps, MatchReply]:
         events = db.list_events(upcoming_only=True)
         return "\n".join(_event_line(e) for e in events) or "No upcoming talks scheduled."
 
+    @agent.tool
+    def find_opportunities(ctx: RunContext[MatchDeps], query: str = "") -> str:
+        """Open internships, co-ops, and entry-level roles at Think Tank organizations, from
+        their official job feeds. Optional keyword query (field, employer, city, 'remote').
+        Each result names the Think Tank member who works there, for a warm introduction."""
+        from . import opportunities  # noqa: PLC0415
+
+        ctx.deps.tools_used.append(f"find_opportunities({query!r})")
+        hits = opportunities.search(query, limit=8)
+        if not hits:
+            return "No matching open roles right now. The feeds refresh weekly."
+        lines = []
+        for p in hits:
+            c = p["classification"] or {}
+            warm = "; ".join(f"{w['name']} ({w['slug']})" for w in p["warm"]) or "no Think Tank member listed"
+            lines.append(f"- id={p['id']} | {p['title']} | {p['org']} | {p['location'][:60]} | {c.get('kind')} | "
+                         f"{c.get('field')} | {c.get('term')} | eligibility: {'; '.join(c.get('eligibility_notes', [])) or 'none stated'} "
+                         f"| warm intro: {warm}")
+        return "\n".join(lines)
+
     @agent.output_validator
     def only_real_people(ctx: RunContext[MatchDeps], out: MatchReply) -> MatchReply:
         """Hallucination guard: every recommended slug and event id must exist."""
@@ -237,6 +260,9 @@ def match_agent() -> Agent[MatchDeps, MatchReply]:
                                if not (r.slug in seen or seen.add(r.slug))]
         valid_events = {e["id"] for e in db.list_events(upcoming_only=True)}
         out.suggested_event_ids = [i for i in out.suggested_event_ids if i in valid_events]
+        from . import opportunities  # noqa: PLC0415
+        valid_jobs = {p["id"] for p in opportunities.list_postings()}
+        out.suggested_opportunity_ids = [i for i in out.suggested_opportunity_ids if i in valid_jobs]
         return out
 
     _match_agent = agent

@@ -23,7 +23,7 @@ from pydantic_ai.exceptions import UsageLimitExceeded
 
 import json as _json
 
-from . import agents, auth, config, db, demo, directory, mailer, placements, pulse, safety
+from . import agents, auth, config, db, demo, directory, mailer, opportunities, placements, pulse, safety
 
 log = logging.getLogger("intern_hub")
 
@@ -562,6 +562,19 @@ def _card(p: directory.Person, full: bool = False) -> dict:
     return d
 
 
+@app.get("/api/opportunities")
+def intern_opportunities(user: Annotated[dict, Depends(auth.require_user)]):
+    """Early-career roles at Think Tank organizations, best fit for this intern first."""
+    items = opportunities.list_postings()
+    terms = opportunities.profile_terms(None if user.get("is_admin_view") else user)
+    for p in items:
+        p["fit"] = opportunities.score_for(p, terms)
+    items.sort(key=lambda p: -p["fit"])
+    last = db.get_setting("opportunities_last_refresh")
+    return {"postings": items, "last_refresh": _json.loads(last)["finished"] if last else None,
+            "employers": sorted({s["org"] for s in opportunities.SOURCES})}
+
+
 @app.get("/api/committees")
 def public_committees():
     return [{k: c[k] for k in ("slug", "name", "description")}
@@ -708,10 +721,13 @@ async def chat(body: ChatBody, session: Annotated[str, Depends(session_key)],
     people_map = directory.by_slug()
     recs = [{**r.model_dump(), "person": _card(people_map[r.slug])} for r in out.recommendations]
     events = [e for e in db.list_events(upcoming_only=True) if e["id"] in out.suggested_event_ids]
+    jobs = {p["id"]: p for p in opportunities.list_postings()}
+    suggested_jobs = [jobs[i] for i in out.suggested_opportunity_ids if i in jobs]
     return {
         "reply": out.reply,
         "recommendations": recs,
         "events": events,
+        "opportunities": suggested_jobs,
         "usage": report.__dict__,
         "guardrail": "Removed instruction-like text from your message." if screened.flagged else None,
     }
@@ -1262,3 +1278,37 @@ def admin_pulse_brief_md(brief_id: int):
         raise HTTPException(404, "No such brief.")
     return PlainTextResponse(pulse.brief_markdown(b), media_type="text/markdown", headers={
         "Content-Disposition": f'attachment; filename="program-lead-monday-brief-{b["week_of"]}.md"'})
+
+
+# ---------------------------------------------------------------------------
+# Admin: Opportunities (job-feed pilot)
+# ---------------------------------------------------------------------------
+class HideBody(BaseModel):
+    id: str = Field(max_length=300)
+    hidden: bool
+
+
+@app.get("/api/admin/opportunities", dependencies=[Depends(auth.require_admin)])
+def admin_opportunities():
+    last = db.get_setting("opportunities_last_refresh")
+    return {"postings": opportunities.list_postings(include_all=True), "sources": opportunities.sources_status(),
+            "progress": opportunities.PROGRESS, "last_refresh": _json.loads(last) if last else None,
+            "usajobs_enabled": opportunities.usajobs_enabled()}
+
+
+@app.post("/api/admin/opportunities/refresh", dependencies=[Depends(auth.require_admin)])
+def admin_refresh_opportunities():
+    if not config.has_llm_key():
+        raise HTTPException(400, "Add an AI key first; the classifier needs it.")
+    return opportunities.refresh()
+
+
+@app.get("/api/admin/opportunities/progress", dependencies=[Depends(auth.require_admin)])
+def admin_opportunities_progress():
+    return opportunities.PROGRESS
+
+
+@app.put("/api/admin/opportunities/hide", dependencies=[Depends(auth.require_admin)])
+def admin_hide_opportunity(body: HideBody):
+    opportunities.set_hidden(body.id, body.hidden)
+    return {"ok": True}

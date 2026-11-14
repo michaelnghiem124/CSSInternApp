@@ -80,13 +80,14 @@
   // ---------- tabs ----------
   function showTab() {
     const tab = (location.hash || "#match").slice(1).split("/")[0];
-    const tabs = ["match", "directory", "cohort", "calendar"].concat(META.is_admin ? ["admin"] : []);
+    const tabs = ["match", "directory", "opportunities", "cohort", "calendar"].concat(META.is_admin ? ["admin"] : []);
     const valid = tabs.includes(tab) ? tab : (META.is_admin && !ME ? "admin" : "match");
     $$(".tab").forEach((s) => (s.hidden = s.id !== "tab-" + valid));
     $$(".tabs a").forEach((a) => a.classList.toggle("active", a.dataset.tab === valid));
     if (valid === "calendar") loadEvents();
     if (valid === "admin") loadAdmin();
     if (valid === "cohort") loadCohort();
+    if (valid === "opportunities") loadOpportunities();
     if (valid === "directory" && !$("#dir-grid").children.length) renderDirectory();
   }
   window.addEventListener("hashchange", showTab);
@@ -263,6 +264,7 @@
     const d = document.createElement("div"); d.className = "msg bot";
     d.innerHTML = `<div class="bubble">${esc(r.reply).replace(/\n/g, "<br>")}</div>
       ${r.recommendations?.length ? `<div class="recs">${r.recommendations.map(recCard).join("")}</div>` : ""}
+      ${r.opportunities?.length ? `<div style="margin-top:10px"><div class="lbl small muted">Open roles worth a look</div>${r.opportunities.map((p) => `<div class="opp-mini"><a href="${esc(p.url)}" target="_blank" rel="noopener">${esc(p.title)}</a> · ${esc(p.org)} · ${esc((p.classification || {}).kind || "")}${(p.warm || []).length ? ` · you know <button class="linkish" type="button" data-person="${esc(p.warm[0].slug)}">${esc(p.warm[0].name)}</button> there` : ""}</div>`).join("")}<div class="small"><a href="#opportunities">See all opportunities →</a></div></div>` : ""}
       ${r.events?.length ? `<div style="margin-top:10px"><div class="lbl small muted">Talks worth attending</div>${r.events.map(eventMini).join("")}</div>` : ""}
       ${r.guardrail ? `<div class="guardrail">🛡️ ${esc(r.guardrail)}</div>` : ""}
       ${r.usage ? `<div class="usage-line">${usageBits(r.usage)}</div>` : ""}`;
@@ -890,6 +892,7 @@
     if (name === "placements") loadPlacements();
     if (name === "pulse") loadPulse();
     if (name === "usage") loadUsage();
+    if (name === "opportunities") loadOppAdmin();
   }
   $("#admin-nav").addEventListener("click", (e) => { const b = e.target.closest("button[data-asec]"); if (b) showAdminSection(b.dataset.asec); });
 
@@ -1120,6 +1123,99 @@
       <div class="brief-foot">${esc(x.coverage)}<br>${u.tool_calls} MCP tool calls · ${fmt(u.input_tokens)} in (${fmt(u.cache_read_tokens)} cached) / ${fmt(u.output_tokens)} out · ${money(u.cost_usd)} · ${(u.latency_ms / 1000).toFixed(0)} s · ${esc(u.model)}</div>`;
   }
   async function loadUsageQuiet() { try { if (!$("[data-asec-panel=usage]").hidden) loadUsage(); } catch { /* ignore */ } }
+
+  // ---------- Opportunities (intern view) ----------
+  let OPPS = { postings: [] };
+  const oppDate = (iso) => (iso ? new Date(iso).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" }) : "");
+  const firstName = (n) => (n || "").replace(/^Dr\.\s*/, "").split(" ")[0];
+  async function loadOpportunities() {
+    OPPS = await api("/api/opportunities");
+    renderOpportunities();
+  }
+  function oppCard(p) {
+    const c = p.classification || {};
+    const warm = p.warm || [];
+    return `<article class="opp">
+      <div class="org">${esc(p.org.replace(/, Inc\.|, LLC| Services/g, ""))}</div>
+      <h3>${esc(p.title)}</h3>
+      <div class="chips"><span class="badge kind">${esc(c.kind || "")}</span>${c.field ? `<span class="badge field">${esc(c.field)}</span>` : ""}${c.location_type === "Minnesota" ? '<span class="badge mn">Minnesota</span>' : c.location_type === "Remote (US)" ? '<span class="badge mn">Remote</span>' : ""}${c.term ? `<span class="chip">${esc(c.term)}</span>` : ""}</div>
+      <div class="loc">📍 ${esc(p.location || "Location not listed")}${c.deadline ? ` · ⏳ Apply by ${esc(c.deadline)}` : ""}</div>
+      ${c.summary ? `<p class="summary">${esc(c.summary)}</p>` : ""}
+      ${(c.eligibility_notes || []).length ? `<div class="elig"><b>Check eligibility:</b><ul>${c.eligibility_notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul></div>` : ""}
+      ${warm.length ? `<div class="warm"><b>You know someone there:</b><br>${warm.map((w) => `<button class="speaker" type="button" data-person="${esc(w.slug)}">${avatar(w, "sm")}${esc(w.name)}${w.title ? ` <span class="muted">· ${esc(w.title.slice(0, 40))}</span>` : ""}</button>`).join("")}
+        ${warm.some((w) => w.talk) ? `<div class="muted small">${warm.filter((w) => w.talk).map((w) => `${esc(firstName(w.name))} gave a Think Tank Talk on ${esc(oppDate(w.talk))}.`).join(" ")}</div>` : ""}</div>` : ""}
+      <div class="actions">
+        <a class="btn primary small" href="${esc(p.url)}" target="_blank" rel="noopener">View &amp; apply on ${esc(p.org.split(/[ ,]/)[0])}'s site ↗</a>
+        ${warm.length ? `<button class="btn small" type="button" data-ask-warm="${esc(p.id)}">How should I reach out to ${esc(firstName(warm[0].name))}?</button>` : ""}
+      </div></article>`;
+  }
+  function renderOpportunities() {
+    const q = $("#opp-q").value.trim().toLowerCase(), kind = $("#opp-kind").value, field = $("#opp-field").value, loc = $("#opp-loc").value;
+    let list = OPPS.postings.filter((p) => {
+      const c = p.classification || {};
+      if (kind && c.kind !== kind) return false;
+      if (field && c.field !== field) return false;
+      if (loc && c.location_type !== loc) return false;
+      if (q && !`${p.title} ${p.org} ${p.location} ${c.summary || ""} ${c.field || ""}`.toLowerCase().includes(q)) return false;
+      return true;
+    });
+    if ($("#opp-sort").value === "new") list = [...list].sort((a, b) => (b.first_seen || "").localeCompare(a.first_seen || ""));
+    $("#opp-count").textContent = `${list.length} open role${list.length === 1 ? "" : "s"} at ${new Set(list.map((p) => p.org)).size} Think Tank organizations`;
+    $("#opp-list").innerHTML = list.map(oppCard).join("") || `<div class="empty">${OPPS.postings.length ? "Nothing matches those filters." : "No openings yet. The Program Lead refreshes the job feeds weekly."}</div>`;
+    $("#opp-foot").textContent = `Pilot: ${OPPS.employers ? OPPS.employers.length : 0} employers with official public job feeds. ${OPPS.last_refresh ? `Last checked ${oppDate(OPPS.last_refresh)}.` : ""} AI labels can be wrong; always confirm details and eligibility on the employer's posting. The Hub never applies for you.`;
+  }
+  ["opp-q", "opp-kind", "opp-field", "opp-loc", "opp-sort"].forEach((id) => $("#" + id).addEventListener(id === "opp-q" ? "input" : "change", renderOpportunities));
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-ask-warm]"); if (!b) return;
+    const p = OPPS.postings.find((x) => x.id === b.dataset.askWarm); if (!p) return;
+    location.hash = "#match";
+    sendChat(`I'm interested in the "${p.title}" role at ${p.org}. How should I reach out to ${p.warm[0].name} about it, and what should I ask?`);
+  });
+
+  // ---------- Opportunities (admin) ----------
+  let OPP_ADMIN = null, OPP_FILTER = "visible", OPP_POLL = null;
+  async function loadOppAdmin() {
+    OPP_ADMIN = await api("/api/admin/opportunities");
+    renderOppAdmin();
+    if (OPP_ADMIN.progress && OPP_ADMIN.progress.running) pollOpp();
+  }
+  function renderOppAdmin() {
+    const a = OPP_ADMIN; if (!a) return;
+    const last = a.last_refresh;
+    $("#opp-last").textContent = last ? `Last refresh ${last.finished.replace("T", " ").slice(0, 16)} · classifier ${last.classifier.calls} calls, ${money(last.classifier.cost_usd)}` : "Not refreshed yet";
+    $("#opp-sources").innerHTML = `<thead><tr><th>Employer</th><th>Platform</th><th>Status</th><th class="num">Active postings</th></tr></thead><tbody>${
+      a.sources.map((s) => `<tr><td>${esc(s.org)}</td><td>${esc(s.platform)}</td><td>${s.ok ? "✓ " : ""}${esc(s.message)}</td><td class="num">${s.active_postings}</td></tr>`).join("")}</tbody>`;
+    const rows = a.postings.filter((p) => OPP_FILTER === "all" || p.visible || p.hidden);
+    $("#opp-table").innerHTML = `<thead><tr><th>Role</th><th>Employer</th><th>Type</th><th>Field</th><th class="num">Relevance</th><th>Where</th><th>Interns see it?</th></tr></thead><tbody>${
+      rows.map((p) => { const c = p.classification || {}; return `<tr style="${p.visible || p.hidden ? "" : "opacity:.55"}">
+        <td><a href="${esc(p.url)}" target="_blank" rel="noopener">${esc(p.title)}</a></td><td>${esc(p.org)}</td><td>${esc(c.kind || "not classified yet")}</td><td>${esc(c.field || "")}</td>
+        <td class="num">${c.relevance ?? "—"}</td><td>${esc(c.location_type || "")}</td>
+        <td>${p.visible || p.hidden ? `<label class="check-inline"><input type="checkbox" data-hide="${esc(p.id)}" ${p.hidden ? "" : "checked"}> ${p.hidden ? "Hidden by you" : "Shown"}</label>` : '<span class="muted small">Filtered out</span>'}</td></tr>`; }).join("")
+      || `<tr><td colspan="7" class="muted">No postings yet. Press Refresh job feeds.</td></tr>`}</tbody>`;
+  }
+  $("#opp-admin-filter").addEventListener("click", (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    $$("#opp-admin-filter button").forEach((x) => x.classList.toggle("on", x === b)); OPP_FILTER = b.dataset.v; renderOppAdmin();
+  });
+  $("#opp-table").addEventListener("change", async (e) => {
+    const cb = e.target.closest("[data-hide]"); if (!cb) return;
+    await api("/api/admin/opportunities/hide", { method: "PUT", body: { id: cb.dataset.hide, hidden: !cb.checked } });
+    loadOppAdmin();
+  });
+  function pollOpp() {
+    clearInterval(OPP_POLL);
+    $("#opp-refresh").classList.add("busy");
+    OPP_POLL = setInterval(async () => {
+      const p = await api("/api/admin/opportunities/progress");
+      $("#opp-progress").textContent = p.stage === "fetching" ? `Reading job feeds… ${p.sources_done}/${p.sources_total} (${p.current || ""})`
+        : p.stage === "classifying" ? `Classifying ${p.classified}/${p.to_classify} new postings…` : p.stage === "error" ? `Error: ${p.error}` : "";
+      if (!p.running) { clearInterval(OPP_POLL); $("#opp-refresh").classList.remove("busy"); if (p.stage === "done") toast(`Feeds refreshed · ${p.classifier.calls} postings classified for ${money(p.classifier.cost_usd)}`); loadOppAdmin(); }
+    }, 2000);
+  }
+  $("#opp-refresh").addEventListener("click", async () => {
+    try { await api("/api/admin/opportunities/refresh", { method: "POST" }); pollOpp(); }
+    catch (err) { toast(err.message); }
+  });
 
   // ---------- boot ----------
   async function boot() {
