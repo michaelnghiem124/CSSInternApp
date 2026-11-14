@@ -572,7 +572,11 @@ def intern_opportunities(user: Annotated[dict, Depends(auth.require_user)]):
     items.sort(key=lambda p: -p["fit"])
     last = db.get_setting("opportunities_last_refresh")
     return {"postings": items, "last_refresh": _json.loads(last)["finished"] if last else None,
-            "employers": sorted({s["org"] for s in opportunities.SOURCES})}
+            "employers": [s["org"] for s in opportunities.SOURCES if s["platform"] != "usajobs" or opportunities.usajobs_enabled()],
+            "no_feed": opportunities.no_feed_orgs() + [
+                {"org": s["org"], "emeritus_only": False,
+                 "reason": "Federal roles come from USAJOBS, which turns on with a free USAJOBS API key."}
+                for s in opportunities.SOURCES if s["platform"] == "usajobs" and not opportunities.usajobs_enabled()]}
 
 
 _LOGO_TYPES = {"png": "image/png", "jpg": "image/jpeg", "ico": "image/x-icon", "svg": "image/svg+xml"}

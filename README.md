@@ -163,15 +163,18 @@ The admin can override any assignment from the matrix and approve placements bef
 
 **Opportunities** shows internships, co-ops, and entry-level roles at Think Tank organizations, each with the Think Tank member who works there for a warm introduction. Interns get two views: the **Explorer** (ask a question, see it evaluated visually) and **Browse all roles** (filterable list). Mentor Match can also suggest openings in chat.
 
-- **Connectors (plain code, no AI).** They read each employer's **official public job feed**, the same one its careers page uses. 14 employers:
-  - Workday: 3M, Medtronic, the Federal Reserve, Ameriprise, Land O'Lakes, Securian, Ecolab, nVent
+- **Connectors (plain code, no AI).** They read each employer's **official public job feed**, the same one its careers page uses. 25 Think Tank and Emeritus organizations, plus 4 federal ones:
+  - Workday: 3M, Medtronic, the Federal Reserve, Ameriprise, Land O'Lakes, Securian, Ecolab, nVent, U.S. Bank, Center for Internet Security, Progressive Leasing, Donaldson
   - Oracle Cloud: HealthPartners, Hormel
-  - Radancy (TalentBrew): UnitedHealth Group
-  - iCIMS: Federated Insurance
-  - Greenhouse: Solera Health
-  - USAJOBS: CISA, once `USAJOBS_API_KEY` and `USAJOBS_EMAIL` are set (free at developer.usajobs.gov)
+  - Radancy: UnitedHealth Group (TalentBrew) and Edward Jones (the m-cloud job-search API its careers site calls; external postings only, one per title)
+  - iCIMS: Federated Insurance, University of St. Thomas (staff jobs)
+  - Greenhouse: Solera Health, Zscaler · Ashby: Flashpoint · UKG (UltiPro): Sunrise Banks
+  - NEOGOV (governmentjobs.com): City of Saint Paul · SuccessFactors RSS: B. Braun (US postings only) · WordPress job API: Midwest Reliability Organization
+  - USAJOBS: CISA, Air National Guard (Minnesota), Army National Guard (Minnesota), and U.S. Army, once `USAJOBS_API_KEY` and `USAJOBS_EMAIL` are set (free at developer.usajobs.gov). Agency codes come from USAJOBS's own public code list.
 
-  The connectors wait 0.6 s between requests, send an honest User-Agent, and never get around a block or scrape LinkedIn or Indeed. Every link must point at the employer's own job host. Not covered: employers whose sites block automated access or have no readable feed (Lumen, Edward Jones, Donaldson, Great River Energy, University of Minnesota and others), plus associations, consultancies, and military units without job feeds.
+  The connectors wait 0.6 s between requests, send an honest User-Agent, and never get around a block or scrape LinkedIn or Indeed. Every link must point at the employer's own job host. A source's `people_orgs` maps it to the Think Tank directory names (for example Edward Jones ← "Edward Jones Information Security"), and warm intros include **Emeritus** members, labeled as such.
+
+  **Not covered, and shown under the Explorer with the reason** (`NO_FEED_REASONS` in `opportunities.py`): Lumen (its job API returns 403, so the Hub leaves it alone), MNIT and the State Patrol (State of Minnesota jobs sit behind a CAPTCHA), Great River Energy (Infor) and the University of Minnesota (PeopleSoft), whose job boards only work in a browser session, Old Republic and Rosenblatt (LinkedIn only), and associations and small consultancies with no job feed.
 - **Pre-filters (code).** Security search terms run first, so each employer's 40-detail budget goes to the most relevant roles. A title regex drops non-early-career and clearly unrelated titles (senior, manager, nursing, pharmacy, sales, clinical), and a location regex drops roles outside the US.
 - **12 cybersecurity domains (`cyber_domains.py`).** There's no single official "12 domains" list, so this one merges the CISSP body of knowledge, the NIST NICE work roles, and the common Cybersecurity Domain Map: Security Operations & Incident Response, Threat Intelligence, Network, Cloud, Application & Software, Identity & Access, Data Security & Privacy, Vulnerability Management & Offensive, Endpoint/Infrastructure/OT, GRC & IT Audit, Security Architecture, and Resilience/Awareness/Physical. Each domain has the vocabulary postings actually use (Splunk, SIEM, Okta, SOX ITGC, NIST 800-53…), so a security job is recognized even when it never says "cybersecurity".
 - **Job Classifier agent (Haiku 5.5 / gpt-6-luna, structured `JobClassification`).** It labels each new or changed posting with type, up to 3 cyber domains **with quoted evidence from the posting**, a 0–100 relevance score on a strict rubric, Minnesota/remote/elsewhere, term, eligibility flags, and deadline.
@@ -181,11 +184,11 @@ The admin can override any assignment from the matrix and approve placements bef
 - **What interns see.** Postings that are internship, co-op, or entry-level, score at least 40, are in the US, and aren't hidden by the Program Lead (Admin → Opportunities, which also shows each role's domains and evidence). The rubric cut the Federal Reserve from 26 shown roles to 9: its economics, regional-affairs, legal, statistics, and records internships no longer show.
 - **Opportunities Explorer (Sonnet 5.5 / gpt-6-luna, structured `ExplorerAnswer`).** An intern asks a question ("Is there an entry-level SOC analyst role?"), and the page streams each step as it actually happens:
   1. Their resume and profile are mapped onto the 12 domains (code, free); the domains appear under their photo.
-  2. Every employer's open roles are pre-scored in code against the question and resume; each employer's tile lights up as it's checked.
+  2. Every employer's open roles are pre-scored in code against the question and resume; each employer's tile lights up as it's checked. Only employers with open roles sit on the ring (two interleaved rings past 16); employers whose feeds have no openings right now wait in a side rail and are still checked.
   3. The 24 strongest candidates go to the agent, which ranks up to 6 with a fit score, the domain, a reason tied to resume evidence, and gaps to close (including eligibility). It says plainly when nothing is an exact match. An output validator rejects any id not in the candidate list.
   4. Matched employers glow gold with their fit; the cards below link to the employer's posting and the warm intro.
 
-  One question costs about $0.01–0.02 and takes 6–10 seconds. Employer icons come from each employer's own website via `scripts/fetch_org_logos.py`, stored in `data/logos/` and not committed (they're trademarks); without them the tiles show colored monograms.
+  One question costs about $0.01–0.02 and takes 6–10 seconds. Employer icons come from each employer's own website (or its own Workday career site's logo, or a preferred official file such as 3M's newsroom icon) via `scripts/fetch_org_logos.py` (pass org names to refresh just those), stored in `data/logos/` and not committed (they're trademarks); without them the tiles show colored monograms.
 - **"Best fit for me" (list view).** A free, deterministic score: relevance, plus the cyber domains a role shares with the intern's resume and profile, plus word overlap, plus a bump for Minnesota or remote roles.
 - **Refreshing.** Use Admin → Opportunities → **Refresh job feeds**, or run `.venv/bin/python -m scripts.refresh_opportunities` (cron-friendly, for example Mondays at 6 AM). Each refresh is capped at 400 classifications; a full re-classification of about 200 postings cost $0.59.
 

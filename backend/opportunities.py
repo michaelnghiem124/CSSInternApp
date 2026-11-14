@@ -47,8 +47,9 @@ REQUEST_DELAY = 0.6          # seconds between requests to the same employer
 MAX_DETAILS_PER_SOURCE = 40  # detail pages fetched per employer per refresh
 MAX_CLASSIFY_PER_RUN = 400   # budget guard for the classifier per refresh
 
-# Organization names match the Think Tank directory's `org` field, which is how the warm
-# intro (the Think Tank member who works there) is found.
+# `org` is the employer name shown to interns. `people_orgs` lists the Think Tank directory
+# `org` values that belong to it (default: `org` itself); that's how the warm intro (the
+# Think Tank or Emeritus member who works there) is found.
 SOURCES: list[dict] = [
     {"org": "3M", "platform": "workday", "host": "3m.wd1.myworkdayjobs.com", "tenant": "3m", "site": "Search"},
     {"org": "Medtronic", "platform": "workday", "host": "medtronic.wd1.myworkdayjobs.com", "tenant": "medtronic", "site": "MedtronicCareers"},
@@ -58,15 +59,64 @@ SOURCES: list[dict] = [
     {"org": "EcoLab", "platform": "workday", "host": "ecolab.wd1.myworkdayjobs.com", "tenant": "ecolab", "site": "Ecolab_External"},
     {"org": "nVent", "platform": "workday", "host": "nvent.wd5.myworkdayjobs.com", "tenant": "nvent", "site": "nVent"},
     {"org": "Securian Financial", "platform": "workday", "host": "hq.wd12.myworkdayjobs.com", "tenant": "hq", "site": "Securian_External"},
+    {"org": "U.S. Bank", "platform": "workday", "host": "usbank.wd1.myworkdayjobs.com", "tenant": "usbank", "site": "US_Bank_Careers"},
+    {"org": "Center for Internet Security", "platform": "workday", "host": "cisecurity.wd1.myworkdayjobs.com", "tenant": "cisecurity", "site": "CIS_External_Career_Site"},
+    {"org": "Progressive Leasing", "platform": "workday", "host": "progleasing.wd5.myworkdayjobs.com", "tenant": "progleasing", "site": "ProgLeasingCareers"},
+    {"org": "Donaldson", "platform": "workday", "host": "donaldson.wd115.myworkdayjobs.com", "tenant": "donaldson", "site": "DonaldsonCareers"},
     {"org": "HealthPartners", "platform": "oracle", "host": "fa-etnv-saasfaprod1.fa.ocs.oraclecloud.com", "site": "healthpartners"},
     {"org": "Hormel", "platform": "oracle", "host": "ekkh.fa.us2.oraclecloud.com", "site": "CX_2002"},
     {"org": "UnitedHealth Group", "platform": "radancy", "host": "careers.unitedhealthgroup.com"},
+    # Edward Jones's careers site searches its jobs through this API (m-cloud / Radancy).
+    {"org": "Edward Jones", "platform": "mcloud", "host": "careers.edwardjones.com",
+     "company": "companies/676b1209-7c4c-4a96-8991-69f52e2705a1", "people_orgs": ["Edward Jones Information Security"]},
     {"org": "Federated Insurance", "platform": "icims", "host": "careers-federatedinsurance.icims.com"},
+    {"org": "University of St. Thomas", "platform": "icims", "host": "staffemployment-stthomas.icims.com",
+     "people_orgs": ["St. Thomas School of Law"]},
     {"org": "Solera Health", "platform": "greenhouse", "board": "solera", "host": "job-boards.greenhouse.io"},
-    # Federal agencies (CISA and others) via the official USAJOBS API. Off until
-    # USAJOBS_API_KEY and USAJOBS_EMAIL are set (free: developer.usajobs.gov).
-    {"org": "CISA", "platform": "usajobs", "agency": "HSCB", "host": "www.usajobs.gov"},
+    {"org": "Zscaler", "platform": "greenhouse", "board": "zscaler", "host": "job-boards.greenhouse.io"},
+    {"org": "Flashpoint", "platform": "ashby", "board": "flashpoint.io", "host": "jobs.ashbyhq.com"},
+    {"org": "Sunrise Banks", "platform": "ukg", "host": "recruiting2.ultipro.com", "tenant": "SUN1015SUBAN",
+     "board": "e3d6f990-884c-4248-b7e7-0894f09de217"},
+    {"org": "City of Saint Paul", "platform": "neogov", "agency": "stpaul", "host": "www.governmentjobs.com"},
+    {"org": "B. Braun", "platform": "sf_rss", "host": "jobs.bbraun.com", "people_orgs": ["B. Braun Medical Inc."]},
+    {"org": "Midwest Reliability Organization", "platform": "wp_jobs", "host": "www.mro.net", "default_location": "Saint Paul, MN"},
+    # Federal roles via the official USAJOBS API. Off until USAJOBS_API_KEY and USAJOBS_EMAIL
+    # are set (free: developer.usajobs.gov). Agency codes from USAJOBS's own code list.
+    {"org": "CISA", "platform": "usajobs", "agency": "HSCA", "host": "www.usajobs.gov"},
+    {"org": "Air National Guard", "platform": "usajobs", "agency": "AFNG", "location": "Minnesota", "host": "www.usajobs.gov"},
+    {"org": "Minnesota National Guard", "platform": "usajobs", "agency": "ARNG", "location": "Minnesota", "host": "www.usajobs.gov"},
+    {"org": "U.S. Army", "platform": "usajobs", "agency": "AR", "host": "www.usajobs.gov"},
 ]
+
+# Think Tank and Emeritus organizations with no job feed the Hub can read, and why. Shown in
+# the Explorer so interns see the whole Think Tank, not just the employers with feeds.
+NO_FEED_REASONS = {
+    "Lumen Technologies": "Its job API refuses automated requests (HTTP 403), so the Hub leaves it alone.",
+    "MNIT": "State of Minnesota jobs sit behind a CAPTCHA, so the Hub can't read them.",
+    "Minnesota State Patrol": "State of Minnesota jobs sit behind a CAPTCHA, so the Hub can't read them.",
+    "Great River Energy": "Its Infor job board only loads in a browser session; no public feed.",
+    "University of Minnesota": "Its PeopleSoft job portal only works in a browser session; no public feed.",
+    "University of Minnesota TLI": "Its PeopleSoft job portal only works in a browser session; no public feed.",
+    "Old Republic International": "Posts openings on LinkedIn only, which the Hub doesn't scrape.",
+    "Rosenblatt Securities": "Posts openings on LinkedIn only, which the Hub doesn't scrape.",
+}
+NO_FEED_DEFAULT = "No public job feed on its website."
+
+
+def people_orgs(src: dict) -> list[str]:
+    return src.get("people_orgs") or [src["org"]]
+
+
+def no_feed_orgs() -> list[dict]:
+    """Every Think Tank / Emeritus organization not covered by a job feed."""
+    covered = {o for s in SOURCES for o in people_orgs(s)}
+    orgs: dict[str, set] = {}
+    for p in directory.load_people():
+        if p.org and p.org not in covered:
+            orgs.setdefault(p.org, set()).add(p.section)
+    return [{"org": o, "emeritus_only": secs == {"Emeritus"}, "reason": NO_FEED_REASONS.get(o, NO_FEED_DEFAULT)}
+            for o, secs in sorted(orgs.items(), key=lambda kv: kv[0].lower())]
+
 
 # Security terms first: the per-employer detail budget goes to the most relevant roles.
 SEARCH_TERMS = ["cybersecurity", "information security", "security analyst", "intern", "internship", "co-op",
@@ -97,6 +147,7 @@ def _title_looks_early(title: str) -> bool:
     if re.search(r"\bintern(ship)?s?\b|\bco-?op\b|\bnew[ -]?grad\b|\bentry[ -]level\b|\bstudent\b", t, re.I):
         return True
     return bool(EARLY_RE.search(t)) and not NOT_EARLY_RE.search(t)
+
 
 
 # ---------------------------------------------------------------------------
@@ -293,10 +344,11 @@ def fetch_usajobs(src: dict) -> list[Posting]:
     headers = {"Authorization-Key": os.environ["USAJOBS_API_KEY"], "User-Agent": os.environ["USAJOBS_EMAIL"],
                "Host": "data.usajobs.gov"}
     out: dict[str, Posting] = {}
+    where = {"LocationName": src["location"]} if src.get("location") else {}
     for params in ({"Organization": src["agency"], "HiringPath": "student"},
                    {"Organization": src["agency"], "HiringPath": "graduates"},
                    {"Organization": src["agency"], "Keyword": "intern"}):
-        q = "https://data.usajobs.gov/api/search?" + urllib.parse.urlencode({**params, "ResultsPerPage": 100})
+        q = "https://data.usajobs.gov/api/search?" + urllib.parse.urlencode({**params, **where, "ResultsPerPage": 100})
         req = urllib.request.Request(q, headers=headers)
         with urllib.request.urlopen(req, timeout=25) as r:
             d = json.loads(r.read())
@@ -314,8 +366,131 @@ def fetch_usajobs(src: dict) -> list[Posting]:
     return list(out.values())
 
 
+def fetch_mcloud(src: dict) -> list[Posting]:
+    """Edward Jones: the same job-search API its careers site calls (external postings only).
+    One posting per title, so 100 copies of one branch internship don't use up the budget."""
+    by_title: dict[str, dict] = {}
+    for term in SEARCH_TERMS:
+        q = urllib.parse.urlencode({"companyName": src["company"], "query": term, "offset": 0, "pageSize": 100,
+                                    "customAttributeFilter": 'is_internal="External"'})
+        d = json.loads(_request(f"https://jobsapi-google.m-cloud.io/api/job/search?{q}"))
+        for r in d.get("searchResults", []):
+            j = r.get("job") or {}
+            loc = ", ".join(x for x in (j.get("primary_city"), j.get("primary_state"), j.get("primary_country")) if x)
+            if j.get("url") and j.get("primary_country") == "US" and _title_looks_early(j.get("title", "")):
+                by_title.setdefault(j["title"].strip().lower(), {**j, "_loc": loc})
+        time.sleep(REQUEST_DELAY)
+    return [Posting(org=src["org"], platform="mcloud", ext_id=str(j["id"]), title=j["title"], location=j["_loc"],
+                    posted=str(j.get("open_date") or ""), description=_text(j.get("description", ""))[:8000], url=j["url"])
+            for j in list(by_title.values())[:MAX_DETAILS_PER_SOURCE]]
+
+
+def fetch_ashby(src: dict) -> list[Posting]:
+    d = json.loads(_request(f"https://api.ashbyhq.com/posting-api/job-board/{src['board']}?includeCompensation=false"))
+    out = []
+    for j in d.get("jobs", []):
+        loc = j.get("location", "") + (" (remote)" if j.get("isRemote") else "")
+        if j.get("isListed", True) and _title_looks_early(j.get("title", "")) and _looks_us(loc):
+            out.append(Posting(org=src["org"], platform="ashby", ext_id=j["id"], title=j["title"], location=loc,
+                               posted=j.get("publishedAt", ""), description=(j.get("descriptionPlain") or "")[:8000],
+                               url=j.get("jobUrl", "")))
+    return out
+
+
+def fetch_ukg(src: dict) -> list[Posting]:
+    """UKG (UltiPro) Recruiting job boards: the board's own search-results JSON."""
+    base = f"https://{src['host']}/{src['tenant']}/JobBoard/{src['board']}"
+    body = {"opportunitySearch": {"Top": 100, "Skip": 0, "QueryString": "", "Filters": [],
+                                  "OrderBy": [{"Value": "postedDateDesc", "PropertyName": "PostedDate", "Ascending": False}]},
+            "matchCriteria": {"PreferredJobs": [], "Educations": [], "LicenseAndCertifications": [], "Skills": [],
+                              "hasNoLicenses": False, "SkippedSkills": []}}
+    d = json.loads(_request(f"{base}/JobBoardView/LoadSearchResults", body))
+    out = []
+    for o in d.get("opportunities", []):
+        a = ((o.get("Locations") or [{}])[0].get("Address") or {})
+        loc = ", ".join(x for x in (a.get("City"), (a.get("State") or {}).get("Code"), (a.get("Country") or {}).get("Code")) if x)
+        if _title_looks_early(o.get("Title", "")) and _looks_us(loc):
+            out.append(Posting(org=src["org"], platform="ukg", ext_id=o["Id"], title=o["Title"], location=loc,
+                               posted=o.get("PostedDate", ""), description=_text(o.get("BriefDescription", "")),
+                               url=f"{base}/OpportunityDetail?opportunityId={o['Id']}"))
+    return out
+
+
+def fetch_neogov(src: dict) -> list[Posting]:
+    """NEOGOV (governmentjobs.com) agency job lists, then each job's schema.org JobPosting data."""
+    base = f"https://{src['host']}"
+    seen: dict[str, tuple[str, str, str]] = {}
+    for page_no in range(1, 16):
+        page = _request(f"{base}/careers/home/index?agency={src['agency']}&sort=PositionTitle&isDescendingSort=false&page={page_no}",
+                        accept="text/html", headers={"X-Requested-With": "XMLHttpRequest"})
+        items = re.findall(r'(?s)<li class="list-item" data-job-id="(\d+)">.*?href="([^"]+)"[^>]*>([^<]+)</a>.*?<ul class="list-meta">\s*<li>([^<]*)</li>', page)
+        for jid, path, title, loc in items:
+            title = htmllib.unescape(title).strip()
+            if _title_looks_early(title):
+                seen.setdefault(jid, (path, title, htmllib.unescape(loc).strip()))
+        time.sleep(REQUEST_DELAY)
+        if len(items) < 10:
+            break
+    out = []
+    for jid, (path, title, loc) in list(seen.items())[:MAX_DETAILS_PER_SOURCE]:
+        desc, posted = "", ""
+        try:
+            page = _request(base + path, accept="text/html")
+            for m in re.finditer(r'(?s)<script type="application/ld\+json">(.*?)</script>', page):
+                try:
+                    d = json.loads(m.group(1))
+                except ValueError:
+                    continue
+                if isinstance(d, dict) and d.get("@type") == "JobPosting":
+                    desc, posted = _text(d.get("description", ""))[:8000], str(d.get("datePosted", ""))
+                    break
+        except urllib.error.URLError:
+            pass
+        time.sleep(REQUEST_DELAY)
+        out.append(Posting(org=src["org"], platform="neogov", ext_id=jid, title=title, location=loc,
+                           posted=posted, description=desc, url=base + path))
+    return out
+
+
+def fetch_sf_rss(src: dict) -> list[Posting]:
+    """SAP SuccessFactors career sites publish an RSS feed per keyword search. Titles end in
+    "(USA|City, ST, US, zip)", which is where the location comes from."""
+    seen: dict[str, Posting] = {}
+    for term in SEARCH_TERMS:
+        x = _request(f"https://{src['host']}/services/rss/job/?locale=en_US&keywords=({urllib.parse.quote(term)})",
+                     accept="application/rss+xml")
+        for item in re.findall(r"(?s)<item>(.*?)</item>", x):
+            def tag(n: str) -> str:
+                m = re.search(rf"(?s)<{n}>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?</{n}>", item)
+                return htmllib.unescape(m.group(1)).strip() if m else ""
+            full, link = tag("title"), tag("link")
+            m = re.match(r"(.*)\(([^()]*)\)\s*$", full)
+            title, loc = (m.group(1).strip(), m.group(2).split("|")[-1].strip()) if m else (full, "")
+            if link and ", US" in loc and _title_looks_early(title):
+                seen.setdefault(link, Posting(org=src["org"], platform="sf_rss", ext_id=link.rstrip("/").split("/")[-1],
+                                              title=title, location=loc, posted=tag("pubDate"),
+                                              description=_text(tag("description"))[:8000], url=link))
+        time.sleep(REQUEST_DELAY)
+    return list(seen.values())[:MAX_DETAILS_PER_SOURCE]
+
+
+def fetch_wp_jobs(src: dict) -> list[Posting]:
+    """Small employers that publish openings as a WordPress "job" post type (public REST API)."""
+    d = json.loads(_request(f"https://{src['host']}/wp-json/wp/v2/job?per_page=50"))
+    out = []
+    for j in d:
+        title = htmllib.unescape(_text((j.get("title") or {}).get("rendered", "")))
+        if _title_looks_early(title):
+            out.append(Posting(org=src["org"], platform="wp_jobs", ext_id=str(j["id"]), title=title,
+                               location=src.get("default_location", ""), posted=j.get("date", ""),
+                               description=_text((j.get("content") or {}).get("rendered", ""))[:8000], url=j.get("link", "")))
+    return out
+
+
 CONNECTORS = {"workday": fetch_workday, "oracle": fetch_oracle, "icims": fetch_icims,
-              "greenhouse": fetch_greenhouse, "usajobs": fetch_usajobs, "radancy": fetch_radancy}
+              "greenhouse": fetch_greenhouse, "usajobs": fetch_usajobs, "radancy": fetch_radancy,
+              "mcloud": fetch_mcloud, "ashby": fetch_ashby, "ukg": fetch_ukg, "neogov": fetch_neogov,
+              "sf_rss": fetch_sf_rss, "wp_jobs": fetch_wp_jobs}
 
 
 # ---------------------------------------------------------------------------
@@ -566,13 +741,17 @@ MIN_RELEVANCE = 40  # rubric: hands-on technical work that builds security-adjac
 
 
 def _warm_paths(org: str) -> list[dict]:
-    people = [p for p in directory.load_people() if p.org == org and p.section in ("Co-chair", "Think Tank")]
+    src = next((s for s in SOURCES if s["org"] == org), {"org": org})
+    names = set(people_orgs(src))
+    # Current members first; Emeritus (past) members count too, labeled as such.
+    people = sorted((p for p in directory.load_people() if p.org in names),
+                    key=lambda p: p.section == "Emeritus")
     talks = db.list_events()
     out = []
     for p in people:
         gave = [e for e in talks if p.slug in e["speaker_slugs"] and e["ends_at"] < datetime.now().strftime("%Y-%m-%dT%H:%M")]
         out.append({"slug": p.slug, "name": p.name, "title": p.facts.title if p.facts else "",
-                    "photo_url": p.photo_url,
+                    "photo_url": p.photo_url, "emeritus": p.section == "Emeritus",
                     "talk": gave[0]["starts_at"][:10] if gave else ""})
     return out
 

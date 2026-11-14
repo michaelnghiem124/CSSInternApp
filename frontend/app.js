@@ -1196,7 +1196,7 @@
       <div class="loc">📍 ${esc(p.location || "Location not listed")}${c.deadline ? ` · ⏳ Apply by ${esc(c.deadline)}` : ""}</div>
       ${c.summary ? `<p class="summary">${esc(c.summary)}</p>` : ""}
       ${(c.eligibility_notes || []).length ? `<div class="elig"><b>Check eligibility:</b><ul>${c.eligibility_notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul></div>` : ""}
-      ${warm.length ? `<div class="warm"><b>You know someone there:</b><br>${warm.map((w) => `<button class="speaker" type="button" data-person="${esc(w.slug)}">${avatar(w, "sm")}${esc(w.name)}${w.title ? ` <span class="muted">· ${esc(w.title.slice(0, 40))}</span>` : ""}</button>`).join("")}
+      ${warm.length ? `<div class="warm"><b>You know someone there:</b><br>${warm.map((w) => `<button class="speaker" type="button" data-person="${esc(w.slug)}">${avatar(w, "sm")}${esc(w.name)}${w.emeritus ? `<span class="emer">Emeritus</span>` : ""}${w.title ? ` <span class="muted">· ${esc(w.title.slice(0, 40))}</span>` : ""}</button>`).join("")}
         ${warm.some((w) => w.talk) ? `<div class="muted small">${warm.filter((w) => w.talk).map((w) => `${esc(firstName(w.name))} gave a Think Tank Talk on ${esc(oppDate(w.talk))}.`).join(" ")}</div>` : ""}</div>` : ""}
       <div class="actions">
         <a class="btn primary small" href="${esc(p.url)}" target="_blank" rel="noopener">View &amp; apply on ${esc(p.org.split(/[ ,]/)[0])}'s site ↗</a>
@@ -1216,7 +1216,7 @@
     if ($("#opp-sort").value === "new") list = [...list].sort((a, b) => (b.first_seen || "").localeCompare(a.first_seen || ""));
     $("#opp-count").textContent = `${list.length} open role${list.length === 1 ? "" : "s"} at ${new Set(list.map((p) => p.org)).size} Think Tank organizations`;
     $("#opp-list").innerHTML = list.map(oppCard).join("") || `<div class="empty">${OPPS.postings.length ? "Nothing matches those filters." : "No openings yet. The Program Lead refreshes the job feeds weekly."}</div>`;
-    $("#opp-foot").textContent = `Pilot: ${OPPS.employers ? OPPS.employers.length : 0} employers with official public job feeds. ${OPPS.last_refresh ? `Last checked ${oppDate(OPPS.last_refresh)}.` : ""} AI labels can be wrong; always confirm details and eligibility on the employer's posting. The Hub never applies for you.`;
+    $("#opp-foot").textContent = `${OPPS.employers ? OPPS.employers.length : 0} Think Tank organizations with official public job feeds${OPPS.no_feed ? `, ${OPPS.no_feed.length} more without one` : ""}. ${OPPS.last_refresh ? `Last checked ${oppDate(OPPS.last_refresh)}.` : ""} AI labels can be wrong; always confirm details and eligibility on the employer's posting. The Hub never applies for you.`;
   }
   ["opp-q", "opp-kind", "opp-field", "opp-loc", "opp-sort"].forEach((id) => $("#" + id).addEventListener(id === "opp-q" ? "input" : "change", renderOpportunities));
   document.addEventListener("click", (e) => {
@@ -1236,16 +1236,21 @@
     "Securian Financial": ["SF", "#003a70"], "HealthPartners": ["HP", "#00539b"], "Hormel": ["HRL", "#c8102e"],
     "Federated Insurance": ["FI", "#123b6d"], "Solera Health": ["SH", "#5b2c86"], "CISA": ["CISA", "#005288"],
     "EcoLab": ["ECL", "#007ac9"], "nVent": ["nV", "#c4262e"], "UnitedHealth Group": ["UHG", "#002677"],
+    "U.S. Bank": ["USB", "#0c2074"], "Edward Jones": ["EJ", "#1b5f2a"], "Center for Internet Security": ["CIS", "#003a63"],
+    "Progressive Leasing": ["PL", "#0071ce"], "Donaldson": ["DCI", "#004b8d"], "University of St. Thomas": ["UST", "#510c76"],
+    "Zscaler": ["Z", "#0076c6"], "Flashpoint": ["FP", "#111111"], "Sunrise Banks": ["SB", "#f26722"],
+    "City of Saint Paul": ["STP", "#00577d"], "B. Braun": ["BB", "#00a97a"], "Midwest Reliability Organization": ["MRO", "#00467f"],
+    "Air National Guard": ["ANG", "#00308f"], "Minnesota National Guard": ["MNG", "#4b5320"], "U.S. Army": ["USA", "#221f20"],
   };
   const orgKey = (org) => org.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-  const orgShort = (org) => org.replace(/, Inc\.|, LLC| Financial Services/g, "");
+  const orgShort = (org) => org.replace(/, Inc\.|, LLC| Financial Services/g, "").replace("Midwest Reliability Organization", "Midwest Reliability Org.").replace("Center for Internet Security", "Center for Internet Sec.");
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   let OX = { busy: false, layout: [] };
 
   function orgTile(org) {
     const [abbr, color] = ORG_META[org] || [initials(org), "#1d4166"];
     return `<div class="ox-org" data-org="${esc(org)}" style="--brand:${color}" title="${esc(org)}">
-      <div class="ox-logo"><span>${esc(abbr)}</span><img src="/api/org-logo/${orgKey(org)}" alt="" onload="this.parentNode.classList.add('has-img')" onerror="this.remove()"></div>
+      <div class="ox-logo"><span>${esc(abbr)}</span><img src="/api/org-logo/${orgKey(org)}" alt="" onload="this.parentNode.classList.add('has-img'); if (this.naturalWidth > 1.7 * this.naturalHeight) this.parentNode.classList.add('wide')" onerror="this.remove()"></div>
       <div class="ox-name">${esc(orgShort(org))}</div><div class="ox-meta"></div></div>`;
   }
 
@@ -1254,38 +1259,55 @@
     // The status bar takes the bottom ~56px. Tiles sit on an ellipse, spaced by equal arc
     // length (not equal angle) so they don't bunch up at the ends of a wide stage.
     const reserve = Math.max(56, $("#ox-status").offsetHeight + 26);
-    const w = stage.clientWidth, h = stage.clientHeight, cx = w / 2, cy = (h - reserve) / 2;
+    const rail = $("#ox-rail"), railW = rail.hidden ? 0 : rail.offsetWidth + 28;
+    const fullW = stage.clientWidth, w = fullW - railW, h = stage.clientHeight, cx = w / 2, cy = (h - reserve) / 2;
     const tiles = $$("#ox-orgs .ox-org"), n = tiles.length;
-    const rx = Math.max(110, Math.min(w / 2 - 54, 430)), ry = Math.max(110, cy - 50);
-    const steps = 720, pts = [], cum = [0];
-    for (let k = 0; k <= steps; k++) {
-      const a = -Math.PI / 2 + (2 * Math.PI * k) / steps;
-      pts.push([cx + rx * Math.cos(a), cy + ry * Math.sin(a)]);
-      if (k) cum.push(cum[k - 1] + Math.hypot(pts[k][0] - pts[k - 1][0], pts[k][1] - pts[k - 1][1]));
-    }
-    const total = cum[steps];
+    const rx = Math.max(110, Math.min(w / 2 - 50, 470)), ry = Math.max(110, cy - 48);
+    // Up to 16 employers: one ring. More: an outer and an inner ring, the inner one rotated
+    // half a step so tiles interleave instead of lining up behind each other.
+    const outer = n > 16 ? Math.ceil(n * 0.6) : n;
+    const rings = n > 16 ? [[outer, 1, 0.56, 0], [n - outer, 0.6, 0.56, 0.5]] : [[n, 1, 1, 0]];
+    const ringPoints = (count, sx, sy, offset) => {
+      const steps = 720, pts = [], cum = [0], ex = rx * sx, ey = ry * (sx === 1 ? 1 : sy);
+      for (let k = 0; k <= steps; k++) {
+        const a = -Math.PI / 2 + (2 * Math.PI * k) / steps;
+        pts.push([cx + ex * Math.cos(a), cy + ey * Math.sin(a)]);
+        if (k) cum.push(cum[k - 1] + Math.hypot(pts[k][0] - pts[k - 1][0], pts[k][1] - pts[k - 1][1]));
+      }
+      return Array.from({ length: count }, (_, i) => {
+        const target = (cum[steps] * (i + offset)) / count;
+        let k = 0;
+        while (k < steps && cum[k] < target) k++;
+        return pts[k];
+      });
+    };
+    const spots = rings.flatMap(([count, sx, sy, offset]) => ringPoints(count, sx, sy, offset));
     OX.layout = tiles.map((t, i) => {
-      const target = (total * i) / n;
-      let k = 0;
-      while (k < steps && cum[k] < target) k++;
-      const [x, y] = pts[k];
+      const [x, y] = spots[i];
       t.style.left = `${x}px`; t.style.top = `${y}px`;
       return { org: t.dataset.org, x, y };
     });
     $("#ox-me").style.left = `${cx}px`; $("#ox-me").style.top = `${cy}px`;
-    $("#ox-lines").setAttribute("viewBox", `0 0 ${w} ${h}`);
+    $("#ox-lines").setAttribute("viewBox", `0 0 ${fullW} ${h}`);
     $("#ox-lines").innerHTML = OX.layout.map((p) => `<line data-org="${esc(p.org)}" x1="${cx}" y1="${cy}" x2="${p.x}" y2="${p.y}" pathLength="100"/>`).join("");
   }
 
   function oxReset() {
-    const employers = (OPPS.employers || []).filter((o) => o !== "CISA" || OPPS.postings.some((p) => p.org === "CISA"));
-    const me = ME ? { name: `${ME.first_name} ${ME.last_name}`, photo_url: ME.photo_url } : { name: "Program Lead", photo_url: "" };
-    $("#ox-orgs").innerHTML = employers.map(orgTile).join("");
-    $("#ox-me").innerHTML = `<div class="ox-ring"></div>${me.photo_url ? `<img src="${esc(me.photo_url)}" alt="">` : `<span>${esc(initials(me.name))}</span>`}<div class="ox-me-name">${esc(me.name.split(" ")[0])}</div><div class="ox-domains" id="ox-domains"></div>`;
     const counts = {};
     OPPS.postings.forEach((p) => (counts[p.org] = (counts[p.org] || 0) + 1));
-    $$("#ox-orgs .ox-org").forEach((t) => ($(".ox-meta", t).textContent = `${counts[t.dataset.org] || 0} open`));
-    $("#ox-stage").className = "ox-stage";
+    // The ring is for employers with open roles; the rest wait in the side rail.
+    const employers = (OPPS.employers || []).filter((o) => counts[o]);
+    const idle = (OPPS.employers || []).filter((o) => !counts[o]);
+    const me = ME ? { name: `${ME.first_name} ${ME.last_name}`, photo_url: ME.photo_url } : { name: "Program Lead", photo_url: "" };
+    $("#ox-orgs").innerHTML = employers.map(orgTile).join("");
+    $("#ox-rail").hidden = !idle.length;
+    $("#ox-rail").innerHTML = `<h4>No openings right now · ${idle.length}</h4>${idle.map(orgTile).join("")}`;
+    $("#ox-me").innerHTML = `<div class="ox-ring"></div>${me.photo_url ? `<img src="${esc(me.photo_url)}" alt="">` : `<span>${esc(initials(me.name))}</span>`}<div class="ox-me-name">${esc(me.name.split(" ")[0])}</div><div class="ox-domains" id="ox-domains"></div>`;
+    $$("#ox-stage .ox-org").forEach((t) => ($(".ox-meta", t).textContent = counts[t.dataset.org] ? `${counts[t.dataset.org]} open` : ""));
+    $("#ox-stage").className = `ox-stage${employers.length > 16 ? " dense" : ""}`;
+    const nf = OPPS.no_feed || [];
+    $("#ox-nofeed").innerHTML = nf.length ? `<div class="lbl small muted">Also in the Think Tank, with no job feed the Hub can read (hover for why). Ask the member there directly.</div>
+      <div class="chips">${nf.map((o) => `<span class="chip" title="${esc(o.reason)}">${esc(orgShort(o.org))}${o.emeritus_only ? "<em>Emeritus</em>" : ""}</span>`).join("")}</div>` : "";
     requestAnimationFrame(oxLayout);
   }
   window.addEventListener("resize", () => { if (!OX.busy) oxLayout(); });
@@ -1314,7 +1336,7 @@
     }
   }
 
-  const tileOf = (org) => $(`#ox-orgs .ox-org[data-org="${CSS.escape(org)}"]`);
+  const tileOf = (org) => $(`#ox-stage .ox-org[data-org="${CSS.escape(org)}"]`);
   const lineOf = (org) => $(`#ox-lines line[data-org="${CSS.escape(org)}"]`);
   const status = (html) => ($("#ox-status").innerHTML = html);
 
@@ -1373,7 +1395,7 @@
           <div class="loc">📍 ${esc(p.location || "Location not listed")}</div>
           <p class="summary">${esc(m.why)}</p>
           ${m.gaps.length ? `<div class="elig"><b>Before you apply:</b><ul>${m.gaps.map((g) => `<li>${esc(g)}</li>`).join("")}</ul></div>` : ""}
-          ${warm.length ? `<div class="warm"><b>You know someone there:</b><br>${warm.map((w) => `<button class="speaker" type="button" data-person="${esc(w.slug)}">${avatar(w, "sm")}${esc(w.name)}</button>`).join("")}</div>` : ""}
+          ${warm.length ? `<div class="warm"><b>You know someone there:</b><br>${warm.map((w) => `<button class="speaker" type="button" data-person="${esc(w.slug)}">${avatar(w, "sm")}${esc(w.name)}${w.emeritus ? `<span class="emer">Emeritus</span>` : ""}</button>`).join("")}</div>` : ""}
           <div class="actions"><a class="btn primary small" href="${esc(p.url)}" target="_blank" rel="noopener">View &amp; apply ↗</a>
           ${warm.length ? `<button class="btn small" type="button" data-ask-warm="${esc(p.id)}">How should I reach out to ${esc(firstName(warm[0].name))}?</button>` : ""}</div>
         </article>`;
@@ -1384,7 +1406,13 @@
   async function runExplore(question) {
     if (OX.busy || !question.trim()) return;
     OX.busy = true; $("#ox-go").disabled = true; $("#ox-go").classList.add("busy");
-    if (!OPPS.postings.length) await loadOpportunities();
+    try {
+      if (!OPPS.postings.length) await loadOpportunities();
+    } catch (err) {
+      OX.busy = false; $("#ox-go").disabled = false; $("#ox-go").classList.remove("busy");
+      status(`<span class="error">Couldn't load the job feeds: ${esc(err.message)}</span>`);
+      return;
+    }
     oxReset(); $("#ox-result").innerHTML = "";
     await sleep(60);
     const queue = []; let finished = false;

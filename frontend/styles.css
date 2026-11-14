@@ -530,6 +530,33 @@ label.check-inline input { width: auto; margin: 0; }
 .ox-org.match .ox-meta { color: var(--gold); font-weight: 800; }
 .ox-org.dim { opacity: .35; filter: grayscale(.6); }
 
+/* Two rings when there are many employers; smaller tiles so names stay readable. */
+.ox-stage.dense { height: 780px; }
+.ox-stage.dense .ox-org { width: 84px; }
+.ox-stage.dense .ox-logo { width: 46px; height: 46px; border-radius: 12px; font-size: .78rem; }
+.ox-stage.dense .ox-name { font-size: .64rem; }
+.ox-logo.wide, .ox-stage.dense .ox-logo.wide { width: 78px; }
+.ox-logo.wide img { inset: 5px 6px; width: calc(100% - 12px); height: calc(100% - 10px); }
+/* Employers with a feed but no open roles right now sit in a rail on the side of the stage. */
+.ox-rail { position: absolute; right: 14px; top: 14px; bottom: 74px; width: 196px; overflow-y: auto; z-index: 2;
+  background: rgba(10,29,49,.55); border: 1px solid rgba(91,192,222,.22); border-radius: 14px; padding: 10px 8px; }
+.ox-rail h4 { margin: 0 4px 8px; font-size: .64rem; letter-spacing: .08em; text-transform: uppercase; color: #8fb3c9; }
+.ox-rail .ox-org { position: static; transform: none; width: auto; display: flex; align-items: center; gap: 8px; text-align: left;
+  padding: 4px; border-radius: 10px; opacity: .8; }
+.ox-rail .ox-logo, .ox-stage.dense .ox-rail .ox-logo { width: 30px; height: 30px; margin: 0; border-radius: 8px; font-size: .6rem; flex: none; }
+.ox-rail .ox-logo.wide { width: 46px; }
+.ox-rail .ox-logo img { inset: 3px; width: calc(100% - 6px); height: calc(100% - 6px); }
+.ox-rail .ox-name { margin: 0; font-size: .68rem; }
+.ox-rail .ox-meta { display: none; }
+.ox-rail .ox-org.scan { transform: none; background: rgba(33,254,254,.12); }
+@media (max-width: 760px) { .ox-rail { width: 128px; } }
+.ox-nofeed { margin: 12px 2px 4px; }
+.ox-nofeed .lbl { margin-bottom: 6px; }
+.ox-nofeed .chips { gap: 6px; }
+.ox-nofeed .chip { font-size: .74rem; background: #fff; border: 1px dashed var(--line); color: var(--muted); cursor: help; }
+.ox-nofeed .chip em { font-style: normal; font-size: .66rem; font-weight: 700; color: var(--accent-ink); margin-left: 4px; }
+.warm .emer { font-size: .68rem; font-weight: 700; color: var(--muted); margin-left: 4px; }
+
 .ox-status { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); width: min(620px, 92%); text-align: center;
   color: #d8ecf5; font-size: .88rem; background: rgba(10,29,49,.72); padding: 8px 14px; border-radius: 12px; backdrop-filter: blur(4px); z-index: 3; }
 .ox-status b { color: var(--neon); }

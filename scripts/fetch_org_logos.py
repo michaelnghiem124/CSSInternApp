@@ -25,6 +25,18 @@ SITES = {
     "Hormel": "https://www.hormelfoods.com", "Federated Insurance": "https://www.federatedinsurance.com",
     "Solera Health": "https://www.soleranetwork.com", "CISA": "https://www.cisa.gov", "EcoLab": "https://www.ecolab.com",
     "nVent": "https://www.nvent.com", "UnitedHealth Group": "https://www.unitedhealthgroup.com",
+    "Edward Jones": "https://www.edwardjones.com", "U.S. Bank": "https://www.usbank.com",
+    "Center for Internet Security": "https://www.cisecurity.org", "Progressive Leasing": "https://progleasing.com",
+    "Donaldson": "https://www.donaldson.com", "University of St. Thomas": "https://www.stthomas.edu",
+    "Zscaler": "https://www.zscaler.com", "Flashpoint": "https://flashpoint.io", "Sunrise Banks": "https://sunrisebanks.com",
+    "City of Saint Paul": "https://www.stpaul.gov", "B. Braun": "https://www.bbraunusa.com",
+    "Midwest Reliability Organization": "https://www.mro.net", "Air National Guard": "https://www.ang.af.mil",
+    "Minnesota National Guard": "https://minnesotanationalguard.ng.mil", "U.S. Army": "https://www.army.mil",
+}
+# Preferred higher-resolution files, still from the organization's own sites. Tried first.
+LOGO_URLS = {
+    "3M": "https://news.3m.com/images/unicorn/3M_Bookmark_Icon_180x180.png",  # 3m.com refuses our User-Agent
+    "UnitedHealth Group": "https://www.unitedhealthgroup.com/content/dam/uhg/icons/Icons/uhg-logo--stacked-2022.svg",
 }
 OUT = config.DATA_DIR / "logos"
 
@@ -51,19 +63,26 @@ def icon_candidates(base: str, html: str) -> list[str]:
     return [u for _, u in sorted(links, reverse=True)] + [base + "/apple-touch-icon.png", base + "/favicon.ico"]
 
 
-def main() -> None:
+def main(only: set[str] | None = None) -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     for src in SOURCES:
+        if only and src["org"] not in only:
+            continue
         org, base = src["org"], SITES.get(src["org"])
         if not base:
             continue
         try:
-            html = get(base)[0].decode("utf8", "ignore")
+            html = "" if org in LOGO_URLS else get(base)[0].decode("utf8", "ignore")
         except Exception as e:  # noqa: BLE001
             print(f"{org:36} homepage failed: {e}")
             html = ""
         saved = False
-        for url in icon_candidates(base, html):
+        candidates = icon_candidates(base, html)
+        if src["platform"] == "workday":  # the employer's own logo on its Workday career site
+            candidates.insert(0, f"https://{src['host']}/{src['site']}/assets/logo")
+        if org in LOGO_URLS:
+            candidates.insert(0, LOGO_URLS[org])
+        for url in candidates:
             try:
                 data, ctype = get(url, 1_000_000)
             except Exception:  # noqa: BLE001
@@ -85,4 +104,5 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+    main(set(sys.argv[1:]) or None)  # optional: org names to refresh, e.g. "3M" "UnitedHealth Group"
