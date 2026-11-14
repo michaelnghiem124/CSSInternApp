@@ -226,6 +226,32 @@
         <h1>Internships and entry-level roles <span class="hl">where you already have a connection.</span></h1>
         <p>Open roles pulled weekly from the official job sites of Think Tank members' employers, screened by AI for internships, co-ops, and early-career fit. Each one shows who you know there.</p>
       </div>
+      <div class="seg opp-view" id="opp-view" role="tablist" aria-label="Opportunities view">
+        <button type="button" data-v="explore" class="on" role="tab">✨ Explorer</button>
+        <button type="button" data-v="list" role="tab">Browse all roles</button>
+      </div>
+
+      <div id="opp-explore">
+        <form id="ox-form" class="ox-ask" autocomplete="off">
+          <input id="ox-q" maxlength="500" placeholder="Ask anything, e.g. “Is there an entry-level SOC analyst role?”" aria-label="Ask the Opportunities Explorer">
+          <button class="btn primary" type="submit" id="ox-go">Explore</button>
+        </form>
+        <div class="chips ox-examples" id="ox-examples">
+          <button type="button" class="chip">Is there an entry-level SOC analyst role?</button>
+          <button type="button" class="chip">Which roles fit my resume best?</button>
+          <button type="button" class="chip">Cloud or network security internships in Minnesota</button>
+          <button type="button" class="chip">GRC or IT audit internships</button>
+        </div>
+        <div class="ox-stage" id="ox-stage" aria-live="polite">
+          <svg class="ox-lines" id="ox-lines" aria-hidden="true"></svg>
+          <div class="ox-orgs" id="ox-orgs"></div>
+          <div class="ox-me" id="ox-me"></div>
+          <div class="ox-status" id="ox-status">Ask a question. The Explorer reads your resume, checks every Think Tank organization's open roles, and shows where you fit.</div>
+        </div>
+        <div id="ox-result"></div>
+      </div>
+
+      <div id="opp-listview" hidden>
       <div class="filters opp-filters">
         <input type="search" id="opp-q" placeholder="Search titles, employers, cities…" aria-label="Search opportunities">
         <select id="opp-kind" aria-label="Type"><option value="">All types</option><option>internship</option><option>co-op</option><option>new-grad / entry-level</option></select>
@@ -235,6 +261,7 @@
       </div>
       <p class="muted small" id="opp-count"></p>
       <div id="opp-list" class="opp-list"></div>
+      </div>
       <p class="fine" id="opp-foot"></p>
     </section>
 
@@ -473,6 +500,7 @@
     <button class="dialog-close" type="button" aria-label="Close">×</button>
     <div style="padding:26px">
       <h2>My profile</h2>
+      <p class="muted small" id="me-admin-edited" hidden></p>
       <form id="me-form" class="form-grid">
         <div class="span2 photo-pick">
           <label class="photo-drop" for="me-photo"><img id="me-photo-preview" alt="" hidden><span id="me-photo-ph">📷</span></label>

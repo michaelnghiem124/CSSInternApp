@@ -53,7 +53,9 @@ The whole site sits behind a sign-in. Only the sign-in/register screen is public
   .venv/bin/python -m scripts.set_admin_password
   ```
 
-  You type a username and password at a hidden prompt. Only a scrypt hash is saved to `.env`. Restart the server, then choose **Admin** on the sign-in screen. The Admin page lists every intern profile (with search, a detail view, delete, and CSV export), the access code, talks, announcements, and AI usage. **There is no default admin password: until you run the script, admin sign-in is disabled.**
+  You type a username and password at a hidden prompt. Only a scrypt hash is saved to `.env`. Restart the server, then choose **Admin** on the sign-in screen. The Admin page lists every intern profile (with search, a detail view, delete, and CSV export), the access code, talks, announcements, and AI usage.
+
+  **Editing an intern's profile:** Admin → Interns → open an intern → **Edit profile**. The Program Lead can change everything on the card (name, contact details, school or employer, Summit role, background, interests, hobbies, goals, fun fact, LinkedIn) and upload or remove their photo. The same limits and LinkedIn check apply as on the intern's own form, and lines that read like instructions to an AI are removed, because profile text feeds the agents. Leaving email blank keeps an imported intern's placeholder login. The intern sees "Last updated by the Program Lead" on their profile and can change anything back; Mentor Match uses the new details on their next question. **There is no default admin password: until you run the script, admin sign-in is disabled.**
 
 **Passwords:** at least 12 characters. Interns can change theirs under **Cohort → Edit my profile**; this requires the current password and signs out their other devices.
 
@@ -157,25 +159,35 @@ The admin can override any assignment from the matrix and approve placements bef
 
 **Measured cost (demo cohort of 10):** the committee matchmaker costs about $0.13 for a first run and much less on re-runs (cached profiles). A Monday Brief costs about $0.03, and an intro draft about $0.001.
 
-### Opportunities pilot (`backend/opportunities.py`)
+### Opportunities pilot (`backend/opportunities.py`, `backend/explorer.py`, `backend/cyber_domains.py`)
 
-**Opportunities** lists internships, co-ops, and entry-level roles at Think Tank organizations. It's on its own intern tab and is also a Mentor Match tool ("any security internships in Minnesota?"). Each opening names the Think Tank member who works there, for a warm introduction.
+**Opportunities** shows internships, co-ops, and entry-level roles at Think Tank organizations, each with the Think Tank member who works there for a warm introduction. Interns get two views: the **Explorer** (ask a question, see it evaluated visually) and **Browse all roles** (filterable list). Mentor Match can also suggest openings in chat.
 
-- **Connectors (plain code, no AI).** They read each employer's **official public job feed**, the same one its careers page uses:
-  - Workday: 3M, Medtronic, the Federal Reserve, Ameriprise, Land O'Lakes, Securian
+- **Connectors (plain code, no AI).** They read each employer's **official public job feed**, the same one its careers page uses. 14 employers:
+  - Workday: 3M, Medtronic, the Federal Reserve, Ameriprise, Land O'Lakes, Securian, Ecolab, nVent
   - Oracle Cloud: HealthPartners, Hormel
+  - Radancy (TalentBrew): UnitedHealth Group
   - iCIMS: Federated Insurance
   - Greenhouse: Solera Health
   - USAJOBS: CISA, once `USAJOBS_API_KEY` and `USAJOBS_EMAIL` are set (free at developer.usajobs.gov)
 
-  The connectors refresh weekly, wait 0.6 s between requests, send an honest User-Agent, and never get around a block or scrape LinkedIn or Indeed. Every link must point at the employer's own job host.
-- **Title pre-filter (code).** Workday's keyword search is fuzzy: "intern" also matches "Internal…" and "International…". A regex keeps likely early-career titles before any AI runs.
-- **Job Classifier agent (Haiku 5.5 / gpt-6-luna, structured `JobClassification`).** It labels each new or changed posting with type, field, a 0–100 relevance score for a cybersecurity intern, Minnesota/remote/elsewhere, term, eligibility flags, and deadline.
-  - Posting text is screened for instruction-like lines first, and the classifier flags injection attempts.
-  - Results are cached by content hash, so a posting is paid for once.
-  - Each refresh is capped at 200 classifications.
-- **What interns see.** Interns see only postings that are internship, co-op, or entry-level, score at least 35 on relevance, are in the US, and haven't been hidden by the Program Lead (Admin → Opportunities). The "Best fit for me" sort is a free, deterministic score: relevance, plus overlap with the intern's profile and resume, plus a bump for Minnesota or remote roles.
-- **Refreshing.** Use Admin → Opportunities → **Refresh job feeds**, or run `.venv/bin/python -m scripts.refresh_opportunities` (cron-friendly, for example Mondays at 6 AM).
+  The connectors wait 0.6 s between requests, send an honest User-Agent, and never get around a block or scrape LinkedIn or Indeed. Every link must point at the employer's own job host. Not covered: employers whose sites block automated access or have no readable feed (Lumen, Edward Jones, Donaldson, Great River Energy, University of Minnesota and others), plus associations, consultancies, and military units without job feeds.
+- **Pre-filters (code).** Security search terms run first, so each employer's 40-detail budget goes to the most relevant roles. A title regex drops non-early-career and clearly unrelated titles (senior, manager, nursing, pharmacy, sales, clinical), and a location regex drops roles outside the US.
+- **12 cybersecurity domains (`cyber_domains.py`).** There's no single official "12 domains" list, so this one merges the CISSP body of knowledge, the NIST NICE work roles, and the common Cybersecurity Domain Map: Security Operations & Incident Response, Threat Intelligence, Network, Cloud, Application & Software, Identity & Access, Data Security & Privacy, Vulnerability Management & Offensive, Endpoint/Infrastructure/OT, GRC & IT Audit, Security Architecture, and Resilience/Awareness/Physical. Each domain has the vocabulary postings actually use (Splunk, SIEM, Okta, SOX ITGC, NIST 800-53…), so a security job is recognized even when it never says "cybersecurity".
+- **Job Classifier agent (Haiku 5.5 / gpt-6-luna, structured `JobClassification`).** It labels each new or changed posting with type, up to 3 cyber domains **with quoted evidence from the posting**, a 0–100 relevance score on a strict rubric, Minnesota/remote/elsewhere, term, eligibility flags, and deadline.
+  - The rubric: 85+ security is the main job; 60–84 substantial security duties; 40–59 hands-on technical work with little security; below 40 analytical but far from security (economics, statistics, records, legal).
+  - An output validator enforces it: no quoted evidence means no domain, and a role with no domain is capped at 59 and can't be labeled Cybersecurity. Being at a bank, regulator, or tech company is not evidence.
+  - Posting text is screened for instruction-like lines first, and the classifier flags injection attempts. Results are cached by content hash plus classifier version, so a posting is paid for once (about $0.003 each).
+- **What interns see.** Postings that are internship, co-op, or entry-level, score at least 40, are in the US, and aren't hidden by the Program Lead (Admin → Opportunities, which also shows each role's domains and evidence). The rubric cut the Federal Reserve from 26 shown roles to 9: its economics, regional-affairs, legal, statistics, and records internships no longer show.
+- **Opportunities Explorer (Sonnet 5.5 / gpt-6-luna, structured `ExplorerAnswer`).** An intern asks a question ("Is there an entry-level SOC analyst role?"), and the page streams each step as it actually happens:
+  1. Their resume and profile are mapped onto the 12 domains (code, free); the domains appear under their photo.
+  2. Every employer's open roles are pre-scored in code against the question and resume; each employer's tile lights up as it's checked.
+  3. The 24 strongest candidates go to the agent, which ranks up to 6 with a fit score, the domain, a reason tied to resume evidence, and gaps to close (including eligibility). It says plainly when nothing is an exact match. An output validator rejects any id not in the candidate list.
+  4. Matched employers glow gold with their fit; the cards below link to the employer's posting and the warm intro.
+
+  One question costs about $0.01–0.02 and takes 6–10 seconds. Employer icons come from each employer's own website via `scripts/fetch_org_logos.py`, stored in `data/logos/` and not committed (they're trademarks); without them the tiles show colored monograms.
+- **"Best fit for me" (list view).** A free, deterministic score: relevance, plus the cyber domains a role shares with the intern's resume and profile, plus word overlap, plus a bump for Minnesota or remote roles.
+- **Refreshing.** Use Admin → Opportunities → **Refresh job feeds**, or run `.venv/bin/python -m scripts.refresh_opportunities` (cron-friendly, for example Mondays at 6 AM). Each refresh is capped at 400 classifications; a full re-classification of about 200 postings cost $0.59.
 
 ## Configuration
 
@@ -195,7 +207,8 @@ Start command: `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`.
 
 ```
 backend/     main.py (API) · agents.py (Mentor Match) · placements.py (committee matchmaker)
-             pulse.py (Monday Brief) · demo.py · auth.py · mailer.py · safety.py · db.py · config.py · prompts/
+             pulse.py (Monday Brief) · opportunities.py (job feeds + classifier) · explorer.py (Opportunities Explorer)
+             cyber_domains.py (12-domain vocabulary) · demo.py · auth.py · mailer.py · safety.py · db.py · config.py · prompts/
 mcp_server/  cohort_server.py (read-only, privacy-safe Slack + notes tools)
 frontend/    index.html · styles.css · app.js
 data/        think_tank_raw.json · think_tank.json

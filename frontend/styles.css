@@ -465,3 +465,95 @@ label.show-pw input { width: auto; margin: 0; }
 .linkish { border: 0; background: none; padding: 0; color: var(--accent-ink); font: inherit; font-weight: 600; cursor: pointer; text-decoration: underline; }
 label.check-inline { display: inline-flex; gap: 6px; align-items: center; font-weight: 500; margin: 0; }
 label.check-inline input { width: auto; margin: 0; }
+
+.dialog.confirm:has(#ap-form) { width: min(720px, 94vw); }
+#ap-form textarea { width: 100%; }
+
+/* ---------- opportunities explorer ---------- */
+.opp-view { margin: 4px 0 14px; }
+.ox-ask { display: flex; gap: 8px; }
+.ox-ask input { flex: 1; font-size: 1rem; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line); }
+.ox-examples { margin: 10px 0 14px; }
+.ox-examples .chip { cursor: pointer; border: 1px solid var(--line); background: #fff; }
+.ox-examples .chip:hover { border-color: var(--accent); color: var(--accent-ink); }
+.ox-stage { position: relative; height: 620px; border-radius: 20px; overflow: hidden;
+  background: radial-gradient(ellipse at center, #17406a 0%, var(--navy) 45%, var(--navy-deep) 100%); box-shadow: var(--shadow); }
+.ox-stage::before { content: ""; position: absolute; inset: 0; opacity: .18;
+  background-image: linear-gradient(rgba(33,254,254,.25) 1px, transparent 1px), linear-gradient(90deg, rgba(33,254,254,.25) 1px, transparent 1px);
+  background-size: 34px 34px; mask-image: radial-gradient(ellipse at center, #000 30%, transparent 75%); }
+.ox-lines { position: absolute; inset: 0; width: 100%; height: 100%; }
+.ox-lines line { stroke: rgba(91,192,222,.18); stroke-width: 1; stroke-dasharray: 100; stroke-dashoffset: 100; transition: stroke .4s, opacity .4s, stroke-width .4s; }
+.ox-lines line.scan, .ox-lines line.seen, .ox-lines line.hit, .ox-lines line.match { stroke-dashoffset: 0; transition: stroke-dashoffset .35s ease-out, stroke .4s, stroke-width .4s; }
+.ox-lines line.scan { stroke: var(--neon); stroke-width: 2; }
+.ox-lines line.seen { stroke: rgba(91,192,222,.28); }
+.ox-lines line.hit { stroke: rgba(33,254,254,.6); stroke-width: 1.5; }
+.ox-stage.thinking .ox-lines line.hit { stroke-dasharray: 4 6; animation: ox-flow .9s linear infinite; }
+.ox-lines line.match { stroke: var(--gold); stroke-dasharray: none; filter: drop-shadow(0 0 4px rgba(244,185,66,.7)); }
+.ox-stage.done .ox-lines line:not(.match) { opacity: .25; }
+@keyframes ox-flow { to { stroke-dashoffset: -20; } }
+
+.ox-me { position: absolute; transform: translate(-50%, -50%); width: 104px; height: 104px; border-radius: 50%;
+  display: grid; place-items: center; background: var(--navy-2); color: #fff; font-weight: 800; font-size: 1.8rem; z-index: 2; }
+.ox-me img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; border: 3px solid #fff; }
+.ox-ring { position: absolute; inset: -9px; border-radius: 50%; border: 2px solid rgba(33,254,254,.35); }
+.ox-stage.reading .ox-ring, .ox-stage.scanning .ox-ring { border-color: var(--neon); animation: ox-pulse 1.1s ease-out infinite; }
+.ox-stage.thinking .ox-ring { inset: -13px; border: 3px solid transparent;
+  background: conic-gradient(from 0deg, transparent 0 60%, var(--neon) 85%, var(--magenta)) border-box;
+  -webkit-mask: linear-gradient(#000 0 0) padding-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude;
+  animation: ox-spin 1s linear infinite; }
+.ox-stage.done .ox-ring { border-color: var(--gold); box-shadow: 0 0 22px rgba(244,185,66,.45); }
+@keyframes ox-pulse { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(1.35); opacity: 0; } }
+@keyframes ox-spin { to { transform: rotate(360deg); } }
+.ox-me-name { position: absolute; top: calc(100% + 8px); font-size: .82rem; font-weight: 700; color: #fff; white-space: nowrap; }
+.ox-domains { position: absolute; top: calc(100% + 30px); display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; width: 300px; }
+.ox-dom { font-size: .68rem; font-weight: 700; padding: 3px 8px; border-radius: 999px; background: rgba(33,254,254,.14); color: var(--neon);
+  border: 1px solid rgba(33,254,254,.35); animation: ox-pop .4s both; }
+@keyframes ox-pop { from { opacity: 0; transform: translateY(6px) scale(.9); } }
+
+.ox-org { position: absolute; transform: translate(-50%, -50%); width: 98px; text-align: center; z-index: 1; transition: opacity .4s, transform .3s; }
+.ox-logo { width: 54px; height: 54px; margin: 0 auto; border-radius: 14px; background: var(--brand); color: #fff; display: grid; place-items: center;
+  font-weight: 800; font-size: .9rem; letter-spacing: .02em; border: 2px solid rgba(255,255,255,.15); position: relative; overflow: hidden;
+  box-shadow: 0 4px 14px rgba(0,0,0,.35); transition: box-shadow .3s, border-color .3s, filter .3s; }
+.ox-logo.has-img { background: #fff; }
+.ox-logo.has-img span { display: none; }
+.ox-logo img { position: absolute; inset: 6px; width: calc(100% - 12px); height: calc(100% - 12px); object-fit: contain; }
+.ox-name { margin-top: 5px; font-size: .7rem; font-weight: 700; color: #e6f2f8; line-height: 1.15; }
+.ox-meta { font-size: .66rem; color: #8fb3c9; min-height: 1em; }
+.ox-org.scan { transform: translate(-50%, -50%) scale(1.14); }
+.ox-org.scan .ox-logo { border-color: var(--neon); box-shadow: 0 0 0 4px rgba(33,254,254,.25), 0 0 24px rgba(33,254,254,.6); }
+.ox-org.hit .ox-logo { border-color: rgba(33,254,254,.8); }
+.ox-org.empty, .ox-org.seen { opacity: .7; }
+.ox-stage.thinking .ox-org.hit .ox-logo { animation: ox-glow 1.2s ease-in-out infinite alternate; }
+@keyframes ox-glow { to { box-shadow: 0 0 0 3px rgba(33,254,254,.25), 0 0 20px rgba(33,254,254,.5); } }
+.ox-org.match { opacity: 1; transform: translate(-50%, -50%) scale(1.12); }
+.ox-org.match .ox-logo { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(244,185,66,.35), 0 0 26px rgba(244,185,66,.55); }
+.ox-org.match .ox-meta { color: var(--gold); font-weight: 800; }
+.ox-org.dim { opacity: .35; filter: grayscale(.6); }
+
+.ox-status { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); width: min(620px, 92%); text-align: center;
+  color: #d8ecf5; font-size: .88rem; background: rgba(10,29,49,.72); padding: 8px 14px; border-radius: 12px; backdrop-filter: blur(4px); z-index: 3; }
+.ox-status b { color: var(--neon); }
+.ox-status .error { color: #ffb4a9; }
+.ox-dots { display: inline-flex; gap: 3px; margin-right: 6px; vertical-align: middle; }
+.ox-dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--neon); animation: ox-bounce 1s infinite ease-in-out; }
+.ox-dots i:nth-child(2) { animation-delay: .15s; } .ox-dots i:nth-child(3) { animation-delay: .3s; }
+@keyframes ox-bounce { 0%, 80%, 100% { transform: translateY(0); opacity: .4; } 40% { transform: translateY(-5px); opacity: 1; } }
+
+.ox-answer { margin-top: 16px; border-left: 4px solid var(--gold); }
+.ox-answer p { margin: 0 0 6px; }
+.ox-matches { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; margin-top: 14px; }
+.ox-match { position: relative; animation: ox-pop .45s both; }
+.ox-rank { position: absolute; top: 12px; right: 14px; font-weight: 800; color: var(--muted); font-size: .85rem; }
+.ox-fit { display: flex; align-items: center; gap: 8px; font-size: .8rem; color: var(--muted); }
+.ox-fit .bar { flex: 1; height: 8px; border-radius: 99px; background: var(--line); overflow: hidden; }
+.ox-fit .bar i { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--accent), var(--neon)); }
+.ox-fit b { color: var(--ink); }
+#ox-go.busy { opacity: .7; pointer-events: none; }
+@media (max-width: 700px) {
+  .ox-stage { height: 660px; }
+  .ox-org { width: 74px; } .ox-logo { width: 42px; height: 42px; font-size: .74rem; border-radius: 11px; }
+  .ox-name { font-size: .62rem; } .ox-me { width: 84px; height: 84px; }
+  .ox-domains { width: 200px; } .ox-ask { flex-direction: column; }
+  .ox-status { font-size: .78rem; padding: 6px 10px; bottom: 10px; }
+}
+@media (prefers-reduced-motion: reduce) { .ox-stage *, .ox-stage *::before { animation: none !important; transition: none !important; } }

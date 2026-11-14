@@ -14,3 +14,6 @@ __pycache__/
 # local tooling
 .claude/
 .DS_Store
+
+# employer logos for the Explorer (trademarks; fetched locally by scripts/fetch_org_logos.py)
+data/logos/

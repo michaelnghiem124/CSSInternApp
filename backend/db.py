@@ -226,6 +226,7 @@ MIGRATIONS = {
         "program_role": "TEXT NOT NULL DEFAULT ''",        # committee / Summit role(s)
         "background_summary": "TEXT NOT NULL DEFAULT ''",  # short bio, e.g. from the roster
         "email_pending": "INTEGER NOT NULL DEFAULT 0",     # imported with a placeholder login
+        "admin_edited_at": "TEXT",                         # last time the Program Lead edited the profile
     },
 }
 
@@ -398,7 +399,7 @@ _USER_COLS = ("id, first_name, last_name, phone, slack_email, city, state, schoo
               "last_login, photo_updated, password_hash, session_version, temp_password_hash, "
               "temp_password_expires, must_change_password, committee_prefs, availability, "
               "is_sample, resume_filename, resume_uploaded_at, mentor_profile_json, program_role, "
-              "background_summary, email_pending, "
+              "background_summary, email_pending, admin_edited_at, "
               "length(resume_text) AS resume_chars")
 
 
@@ -446,6 +447,16 @@ def set_contact(user_id: int, email: str, phone: str, city: str, state: str) -> 
     with conn() as c:
         c.execute("UPDATE users SET slack_email = ?, phone = ?, city = ?, state = ?, email_pending = 0, "
                   "updated_at = ? WHERE id = ?", (email, phone, city, state, _now(), user_id))
+
+
+def admin_update_profile(user_id: int, data: dict[str, Any], email: str | None) -> None:
+    """Program Lead edits to an intern's profile. A real email clears the 'pending' flag;
+    no email keeps the placeholder login."""
+    update_user(user_id, data)
+    with conn() as c:
+        c.execute("UPDATE users SET admin_edited_at = ? WHERE id = ?", (_now(), user_id))
+        if email:
+            c.execute("UPDATE users SET slack_email = ?, email_pending = 0 WHERE id = ?", (email, user_id))
 
 
 def touch_login(user_id: int) -> None:

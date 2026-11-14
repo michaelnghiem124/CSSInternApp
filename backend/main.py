@@ -16,14 +16,14 @@ from datetime import datetime, timedelta
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Request, Response, UploadFile
-from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response as RawResponse
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response as RawResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, EmailStr, Field, field_validator
 from pydantic_ai.exceptions import UsageLimitExceeded
 
 import json as _json
 
-from . import agents, auth, config, db, demo, directory, mailer, opportunities, placements, pulse, safety
+from . import agents, auth, config, db, demo, directory, explorer, mailer, opportunities, placements, pulse, safety
 
 log = logging.getLogger("intern_hub")
 
@@ -216,7 +216,7 @@ def _public_user(u: dict, include_private: bool = False) -> dict:
             "created_at", "program_role", "background_summary"]
     if include_private:
         keep += ["phone", "last_login", "updated_at", "must_change_password", "availability",
-                 "is_sample", "resume_filename", "resume_uploaded_at", "email_pending"]
+                 "is_sample", "resume_filename", "resume_uploaded_at", "email_pending", "admin_edited_at"]
     d = {k: u.get(k) for k in keep}
     d["share_with_cohort"] = bool(d["share_with_cohort"])
     if include_private:
@@ -573,6 +573,58 @@ def intern_opportunities(user: Annotated[dict, Depends(auth.require_user)]):
     last = db.get_setting("opportunities_last_refresh")
     return {"postings": items, "last_refresh": _json.loads(last)["finished"] if last else None,
             "employers": sorted({s["org"] for s in opportunities.SOURCES})}
+
+
+_LOGO_TYPES = {"png": "image/png", "jpg": "image/jpeg", "ico": "image/x-icon", "svg": "image/svg+xml"}
+
+
+@app.get("/api/org-logo/{key}")
+def org_logo(key: str):
+    """Employer icons for the Explorer, fetched locally by scripts/fetch_org_logos.py. Only
+    keys of configured employers; SVGs are served with a no-script CSP."""
+    if not re.fullmatch(r"[a-z0-9-]{1,60}", key):
+        raise HTTPException(404)
+    for ext, ctype in _LOGO_TYPES.items():
+        f = config.DATA_DIR / "logos" / f"{key}.{ext}"
+        if f.is_file():
+            return FileResponse(f, media_type=ctype, headers={"Cache-Control": "public, max-age=604800",
+                                                              "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'"})
+    raise HTTPException(404)
+
+
+class ExploreBody(BaseModel):
+    question: str = Field(min_length=3, max_length=500)
+
+
+@app.post("/api/opportunities/explore")
+async def explore_opportunities(body: ExploreBody, session: Annotated[str, Depends(session_key)],
+                                user: Annotated[dict, Depends(auth.require_user)]):
+    """Opportunities Explorer: streams NDJSON events (profile, one per employer, thinking, done)."""
+    st = state_for(session, user)
+    try:
+        safety.preflight(session, body.question, 0)
+    except safety.Blocked as exc:
+        return _blocked(exc)
+    screened = safety.screen(body.question)
+    if screened.flagged:
+        db.log_safety(session, "injection_in_explorer", " || ".join(screened.matches))
+    question = screened.clean_text.strip()
+    if not question:
+        return JSONResponse({"blocked": "injection", "message": "Ask about roles, skills, or employers."}, status_code=400)
+
+    async def events():
+        try:
+            async for ev in explorer.explore(question, user, st, session):
+                yield explorer.to_ndjson(ev)
+        except UsageLimitExceeded:
+            yield explorer.to_ndjson({"stage": "error", "message": "That question needed more work than one run allows. Try a narrower one."})
+        except Exception as exc:  # noqa: BLE001
+            log.exception("explorer failed")
+            db.log_safety(session, "model_error", type(exc).__name__)
+            yield explorer.to_ndjson({"stage": "error", "message": _provider_message(exc)})
+
+    return StreamingResponse(events(), media_type="application/x-ndjson",
+                             headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"})
 
 
 @app.get("/api/committees")
@@ -994,6 +1046,86 @@ def admin_set_contact(user_id: int, body: ContactBody):
     if state and state.upper() not in US_STATES and state != "Other":
         raise HTTPException(400, "Pick a US state (two letters) or Other.")
     db.set_contact(user_id, email, body.phone.strip(), body.city.strip(), state.upper() if state != "Other" else state)
+    return {"ok": True}
+
+
+class AdminProfileBody(BaseModel):
+    """Everything on an intern's profile the Program Lead may correct. Same limits and checks
+    as the intern's own form; email may stay blank for imported interns."""
+    first_name: str = Field(min_length=1, max_length=60)
+    last_name: str = Field(min_length=1, max_length=60)
+    email: str = Field("", max_length=200)
+    phone: str = Field("", max_length=30)
+    city: str = Field("", max_length=80)
+    state: str = Field("", max_length=20)
+    school: str = Field("", max_length=120)
+    program_role: str = Field("", max_length=200)
+    background_summary: str = Field("", max_length=1500)
+    interests: str = Field("", max_length=1000)
+    hobbies: str = Field("", max_length=1000)
+    goals: str = Field("", max_length=1500)
+    fun_fact: str = Field("", max_length=300)
+    linkedin_url: str = Field("", max_length=200)
+
+    _linkedin = field_validator("linkedin_url")(ProfileFields.linkedin.__func__)
+
+
+@app.put("/api/admin/interns/{user_id}/profile", dependencies=[Depends(auth.require_admin)])
+def admin_set_profile(user_id: int, body: AdminProfileBody, request: Request):
+    u = db.get_user(user_id)
+    if not u:
+        raise HTTPException(404, "No such intern.")
+    data = {k: v.strip() for k, v in body.model_dump().items() if k != "email"}
+    if not data["first_name"] or not data["last_name"]:
+        raise HTTPException(400, "First and last name are required.")
+    state = data["state"]
+    if state and state.upper() not in US_STATES and state != "Other":
+        raise HTTPException(400, "Pick a US state (two letters) or Other.")
+    data["state"] = state.upper() if state and state != "Other" else state
+    if data["phone"]:
+        try:
+            data["phone"] = ProfileFields.phone_digits.__func__(ProfileFields, data["phone"])
+        except ValueError as e:
+            raise HTTPException(400, str(e)) from None
+    email = body.email.strip().lower()
+    if email:
+        try:
+            from email_validator import EmailNotValidError, validate_email  # noqa: PLC0415
+            email = validate_email(email, check_deliverability=False).normalized.lower()
+        except EmailNotValidError:
+            raise HTTPException(400, "That email address doesn't look right.") from None
+        other = db.get_user_by_email(email)
+        if other and other["id"] != user_id:
+            raise HTTPException(409, "Another account already uses that email.")
+    # Profile text feeds Mentor Match and the Pulse agents, so it gets the same screen as
+    # intern-written text: lines that read like instructions to an AI are dropped.
+    removed = []
+    for k in ("school", "program_role", "background_summary", "interests", "hobbies", "goals", "fun_fact"):
+        r = safety.screen(data[k])
+        if r.flagged:
+            data[k] = r.clean_text.strip()
+            removed += r.matches
+    if removed:
+        db.log_safety(_ip(request), "admin_profile_screened", "; ".join(removed)[:500])
+    db.admin_update_profile(user_id, data, email or None)
+    STATES.pop(safety.hash_session(f"user:{user_id}"), None)  # Mentor Match re-reads the profile
+    return {"user": _public_user(db.get_user(user_id), include_private=True), "removed_lines": len(removed)}
+
+
+@app.post("/api/admin/interns/{user_id}/photo", dependencies=[Depends(auth.require_admin)])
+async def admin_upload_photo(user_id: int, file: Annotated[UploadFile, File()]):
+    if not db.get_user(user_id):
+        raise HTTPException(404, "No such intern.")
+    data = await file.read(PHOTO_MAX_BYTES + 1)
+    if len(data) > PHOTO_MAX_BYTES:
+        raise HTTPException(400, "That photo is over 5 MB.")
+    db.set_photo(user_id, _process_photo(data))
+    return {"user": _public_user(db.get_user(user_id), include_private=True)}
+
+
+@app.delete("/api/admin/interns/{user_id}/photo", dependencies=[Depends(auth.require_admin)])
+def admin_delete_photo(user_id: int):
+    db.set_photo(user_id, None)
     return {"ok": True}
 
 

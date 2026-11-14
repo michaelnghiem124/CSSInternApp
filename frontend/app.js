@@ -721,6 +721,8 @@
     if (ME.photo_url) $("#me-photo-preview").src = ME.photo_url;
     $("#me-photo-remove").hidden = !ME.photo_url;
     $("#me-share").checked = ME.share_with_cohort; $("#me-error").hidden = true;
+    $("#me-admin-edited").hidden = !ME.admin_edited_at;
+    if (ME.admin_edited_at) $("#me-admin-edited").textContent = `Last updated by the Program Lead on ${new Date(ME.admin_edited_at).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })}. You can change anything here.`;
     meDialog.showModal();
   });
   $("#me-form").addEventListener("submit", async (e) => {
@@ -781,9 +783,9 @@
       <dt>LinkedIn</dt><dd>${u.linkedin_url ? `<a href="${esc(u.linkedin_url)}" target="_blank" rel="noopener">${esc(u.linkedin_url.replace(/^https:\/\/(www\.)?/, ""))}</a>` : "—"}</dd>
       ${row_("Interests", u.interests)}${row_("Hobbies", u.hobbies)}${row_("Program goals", u.goals)}${row_("Fun fact", u.fun_fact)}${row_("Committee picks", (u.committee_prefs || []).map((sl, i) => `${i + 1}. ${(COMMITTEES_PUBLIC.find((c) => c.slug === sl) || {}).name || sl}`).join("\n"))}${row_("Availability", u.availability)}
       <dt>Resume</dt><dd>${u.resume_uploaded_at ? `${esc(u.resume_filename || "Resume")} · ${esc(u.resume_uploaded_at.slice(0, 10))} <button class="btn small ghost" type="button" data-view-resume="${u.id}">View resume</button>` : "—"}</dd>
-      ${row_("Shares with cohort", u.share_with_cohort ? "Yes" : "No")}${row_("Registered", (u.created_at || "").replace("T", " "))}${row_("Last sign-in", (u.last_login || "").replace("T", " "))}</dl>
+      ${row_("Shares with cohort", u.share_with_cohort ? "Yes" : "No")}${u.admin_edited_at ? row_("Last edited by you", u.admin_edited_at.replace("T", " ").slice(0, 16)) : ""}${row_("Registered", (u.created_at || "").replace("T", " "))}${row_("Last sign-in", (u.last_login || "").replace("T", " "))}</dl>
       <div class="event-actions"><a class="btn" href="tel:${esc(u.phone)}">Call</a><a class="btn" href="mailto:${esc(u.slack_email)}">Email</a>
-      <button class="btn" type="button" data-edit-contact="${u.id}">Edit contact info</button>
+      <button class="btn primary" type="button" data-edit-profile="${u.id}">Edit profile</button>
       <button class="btn" type="button" data-reset-link="${u.id}">Create password reset link</button>
       <button class="btn danger" type="button" id="del-intern">Delete account</button></div></div>`;
     $("#del-intern").onclick = async () => {
@@ -846,6 +848,57 @@
       await api(`/api/admin/interns/${u.id}/contact`, { method: "PUT", body: { email: $("#ct-email").value.trim(), phone: $("#ct-phone").value, city: $("#ct-city").value, state: $("#ct-state").value } });
       toast("Contact info saved"); $("#intern-dialog").close(); loadInterns();
     } catch (err) { toast(err.message); }
+  });
+
+  // Program Lead edits to an intern's whole profile (contact, bio fields, photo).
+  async function editInternProfile(u, draft) {
+    const v = draft || { ...u, email: u.email_pending ? "" : u.slack_email };
+    const opts = (META.us_states || []).map((s2) => `<option ${s2 === v.state ? "selected" : ""}>${esc(s2)}</option>`).join("");
+    const f = (id, label, val, extra = "") => `<label${extra.includes("span2") ? ' class="span2"' : ""}>${label}<input id="ap-${id}" value="${esc(val || "")}" ${extra.replace("span2", "")}></label>`;
+    const t = (id, label, val, max) => `<label class="span2">${label}<textarea id="ap-${id}" rows="2" maxlength="${max}">${esc(val || "")}</textarea></label>`;
+    const p = modal({ title: `Edit ${u.first_name} ${u.last_name}'s profile`, ok: "Save profile", html: true, body: `
+      <form id="ap-form" class="form-grid" onsubmit="return false">
+        <div class="span2 photo-pick">
+          <label class="photo-drop" for="ap-photo">${u.photo_url ? `<img src="${esc(u.photo_url)}" alt="" id="ap-photo-img">` : '<span id="ap-photo-ph">📷</span>'}</label>
+          <div><strong>Photo</strong><br><input type="file" id="ap-photo" accept="image/jpeg,image/png,image/webp,image/heic">
+          ${u.photo_url ? '<label class="check-inline small"><input type="checkbox" id="ap-photo-remove"> Remove current photo</label>' : ""}</div>
+        </div>
+        ${f("first", "First name", v.first_name, 'maxlength="60" required')}${f("last", "Last name", v.last_name, 'maxlength="60" required')}
+        ${f("email", 'Email <small class="muted">blank keeps the placeholder login</small>', v.email, 'type="email" maxlength="200" span2')}
+        ${f("phone", "Cell phone", v.phone, 'maxlength="30"')}${f("city", "City", v.city, 'maxlength="80"')}
+        <label>State<select id="ap-state"><option value="">—</option>${opts}</select></label>
+        ${f("school", "School or current employer", v.school, 'maxlength="120"')}
+        ${f("role", "Summit role", v.program_role, 'maxlength="200" span2')}
+        ${t("bg", "Background (short bio)", v.background_summary, 1500)}
+        ${t("interests", "Interests", v.interests, 1000)}${t("hobbies", "Hobbies", v.hobbies, 1000)}
+        ${t("goals", "What they want from the program", v.goals, 1500)}
+        ${f("fun", "Fun fact", v.fun_fact, 'maxlength="300" span2')}
+        ${f("linkedin", "LinkedIn", v.linkedin_url, 'maxlength="200" placeholder="linkedin.com/in/name" span2')}
+        <p class="muted small span2">The intern sees “Last updated by the Program Lead” on their profile. Mentor Match uses the new details on their next question.</p>
+      </form>` });
+    const file = () => $("#ap-photo").files[0];
+    let picked = null; $("#ap-photo").addEventListener("change", () => { picked = file(); });
+    const ok = await p;
+    if (!ok) return;
+    const body = { first_name: $("#ap-first").value, last_name: $("#ap-last").value, email: $("#ap-email").value, phone: $("#ap-phone").value,
+      city: $("#ap-city").value, state: $("#ap-state").value, school: $("#ap-school").value, program_role: $("#ap-role").value,
+      background_summary: $("#ap-bg").value, interests: $("#ap-interests").value, hobbies: $("#ap-hobbies").value, goals: $("#ap-goals").value,
+      fun_fact: $("#ap-fun").value, linkedin_url: $("#ap-linkedin").value };
+    const removePhoto = $("#ap-photo-remove")?.checked;
+    try {
+      const r = await api(`/api/admin/interns/${u.id}/profile`, { method: "PUT", body });
+      if (picked) { const fd = new FormData(); fd.append("file", picked); await api(`/api/admin/interns/${u.id}/photo`, { method: "POST", body: fd }); }
+      else if (removePhoto) await api(`/api/admin/interns/${u.id}/photo`, { method: "DELETE" });
+      toast(r.removed_lines ? `Profile saved. ${r.removed_lines} line(s) that read like AI instructions were removed.` : "Profile saved");
+      $("#intern-dialog").close(); await loadInterns(); if (typeof loadCohort === "function") loadCohort();
+    } catch (err) {
+      toast(err.message);
+      editInternProfile(u, { ...body, slack_email: body.email });  // reopen with what they typed
+    }
+  }
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-edit-profile]"); if (!b) return;
+    const u = INTERNS.find((x) => x.id == b.dataset.editProfile); if (u) editInternProfile(u);
   });
 
   async function loadAccessCode() { $("#access-code").textContent = (await api("/api/admin/access-code")).code; }
@@ -1131,6 +1184,7 @@
   async function loadOpportunities() {
     OPPS = await api("/api/opportunities");
     renderOpportunities();
+    if (!OX.busy && !$("#ox-result").innerHTML) oxReset();
   }
   function oppCard(p) {
     const c = p.classification || {};
@@ -1138,7 +1192,7 @@
     return `<article class="opp">
       <div class="org">${esc(p.org.replace(/, Inc\.|, LLC| Services/g, ""))}</div>
       <h3>${esc(p.title)}</h3>
-      <div class="chips"><span class="badge kind">${esc(c.kind || "")}</span>${c.field ? `<span class="badge field">${esc(c.field)}</span>` : ""}${c.location_type === "Minnesota" ? '<span class="badge mn">Minnesota</span>' : c.location_type === "Remote (US)" ? '<span class="badge mn">Remote</span>' : ""}${c.term ? `<span class="chip">${esc(c.term)}</span>` : ""}</div>
+      <div class="chips"><span class="badge kind">${esc(c.kind || "")}</span>${(c.cyber_domains || []).length ? c.cyber_domains.map((d) => `<span class="badge field">${esc(d)}</span>`).join("") : c.field ? `<span class="badge field">${esc(c.field)}</span>` : ""}${c.location_type === "Minnesota" ? '<span class="badge mn">Minnesota</span>' : c.location_type === "Remote (US)" ? '<span class="badge mn">Remote</span>' : ""}${c.term ? `<span class="chip">${esc(c.term)}</span>` : ""}</div>
       <div class="loc">📍 ${esc(p.location || "Location not listed")}${c.deadline ? ` · ⏳ Apply by ${esc(c.deadline)}` : ""}</div>
       ${c.summary ? `<p class="summary">${esc(c.summary)}</p>` : ""}
       ${(c.eligibility_notes || []).length ? `<div class="elig"><b>Check eligibility:</b><ul>${c.eligibility_notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul></div>` : ""}
@@ -1172,6 +1226,193 @@
     sendChat(`I'm interested in the "${p.title}" role at ${p.org}. How should I reach out to ${p.warm[0].name} about it, and what should I ask?`);
   });
 
+  // ---------- Opportunities Explorer (visual, resume-aware) ----------
+  // Each employer gets a tile around the intern's photo. Events stream from the server
+  // (profile → one per employer → thinking → done) and are played back in order, so what
+  // lights up is what the Hub actually evaluated.
+  const ORG_META = {
+    "3M": ["3M", "#e1251b"], "Medtronic": ["MDT", "#004b87"], "Federal Reserve": ["FRB", "#2a5d4f"],
+    "Ameriprise Financial Services, LLC": ["AMP", "#00335f"], "Land O'Lakes, Inc.": ["LOL", "#007a3d"],
+    "Securian Financial": ["SF", "#003a70"], "HealthPartners": ["HP", "#00539b"], "Hormel": ["HRL", "#c8102e"],
+    "Federated Insurance": ["FI", "#123b6d"], "Solera Health": ["SH", "#5b2c86"], "CISA": ["CISA", "#005288"],
+    "EcoLab": ["ECL", "#007ac9"], "nVent": ["nV", "#c4262e"], "UnitedHealth Group": ["UHG", "#002677"],
+  };
+  const orgKey = (org) => org.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const orgShort = (org) => org.replace(/, Inc\.|, LLC| Financial Services/g, "");
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  let OX = { busy: false, layout: [] };
+
+  function orgTile(org) {
+    const [abbr, color] = ORG_META[org] || [initials(org), "#1d4166"];
+    return `<div class="ox-org" data-org="${esc(org)}" style="--brand:${color}" title="${esc(org)}">
+      <div class="ox-logo"><span>${esc(abbr)}</span><img src="/api/org-logo/${orgKey(org)}" alt="" onload="this.parentNode.classList.add('has-img')" onerror="this.remove()"></div>
+      <div class="ox-name">${esc(orgShort(org))}</div><div class="ox-meta"></div></div>`;
+  }
+
+  function oxLayout() {
+    const stage = $("#ox-stage"); if (!stage || stage.offsetParent === null) return;
+    // The status bar takes the bottom ~56px. Tiles sit on an ellipse, spaced by equal arc
+    // length (not equal angle) so they don't bunch up at the ends of a wide stage.
+    const reserve = Math.max(56, $("#ox-status").offsetHeight + 26);
+    const w = stage.clientWidth, h = stage.clientHeight, cx = w / 2, cy = (h - reserve) / 2;
+    const tiles = $$("#ox-orgs .ox-org"), n = tiles.length;
+    const rx = Math.max(110, Math.min(w / 2 - 54, 430)), ry = Math.max(110, cy - 50);
+    const steps = 720, pts = [], cum = [0];
+    for (let k = 0; k <= steps; k++) {
+      const a = -Math.PI / 2 + (2 * Math.PI * k) / steps;
+      pts.push([cx + rx * Math.cos(a), cy + ry * Math.sin(a)]);
+      if (k) cum.push(cum[k - 1] + Math.hypot(pts[k][0] - pts[k - 1][0], pts[k][1] - pts[k - 1][1]));
+    }
+    const total = cum[steps];
+    OX.layout = tiles.map((t, i) => {
+      const target = (total * i) / n;
+      let k = 0;
+      while (k < steps && cum[k] < target) k++;
+      const [x, y] = pts[k];
+      t.style.left = `${x}px`; t.style.top = `${y}px`;
+      return { org: t.dataset.org, x, y };
+    });
+    $("#ox-me").style.left = `${cx}px`; $("#ox-me").style.top = `${cy}px`;
+    $("#ox-lines").setAttribute("viewBox", `0 0 ${w} ${h}`);
+    $("#ox-lines").innerHTML = OX.layout.map((p) => `<line data-org="${esc(p.org)}" x1="${cx}" y1="${cy}" x2="${p.x}" y2="${p.y}" pathLength="100"/>`).join("");
+  }
+
+  function oxReset() {
+    const employers = (OPPS.employers || []).filter((o) => o !== "CISA" || OPPS.postings.some((p) => p.org === "CISA"));
+    const me = ME ? { name: `${ME.first_name} ${ME.last_name}`, photo_url: ME.photo_url } : { name: "Program Lead", photo_url: "" };
+    $("#ox-orgs").innerHTML = employers.map(orgTile).join("");
+    $("#ox-me").innerHTML = `<div class="ox-ring"></div>${me.photo_url ? `<img src="${esc(me.photo_url)}" alt="">` : `<span>${esc(initials(me.name))}</span>`}<div class="ox-me-name">${esc(me.name.split(" ")[0])}</div><div class="ox-domains" id="ox-domains"></div>`;
+    const counts = {};
+    OPPS.postings.forEach((p) => (counts[p.org] = (counts[p.org] || 0) + 1));
+    $$("#ox-orgs .ox-org").forEach((t) => ($(".ox-meta", t).textContent = `${counts[t.dataset.org] || 0} open`));
+    $("#ox-stage").className = "ox-stage";
+    requestAnimationFrame(oxLayout);
+  }
+  window.addEventListener("resize", () => { if (!OX.busy) oxLayout(); });
+
+  async function streamExplore(question, onEvent) {
+    const res = await fetch("/api/opportunities/explore", {
+      method: "POST", credentials: "same-origin",
+      headers: { "X-Session": SESSION, "Content-Type": "application/json" }, body: JSON.stringify({ question }),
+    });
+    if (res.status === 401) { showGate(); throw new Error("Please sign in."); }
+    if (!res.ok) {
+      const d = await res.json().catch(() => null);
+      throw new Error(d?.message || (typeof d?.detail === "string" ? d.detail : d?.detail?.[0]?.msg) || `Request failed (${res.status})`);
+    }
+    const reader = res.body.getReader(), dec = new TextDecoder();
+    let buf = "";
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let i;
+      while ((i = buf.indexOf("\n")) >= 0) {
+        const line = buf.slice(0, i); buf = buf.slice(i + 1);
+        if (line.trim()) onEvent(JSON.parse(line));
+      }
+    }
+  }
+
+  const tileOf = (org) => $(`#ox-orgs .ox-org[data-org="${CSS.escape(org)}"]`);
+  const lineOf = (org) => $(`#ox-lines line[data-org="${CSS.escape(org)}"]`);
+  const status = (html) => ($("#ox-status").innerHTML = html);
+
+  async function play(ev) {
+    const stage = $("#ox-stage");
+    if (ev.stage === "profile") {
+      stage.classList.add("reading");
+      status(ev.has_resume ? "Reading your resume and profile…" : "No resume yet, so I'm using your profile answers. Upload a resume in Mentor Match for sharper matches.");
+      $("#ox-domains").innerHTML = ev.domains.slice(0, 4).map((d, i) => `<span class="ox-dom" style="animation-delay:${i * 120}ms" title="${esc(d.words.join(", "))}">${esc(d.name.split(" & ")[0].split(" (")[0])}</span>`).join("");
+      await sleep(ev.domains.length ? 900 : 500);
+      stage.classList.remove("reading"); stage.classList.add("scanning");
+    } else if (ev.stage === "org") {
+      const t = tileOf(ev.org), l = lineOf(ev.org);
+      status(`Checking <b>${esc(orgShort(ev.org))}</b>: ${ev.roles} open role${ev.roles === 1 ? "" : "s"}${ev.domain_hits.length ? ` · ${esc(ev.domain_hits[0].split(" & ")[0])}` : ""}`);
+      if (t) {
+        t.classList.add("scan"); l && l.classList.add("scan");
+        $(".ox-meta", t).textContent = ev.roles ? `${ev.roles} checked` : "no openings";
+        await sleep(170);
+        t.classList.remove("scan");
+        t.classList.add(ev.domain_hits.length ? "hit" : ev.roles ? "seen" : "empty");
+        l && l.classList.add(ev.domain_hits.length ? "hit" : "seen");
+      }
+    } else if (ev.stage === "thinking") {
+      stage.classList.remove("scanning"); stage.classList.add("thinking");
+      status(`<span class="ox-dots"><i></i><i></i><i></i></span> Comparing the ${ev.candidates} strongest roles at ${ev.orgs} organizations with your resume…`);
+    } else if (ev.stage === "done") {
+      stage.classList.remove("thinking", "scanning"); stage.classList.add("done");
+      const best = {};
+      ev.matches.forEach((m) => { const o = m.posting.org; best[o] = Math.max(best[o] || 0, m.fit); });
+      $$("#ox-orgs .ox-org").forEach((t) => {
+        const fit = best[t.dataset.org], l = lineOf(t.dataset.org);
+        t.classList.toggle("match", fit !== undefined); t.classList.toggle("dim", fit === undefined);
+        if (l) { l.classList.toggle("match", fit !== undefined); l.style.strokeWidth = fit !== undefined ? 1.5 + fit / 22 : ""; }
+        if (fit !== undefined) $(".ox-meta", t).textContent = `${fit}% fit`;
+      });
+      status(ev.matches.length ? `${ev.answer.exact_match ? "Found it." : "Closest fits:"} ${ev.matches.length} role${ev.matches.length === 1 ? "" : "s"} at ${Object.keys(best).length} organization${Object.keys(best).length === 1 ? "" : "s"}.` : "Nothing fits that question right now.");
+      renderExplore(ev);
+    } else if (ev.stage === "error") {
+      stage.classList.remove("thinking", "scanning", "reading");
+      status(`<span class="error">${esc(ev.message)}</span>`);
+    }
+  }
+
+  function renderExplore(ev) {
+    const a = ev.answer;
+    $("#ox-result").innerHTML = `<div class="card ox-answer"><p>${esc(a.answer)}</p>${a.next_step ? `<p class="small"><b>Next step:</b> ${esc(a.next_step)}</p>` : ""}
+      ${ev.usage ? `<div class="fine">Opportunity Explorer · ${esc(ev.usage.model)} · ${fmt(ev.usage.input_tokens + ev.usage.output_tokens)} tokens · ${money(ev.usage.cost_usd)} · ${(ev.usage.latency_ms / 1000).toFixed(1)}s</div>` : ""}</div>
+      <div class="ox-matches">${ev.matches.map((m, i) => {
+        const p = m.posting, c = p.classification || {}, warm = p.warm || [];
+        return `<article class="opp ox-match" style="animation-delay:${i * 90}ms">
+          <div class="ox-rank">#${i + 1}</div>
+          <div class="org">${esc(orgShort(p.org))}</div>
+          <h3>${esc(p.title)}</h3>
+          <div class="ox-fit"><div class="bar"><i style="width:${m.fit}%"></i></div><b>${m.fit}%</b> fit</div>
+          <div class="chips">${m.domain ? `<span class="badge field">${esc(m.domain)}</span>` : ""}<span class="badge kind">${esc(c.kind || "")}</span>${c.location_type === "Minnesota" ? '<span class="badge mn">Minnesota</span>' : ""}</div>
+          <div class="loc">📍 ${esc(p.location || "Location not listed")}</div>
+          <p class="summary">${esc(m.why)}</p>
+          ${m.gaps.length ? `<div class="elig"><b>Before you apply:</b><ul>${m.gaps.map((g) => `<li>${esc(g)}</li>`).join("")}</ul></div>` : ""}
+          ${warm.length ? `<div class="warm"><b>You know someone there:</b><br>${warm.map((w) => `<button class="speaker" type="button" data-person="${esc(w.slug)}">${avatar(w, "sm")}${esc(w.name)}</button>`).join("")}</div>` : ""}
+          <div class="actions"><a class="btn primary small" href="${esc(p.url)}" target="_blank" rel="noopener">View &amp; apply ↗</a>
+          ${warm.length ? `<button class="btn small" type="button" data-ask-warm="${esc(p.id)}">How should I reach out to ${esc(firstName(warm[0].name))}?</button>` : ""}</div>
+        </article>`;
+      }).join("")}</div>
+      <p class="fine">The Explorer only picks from roles in the official feeds. Fit is the AI's judgment from your resume; always confirm details and eligibility on the employer's posting.</p>`;
+  }
+
+  async function runExplore(question) {
+    if (OX.busy || !question.trim()) return;
+    OX.busy = true; $("#ox-go").disabled = true; $("#ox-go").classList.add("busy");
+    if (!OPPS.postings.length) await loadOpportunities();
+    oxReset(); $("#ox-result").innerHTML = "";
+    await sleep(60);
+    const queue = []; let finished = false;
+    const player = (async () => {
+      for (;;) {
+        if (queue.length) await play(queue.shift());
+        else if (finished) break;
+        else await sleep(40);
+      }
+    })();
+    try { await streamExplore(question, (ev) => queue.push(ev)); }
+    catch (err) { queue.push({ stage: "error", message: err.message }); }
+    finished = true; await player;
+    OX.busy = false; $("#ox-go").disabled = false; $("#ox-go").classList.remove("busy");
+  }
+
+  $("#ox-form").addEventListener("submit", (e) => { e.preventDefault(); runExplore($("#ox-q").value); });
+  $("#ox-examples").addEventListener("click", (e) => {
+    const b = e.target.closest(".chip"); if (!b) return;
+    $("#ox-q").value = b.textContent; runExplore(b.textContent);
+  });
+  $("#opp-view").addEventListener("click", (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    $$("#opp-view button").forEach((x) => x.classList.toggle("on", x === b));
+    $("#opp-explore").hidden = b.dataset.v !== "explore"; $("#opp-listview").hidden = b.dataset.v !== "list";
+    if (b.dataset.v === "explore") requestAnimationFrame(oxLayout);
+  });
+
   // ---------- Opportunities (admin) ----------
   let OPP_ADMIN = null, OPP_FILTER = "visible", OPP_POLL = null;
   async function loadOppAdmin() {
@@ -1186,9 +1427,9 @@
     $("#opp-sources").innerHTML = `<thead><tr><th>Employer</th><th>Platform</th><th>Status</th><th class="num">Active postings</th></tr></thead><tbody>${
       a.sources.map((s) => `<tr><td>${esc(s.org)}</td><td>${esc(s.platform)}</td><td>${s.ok ? "✓ " : ""}${esc(s.message)}</td><td class="num">${s.active_postings}</td></tr>`).join("")}</tbody>`;
     const rows = a.postings.filter((p) => OPP_FILTER === "all" || p.visible || p.hidden);
-    $("#opp-table").innerHTML = `<thead><tr><th>Role</th><th>Employer</th><th>Type</th><th>Field</th><th class="num">Relevance</th><th>Where</th><th>Interns see it?</th></tr></thead><tbody>${
+    $("#opp-table").innerHTML = `<thead><tr><th>Role</th><th>Employer</th><th>Type</th><th>Cyber domains (evidence)</th><th class="num">Relevance</th><th>Where</th><th>Interns see it?</th></tr></thead><tbody>${
       rows.map((p) => { const c = p.classification || {}; return `<tr style="${p.visible || p.hidden ? "" : "opacity:.55"}">
-        <td><a href="${esc(p.url)}" target="_blank" rel="noopener">${esc(p.title)}</a></td><td>${esc(p.org)}</td><td>${esc(c.kind || "not classified yet")}</td><td>${esc(c.field || "")}</td>
+        <td><a href="${esc(p.url)}" target="_blank" rel="noopener">${esc(p.title)}</a></td><td>${esc(p.org)}</td><td>${esc(c.kind || "not classified yet")}</td><td>${(c.cyber_domains || []).length ? `${esc(c.cyber_domains.join(", "))}<br><span class="muted small">${esc((c.security_evidence || []).join(" · "))}</span>` : `<span class="muted small">none · ${esc(c.field || "")}</span>`}</td>
         <td class="num">${c.relevance ?? "—"}</td><td>${esc(c.location_type || "")}</td>
         <td>${p.visible || p.hidden ? `<label class="check-inline"><input type="checkbox" data-hide="${esc(p.id)}" ${p.hidden ? "" : "checked"}> ${p.hidden ? "Hidden by you" : "Shown"}</label>` : '<span class="muted small">Filtered out</span>'}</td></tr>`; }).join("")
       || `<tr><td colspan="7" class="muted">No postings yet. Press Refresh job feeds.</td></tr>`}</tbody>`;
