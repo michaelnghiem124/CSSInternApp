@@ -779,7 +779,7 @@
     $("#intern-body").innerHTML = `<div class="intern-detail">
       <div class="pd-head">${u.photo_url ? `<img class="photo-lg" src="${esc(u.photo_url)}" alt="">` : initAvatar(u, "lg")}<div><h2>${esc(u.first_name)} ${esc(u.last_name)}</h2><div class="muted">${esc(placeOf(u) || "Location not provided")}</div></div></div>
       ${u.email_pending ? `<div class="flag">This intern was imported from your roster with a placeholder login. Add their real email below, then they can sign in with “Forgot your password?”.</div>` : ""}
-      <dl>${row_("Cell phone", u.phone)}${row_("Preferred email", u.email_pending ? "Pending (placeholder login)" : u.slack_email)}${row_("School / employer", u.school)}${row_("Summit role", u.program_role)}${row_("Background", u.background_summary)}
+      <dl>${row_("Cell phone", u.phone)}${row_("Email", u.email_pending ? "Pending (placeholder login)" : u.slack_email)}${row_("School / employer", u.school)}${row_("Summit role", u.program_role)}${row_("Background", u.background_summary)}
       <dt>LinkedIn</dt><dd>${u.linkedin_url ? `<a href="${esc(u.linkedin_url)}" target="_blank" rel="noopener">${esc(u.linkedin_url.replace(/^https:\/\/(www\.)?/, ""))}</a>` : "—"}</dd>
       ${row_("Interests", u.interests)}${row_("Hobbies", u.hobbies)}${row_("Program goals", u.goals)}${row_("Fun fact", u.fun_fact)}${row_("Committee picks", (u.committee_prefs || []).map((sl, i) => `${i + 1}. ${(COMMITTEES_PUBLIC.find((c) => c.slug === sl) || {}).name || sl}`).join("\n"))}${row_("Availability", u.availability)}
       <dt>Resume</dt><dd>${u.resume_uploaded_at ? `${esc(u.resume_filename || "Resume")} · ${esc(u.resume_uploaded_at.slice(0, 10))} <button class="btn small ghost" type="button" data-view-resume="${u.id}">View resume</button>` : "—"}</dd>
@@ -1503,7 +1503,6 @@
     $("#gate").hidden = true; $("#app-nav").hidden = false; $("#app-main").hidden = false;
     $("#admin-tab").hidden = !META.is_admin;
     $("#who-name").textContent = ME ? `${ME.first_name} ${ME.last_name}` : `${META.admin_name} · Admin`;
-    $("#people-count").textContent = META.people_count;
     $("#footer-admin").textContent = `${META.admin_name}, ${META.admin_title}`;
     $("#model-note").textContent = META.llm_ready ? `AI: ${META.match_model} + ${META.fast_model}` : "AI offline: no API key";
     META.sectors.forEach((s) => $("#dir-sector").insertAdjacentHTML("beforeend", `<option>${esc(s)}</option>`));

@@ -36,11 +36,11 @@
       <div class="gate-intro">
         <div class="eyebrow">Cyber Security Summit · Intern Program</div>
         <h1>Welcome to the <span class="hl">Intern Summit Hub.</span></h1>
-        <p>Meet the Think Tank, find the CISOs and leaders you should talk to, connect with your fellow interns, and never miss a talk.</p>
+        <p>Meet the Think Tank, find the CISOs and leaders you should talk to, connect with your fellow interns, and never miss an event.</p>
         <ul class="gate-points">
-          <li>Mentor Match: AI-picked Think Tank mentors from 64 bios</li>
+          <li>Mentor Match: AI looks up the Think Tank bios and suggests who to meet</li>
           <li>Your cohort's interests, hobbies, and goals</li>
-          <li>Talk reminders straight to your calendar</li>
+          <li>Think Tank Talks and program events in one place</li>
         </ul>
       </div>
       <div class="card gate-card">
@@ -51,7 +51,7 @@
         </div>
 
         <form id="login-form-intern" data-pane="login">
-          <label>Preferred email<input type="email" id="li-email" autocomplete="username" required></label>
+          <label>Email<input type="email" id="li-email" autocomplete="username" required></label>
           <div class="temp-banner" id="temp-banner" hidden>
             <strong>Check your email for a temporary password.</strong>
             Enter it below exactly as shown (it looks like <code>Ab3d-Ef7h-Jk9m-Np2q</code>). It works once and expires in 24 hours.
@@ -75,7 +75,7 @@
           <label>First name <span class="req">*</span><input id="rg-first" required maxlength="60" autocomplete="given-name"></label>
           <label>Last name <span class="req">*</span><input id="rg-last" required maxlength="60" autocomplete="family-name"></label>
           <label>Cell phone <span class="req">*</span><input id="rg-phone" type="tel" required maxlength="30" autocomplete="tel" placeholder="(612) 555-0123"></label>
-          <label>Preferred email <span class="req">*</span><input id="rg-email" type="email" required autocomplete="email" placeholder="You'll sign in with this"></label>
+          <label>Email <span class="req">*</span><input id="rg-email" type="email" required autocomplete="email" placeholder="You'll sign in with this"></label>
           <label>City <span class="req">*</span><input id="rg-city" required maxlength="80" autocomplete="address-level2"></label>
           <label>State <span class="req">*</span><select id="rg-state" required><option value="">Choose…</option></select></label>
           <div class="span2 optional-head">Optional, but it helps Mentor Match and your cohort get to know you</div>
@@ -97,7 +97,7 @@
         <form id="forgot-form" data-pane="forgot" hidden>
           <h2>Reset your password</h2>
           <p class="muted small" id="fg-help">Enter the email you registered with. We'll get a one-time reset link to you.</p>
-          <label>Preferred email<input type="email" id="fg-email" autocomplete="email" required></label>
+          <label>Email<input type="email" id="fg-email" autocomplete="email" required></label>
           <button class="btn primary wide" type="submit" id="fg-submit">Request a reset link</button>
           <p class="fine"><a href="#" data-goto="login">Back to sign in</a></p>
         </form>
@@ -143,7 +143,7 @@
       <div class="hero">
         <div class="eyebrow">Intern Program · Mentor Match</div>
         <h1>Find the Think Tank members <span class="hl">you should meet.</span></h1>
-        <p>Add your resume and what you're curious about. Mentor Match reads all <span id="people-count">64</span> Think Tank bios and tells you who to talk to, why, and what to ask first.</p>
+        <p>Add your resume and what you're curious about. Mentor Match looks up the Think Tank bios and recommends connections to spark a conversation and potential networking opportunities, with what to ask first.</p>
       </div>
       <div class="match-grid">
         <aside class="card profile-card">
@@ -210,9 +210,6 @@
         <div>
           <h1>Think Tank talks</h1>
           <p class="muted">CISOs and Think Tank members who are giving their time to interns. Times are Minneapolis (Central).</p>
-        </div>
-        <div class="head-actions">
-          <a class="btn" id="subscribe-btn" href="/api/calendar.ics" download>Add all to my calendar</a>
         </div>
       </div>
       <div id="event-list"></div>
@@ -513,7 +510,7 @@
         <label>First name <span class="req">*</span><input id="me-first" required maxlength="60"></label>
         <label>Last name <span class="req">*</span><input id="me-last" required maxlength="60"></label>
         <label>Cell phone <span class="req">*</span><input id="me-phone" type="tel" required maxlength="30"></label>
-        <label>Preferred email <span class="req">*</span><input id="me-email" type="email" required></label>
+        <label>Email <span class="req">*</span><input id="me-email" type="email" required></label>
         <label>City <span class="req">*</span><input id="me-city" required maxlength="80"></label>
         <label>State <span class="req">*</span><select id="me-state" required></select></label>
         <label class="span2">School or current employer<input id="me-school" maxlength="120"></label>
