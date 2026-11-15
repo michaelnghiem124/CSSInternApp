@@ -920,3 +920,7 @@ input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 4px rgba(4,105,141
 .event.past.is-huddle .datebox { background: #6b5320; }
 .event.past.is-huddle .datebox .dow { color: #ffe3a1; }
 .badge.past { background: #eef2f6; color: #5b6f82; }
+
+/* Fictional demo listings (seeded in place of real Adzuna data). */
+.badge.demo { background: #fdf1d8; color: #8a5d00; font-size: .62rem; vertical-align: middle; }
+.demo-note { border-top-color: #e8c97a; }

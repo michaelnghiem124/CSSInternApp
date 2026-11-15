@@ -42,6 +42,9 @@ def main(out: Path) -> None:
     # Adzuna's terms: its data must be removable if API access ends, so it never goes into a public
     # file. A deployment with ADZUNA_APP_ID/ADZUNA_APP_KEY fetches its own on the next refresh.
     dst.execute("DELETE FROM job_postings WHERE platform = 'adzuna'")
+    # In their place, clearly fictional demo listings so graders see how Adzuna roles appear.
+    from backend import demo_jobs, opportunities  # noqa: PLC0415
+    demo_jobs.add_demo_postings(dst, opportunities.CLASSIFIER_VERSION)
     dst.commit()
     dst.execute("VACUUM")
 

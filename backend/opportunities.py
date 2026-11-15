@@ -916,7 +916,7 @@ def list_postings(include_all: bool = False) -> list[dict]:
                     "location": r["location"], "url": r["url"], "posted": r["posted"],
                     "first_seen": r["first_seen"], "last_seen": r["last_seen"], "hidden": bool(r["hidden"]),
                     "visible": visible, "classification": cls, "warm": warm_cache[r["org"]],
-                    "connected": is_connected(r["org"])})
+                    "connected": is_connected(r["org"]), "demo": r["id"].startswith("demo|")})
     return out
 
 

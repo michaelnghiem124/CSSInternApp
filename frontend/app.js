@@ -1346,16 +1346,18 @@
     if (!OX.busy && !$("#ox-result").innerHTML) oxReset();
   }
   // Adzuna's API terms: label each listing shown with "Adzuna" (at least 116x23 px), linked to Adzuna.
-  const adzunaCredit = (p) => p.platform === "adzuna"
+  const adzunaCredit = (p) => p.platform === "adzuna" && !p.demo
     ? `<a class="adzuna-credit" href="https://www.adzuna.com" target="_blank" rel="noopener" title="This listing comes from the Adzuna job-search API">Jobs by <b>Adzuna</b></a>` : "";
-  const applyLabel = (p, short) => p.platform === "adzuna" ? "View &amp; apply via Adzuna ↗" : short ? "View &amp; apply ↗" : `View &amp; apply at ${esc(orgShort(p.org))} ↗`;
-  const noConnNote = (p) => p.connected === false && !(p.warm || []).length
+  const applyLabel = (p, short) => p.demo ? "Search similar roles on Adzuna ↗" : p.platform === "adzuna" ? "View &amp; apply via Adzuna ↗" : short ? "View &amp; apply ↗" : `View &amp; apply at ${esc(orgShort(p.org))} ↗`;
+  const noConnNote = (p) => p.demo
+    ? `<div class="noconn-note demo-note"><b>Demo listing.</b> A fictional example of a role found through the Adzuna job API, kept so the page has examples. It is not a real opening; the next live refresh replaces it.</div>`
+    : p.connected === false && !(p.warm || []).length
     ? `<div class="noconn-note"><b>No direct Summit connection.</b> No Think Tank member works here yet, so apply directly through the posting.</div>` : "";
   function oppCard(p) {
     const c = p.classification || {};
     const warm = p.warm || [];
     return `<article class="opp">
-      <div class="org">${esc(p.org.replace(/, Inc\.|, LLC| Services/g, ""))}</div>
+      <div class="org">${esc(p.org.replace(/, Inc\.|, LLC| Services/g, ""))}${p.demo ? ' <span class="badge demo">Demo</span>' : ""}</div>
       <h3>${esc(p.title)}</h3>
       <div class="chips"><span class="badge kind">${esc(c.kind || "")}</span>${(c.cyber_domains || []).length ? c.cyber_domains.map((d) => `<span class="badge field">${esc(d)}</span>`).join("") : c.field ? `<span class="badge field">${esc(c.field)}</span>` : ""}${c.location_type === "Minnesota" ? '<span class="badge mn">Minnesota</span>' : c.location_type === "Remote (US)" ? '<span class="badge mn">Remote</span>' : ""}${c.term ? `<span class="chip">${esc(c.term)}</span>` : ""}</div>
       <div class="loc">📍 ${esc(p.location || "Location not listed")}${c.deadline ? ` · ⏳ Apply by ${esc(c.deadline)}` : ""}</div>
@@ -1667,7 +1669,7 @@
         const p = m.posting, c = p.classification || {}, warm = p.warm || [];
         return `<article class="opp ox-match" style="animation-delay:${i * 90}ms">
           <div class="ox-rank">#${i + 1}</div>
-          <div class="org">${esc(orgShort(p.org))}</div>
+          <div class="org">${esc(orgShort(p.org))}${p.demo ? ' <span class="badge demo">Demo</span>' : ""}</div>
           <h3>${esc(p.title)}</h3>
           <div class="ox-fit"><div class="bar"><i style="width:${m.fit}%"></i></div><b>${m.fit}%</b> fit</div>
           <div class="chips">${m.domain ? `<span class="badge field">${esc(m.domain)}</span>` : ""}<span class="badge kind">${esc(c.kind || "")}</span>${c.location_type === "Minnesota" ? '<span class="badge mn">Minnesota</span>' : ""}</div>

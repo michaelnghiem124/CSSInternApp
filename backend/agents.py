@@ -271,6 +271,8 @@ def match_agent() -> Agent[MatchDeps, MatchReply]:
             c = p["classification"] or {}
             warm = "; ".join(f"{w['name']} ({w['slug']})" for w in p["warm"]) or (
                 "no Think Tank member listed" if p.get("connected", True) else "none: no Summit connection, apply directly")
+            if p.get("demo"):
+                warm = "DEMO LISTING (fictional example company, not a real opening; say so if you mention it)"
             lines.append(f"- id={p['id']} | {p['title']} | {p['org']} | {p['location'][:60]} | {c.get('kind')} | "
                          f"{c.get('field')} | {c.get('term')} | eligibility: {'; '.join(c.get('eligibility_notes', [])) or 'none stated'} "
                          f"| warm intro: {warm}")

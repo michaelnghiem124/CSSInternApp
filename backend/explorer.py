@@ -66,6 +66,8 @@ official job feeds and labeled.
 - `gaps`: concrete, short. Include eligibility flags from the role (citizenship, graduation window) when present.
 - `next_step`: usually the Think Tank member at that organization (warm intro) or a Think Tank Talk. Roles marked
   "no Summit connection" have no member to ask: say to apply directly on the employer's site; never invent a contact.
+- Roles marked "DEMO LISTING" are fictional examples. You may rank them, but say plainly they are demo examples, not
+  real openings, and don't suggest applying to them.
 - The 12 cybersecurity domains and words associated with each:
 {cyber_domains.prompt_block()}
 
@@ -195,6 +197,8 @@ async def explore(question: str, user: dict, st, session: str) -> AsyncIterator[
     for p in candidates:
         c = p["classification"] or {}
         warm = ", ".join(w["name"] for w in p["warm"]) or ("none" if p.get("connected", True) else "none (no Summit connection; apply directly)")
+        if p.get("demo"):
+            warm = "none. DEMO LISTING: a fictional example company, not a real opening"
         lines.append(f"- id={p['id']} | {p['title']} | {p['org']} | {p['location'][:60]} | {c.get('kind')} | "
                      f"domains: {', '.join(c.get('cyber_domains', [])) or 'none'} | relevance {c.get('relevance')} | "
                      f"{c.get('summary', '')} | evidence: {'; '.join(c.get('security_evidence', []))} | "
