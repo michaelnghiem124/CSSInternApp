@@ -826,8 +826,8 @@ input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 4px rgba(4,105,141
 @keyframes t-pulse { 50% { opacity: .35; transform: scale(.8); } }
 @keyframes t-caret { 50% { opacity: 0; } }
 
-/* Empty states: a quiet radar ping above the message. */
-.empty::before { content: ""; display: block; width: 44px; height: 44px; margin: 0 auto 14px; border-radius: 50%;
+/* Empty states: a quiet radar ping above the message. (Not on Explorer tiles, which also use .empty.) */
+.empty:not(.ox-org)::before { content: ""; display: block; width: 44px; height: 44px; margin: 0 auto 14px; border-radius: 50%;
   border: 1.5px solid rgba(4,105,141,.35);
   background: radial-gradient(circle, var(--accent) 0 3px, transparent 4px), radial-gradient(circle, transparent 0 12px, rgba(4,105,141,.22) 12.5px 13.5px, transparent 14px);
   animation: radar-ping 2.6s ease-out infinite; }
@@ -845,6 +845,6 @@ input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 4px rgba(4,105,141
 }
 @media (prefers-reduced-motion: reduce) {
   .topbar::after, .hero::after, .home-hero::after, .gate::after, .tab, .home-grid .tool-card, .recs .rec, .ox-matches .ox-match,
-  .thinking .t-dot, .thinking .t-text::after, .empty::before { animation: none !important; }
+  .thinking .t-dot, .thinking .t-text::after, .empty:not(.ox-org)::before { animation: none !important; }
   .hero::after, .home-hero::after, .gate::after { display: none; }
 }
