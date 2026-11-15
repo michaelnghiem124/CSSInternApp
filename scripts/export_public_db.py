@@ -38,7 +38,10 @@ def main(out: Path) -> None:
     for t in CLEAR:
         if t in tables:
             dst.execute(f"DELETE FROM {t}")
-    dst.execute("DELETE FROM settings WHERE key IN ('access_code', 'admin_calendar_token')")
+    dst.execute("DELETE FROM settings WHERE key IN ('access_code', 'admin_calendar_token', 'adzuna_calls', 'adzuna_last_run')")
+    # Adzuna's terms: its data must be removable if API access ends, so it never goes into a public
+    # file. A deployment with ADZUNA_APP_ID/ADZUNA_APP_KEY fetches its own on the next refresh.
+    dst.execute("DELETE FROM job_postings WHERE platform = 'adzuna'")
     dst.commit()
     dst.execute("VACUUM")
 

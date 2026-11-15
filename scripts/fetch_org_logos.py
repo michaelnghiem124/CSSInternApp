@@ -15,7 +15,7 @@ import time
 import urllib.parse
 import urllib.request
 
-from backend import config
+from backend import config, db
 from backend.opportunities import SOURCES, USER_AGENT
 
 SITES = {
@@ -32,11 +32,26 @@ SITES = {
     "City of Saint Paul": "https://www.stpaul.gov", "B. Braun": "https://www.bbraunusa.com",
     "Midwest Reliability Organization": "https://www.mro.net", "Air National Guard": "https://www.ang.af.mil",
     "Minnesota National Guard": "https://minnesotanationalguard.ng.mil", "U.S. Army": "https://www.army.mil",
+    "Target": "https://corporate.target.com", "General Mills": "https://www.generalmills.com",
+    "C.H. Robinson": "https://www.chrobinson.com", "Xcel Energy": "https://www.xcelenergy.com",
+    "Solventum": "https://www.solventum.com", "Thrivent": "https://www.thrivent.com", "CHS": "https://www.chsinc.com",
+    # Employers found through Adzuna (their own sites). New ones show a monogram until added here.
+    "Graco": "https://www.graco.com",  # Koniag Cyber Solutions: its site only has a white logo, so it keeps a monogram
+    "Geronimo Power": "https://geronimopower.com", "New Vision Co Op": "https://www.newvision.coop",
+    "The Toro Company": "https://www.thetorocompany.com", "Lumen Technologies": "https://www.lumen.com",
+    "AeroVironment": "https://www.avinc.com", "Highmark Health": "https://www.highmark.com",
+    "Bracco": "https://www.bracco.com", "Entrust": "https://www.entrust.com", "Black & Veatch": "https://www.bv.com",
+    "Northrop Grumman": "https://www.northropgrumman.com", "GardaWorld Security Services U.S.": "https://www.garda.com",
+    "ASM Research, An Accenture Federal Services Company": "https://www.asmr.com", "PwC": "https://www.pwc.com",
+    "IBM": "https://www.ibm.com", "Actalent": "https://www.actalentservices.com",
+    "General Dynamics Mission Systems": "https://gdmissionsystems.com", "AECOM": "https://aecom.com",
 }
 # Preferred higher-resolution files, still from the organization's own sites. Tried first.
 LOGO_URLS = {
     "3M": "https://news.3m.com/images/unicorn/3M_Bookmark_Icon_180x180.png",  # 3m.com refuses our User-Agent
     "UnitedHealth Group": "https://www.unitedhealthgroup.com/content/dam/uhg/icons/Icons/uhg-logo--stacked-2022.svg",
+    # jobs.xcelenergy.com's own logo file (its Workday icon is white on transparent, invisible on a tile).
+    "Xcel Energy": "https://dokumfe7mps0i.cloudfront.net/oms/5464/image/2025/6/JJR49_XElogo-DA1020600x1201MekmfG/XElogo-DA1020600x1201MekmfG.png",
 }
 OUT = config.DATA_DIR / "logos"
 
@@ -65,7 +80,13 @@ def icon_candidates(base: str, html: str) -> list[str]:
 
 def main(only: set[str] | None = None) -> None:
     OUT.mkdir(parents=True, exist_ok=True)
-    for src in SOURCES:
+    # Feed employers, plus employers currently listed through the Adzuna aggregator.
+    try:
+        with db.conn() as c:
+            via_adzuna = [r[0] for r in c.execute("SELECT DISTINCT org FROM job_postings WHERE platform = 'adzuna' AND active = 1")]
+    except Exception:  # noqa: BLE001  (no database yet, e.g. a fresh deploy)
+        via_adzuna = []
+    for src in [s for s in SOURCES if not s.get("aggregator")] + [{"org": o, "platform": "adzuna"} for o in via_adzuna]:
         if only and src["org"] not in only:
             continue
         org, base = src["org"], SITES.get(src["org"])

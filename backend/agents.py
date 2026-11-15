@@ -256,9 +256,10 @@ def match_agent() -> Agent[MatchDeps, MatchReply]:
 
     @agent.tool
     def find_opportunities(ctx: RunContext[MatchDeps], query: str = "") -> str:
-        """Open internships, co-ops, and entry-level roles at Think Tank organizations, from
-        their official job feeds. Optional keyword query (field, employer, city, 'remote').
-        Each result names the Think Tank member who works there, for a warm introduction."""
+        """Open internships, co-ops, and entry-level roles at Think Tank organizations (plus
+        Minnesota Fortune 500 employers with no Summit connection), from their official job
+        feeds. Optional keyword query (field, employer, city, 'remote'). Each result names the
+        Think Tank member who works there, for a warm introduction, or says there is none."""
         from . import opportunities  # noqa: PLC0415
 
         ctx.deps.tools_used.append(f"find_opportunities({query!r})")
@@ -268,7 +269,8 @@ def match_agent() -> Agent[MatchDeps, MatchReply]:
         lines = []
         for p in hits:
             c = p["classification"] or {}
-            warm = "; ".join(f"{w['name']} ({w['slug']})" for w in p["warm"]) or "no Think Tank member listed"
+            warm = "; ".join(f"{w['name']} ({w['slug']})" for w in p["warm"]) or (
+                "no Think Tank member listed" if p.get("connected", True) else "none: no Summit connection, apply directly")
             lines.append(f"- id={p['id']} | {p['title']} | {p['org']} | {p['location'][:60]} | {c.get('kind')} | "
                          f"{c.get('field')} | {c.get('term')} | eligibility: {'; '.join(c.get('eligibility_notes', [])) or 'none stated'} "
                          f"| warm intro: {warm}")

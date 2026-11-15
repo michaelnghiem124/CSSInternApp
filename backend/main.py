@@ -566,16 +566,23 @@ def _card(p: directory.Person, full: bool = False) -> dict:
 
 @app.get("/api/opportunities")
 def intern_opportunities(user: Annotated[dict, Depends(auth.require_user)]):
-    """Early-career roles at Think Tank organizations, best fit for this intern first."""
+    """Early-career roles at Think Tank organizations (and Minnesota Fortune 500 employers with
+    no Summit connection), best fit for this intern first."""
     items = opportunities.list_postings()
     terms = opportunities.profile_terms(None if user.get("is_admin_view") else user)
     for p in items:
         p["fit"] = opportunities.score_for(p, terms)
     items.sort(key=lambda p: -p["fit"])
     last = db.get_setting("opportunities_last_refresh")
+    # Employers found through Adzuna get their own tiles; they're "unconnected" unless they're a Think Tank org.
+    via_adzuna = sorted({p["org"] for p in items if p["platform"] == "adzuna"})
     return {"postings": items, "last_refresh": _json.loads(last)["finished"] if last else None,
-            "employers": [s["org"] for s in opportunities.SOURCES if s["platform"] != "usajobs" or opportunities.usajobs_enabled()],
-            "members": opportunities.org_members(),
+            "employers": [s["org"] for s in opportunities.SOURCES if not s.get("aggregator")
+                          and (s["platform"] != "usajobs" or opportunities.usajobs_enabled())] + via_adzuna,
+            "members": opportunities.org_members(via_adzuna),
+            "via_adzuna": via_adzuna,
+            "unconnected": opportunities.unconnected_orgs() + [o for o in via_adzuna if not opportunities.is_connected(o)],
+            "unconnected_no_feed": opportunities.unconnected_no_feed(),
             "no_feed": opportunities.no_feed_orgs() + [
                 {"org": s["org"], "emeritus_only": False,
                  "reason": "Federal roles come from USAJOBS, which turns on with a free USAJOBS API key."}

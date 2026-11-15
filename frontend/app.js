@@ -359,7 +359,7 @@
     { href: "#match", icon: "match", color: "linear-gradient(135deg,#04698d,#21c7d9)", title: "Mentor Match",
       text: "Add your resume and ask who to meet. It looks up the Think Tank bios and suggests people, why, and what to ask first." },
     { href: "#opportunities", icon: "opps", color: "linear-gradient(135deg,#102c49,#2d6aa3)", title: "Opportunity Match",
-      text: "Internships and entry-level roles at Think Tank organizations, with the member who works there for a warm intro." },
+      text: "Internships and entry-level roles at Think Tank organizations and other big Minnesota employers, with the member who works there for a warm intro." },
     { href: "#directory", icon: "tank", color: "linear-gradient(135deg,#7a4d00,#f4b942)", title: "Think Tank",
       text: "Browse the CISOs, directors, and leaders who volunteer their time. Search by employer, school, skill, or hobby." },
     { href: "#calendar", icon: "events", color: "linear-gradient(135deg,#5b2c86,#a46fd6)", title: "Events",
@@ -384,7 +384,7 @@
     setTimeout(countUpStats, 0);
     $("#home-stats").innerHTML = [
       stat(META.people_count, "Think Tank and Emeritus leaders"),
-      stat(opps ? opps.employers.length + (opps.no_feed || []).length : "—", "member organizations"),
+      stat(opps ? opps.employers.filter((o) => !(opps.unconnected || []).includes(o)).length + (opps.no_feed || []).length : "—", "member organizations"),
       stat(opps ? opps.postings.length : "—", "open roles for interns"),
       stat(thisYear, `events in ${year}`),
     ].join("");
@@ -1337,6 +1337,12 @@
     renderOpportunities();
     if (!OX.busy && !$("#ox-result").innerHTML) oxReset();
   }
+  // Adzuna's API terms: label each listing shown with "Adzuna" (at least 116x23 px), linked to Adzuna.
+  const adzunaCredit = (p) => p.platform === "adzuna"
+    ? `<a class="adzuna-credit" href="https://www.adzuna.com" target="_blank" rel="noopener" title="This listing comes from the Adzuna job-search API">Jobs by <b>Adzuna</b></a>` : "";
+  const applyLabel = (p, short) => p.platform === "adzuna" ? "View &amp; apply via Adzuna ↗" : short ? "View &amp; apply ↗" : `View &amp; apply at ${esc(orgShort(p.org))} ↗`;
+  const noConnNote = (p) => p.connected === false && !(p.warm || []).length
+    ? `<div class="noconn-note"><b>No direct Summit connection.</b> No Think Tank member works here yet, so apply directly through the posting.</div>` : "";
   function oppCard(p) {
     const c = p.classification || {};
     const warm = p.warm || [];
@@ -1349,8 +1355,9 @@
       ${(c.eligibility_notes || []).length ? `<div class="elig"><b>Check eligibility:</b><ul>${c.eligibility_notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul></div>` : ""}
       ${warm.length ? `<div class="warm"><b>You know someone there:</b><br>${warm.map((w) => `<button class="speaker" type="button" data-person="${esc(w.slug)}">${avatar(w, "sm")}${esc(w.name)}${w.emeritus ? `<span class="emer">Emeritus</span>` : ""}${w.title ? ` <span class="muted">· ${esc(w.title.slice(0, 40))}</span>` : ""}</button>`).join("")}
         ${warm.some((w) => w.talk) ? `<div class="muted small">${warm.filter((w) => w.talk).map((w) => `${esc(firstName(w.name))} gave a Think Tank Talk on ${esc(oppDate(w.talk))}.`).join(" ")}</div>` : ""}</div>` : ""}
+      ${noConnNote(p)}
       <div class="actions">
-        <a class="btn primary small" href="${esc(p.url)}" target="_blank" rel="noopener">View &amp; apply on ${esc(p.org.split(/[ ,]/)[0])}'s site ↗</a>
+        <a class="btn primary small" href="${esc(p.url)}" target="_blank" rel="noopener">${applyLabel(p)}</a>${adzunaCredit(p)}
         ${warm.length ? `<button class="btn small" type="button" data-ask-warm="${esc(p.id)}">How should I reach out to ${esc(firstName(warm[0].name))}?</button>` : ""}
       </div></article>`;
   }
@@ -1365,9 +1372,10 @@
       return true;
     });
     if ($("#opp-sort").value === "new") list = [...list].sort((a, b) => (b.first_seen || "").localeCompare(a.first_seen || ""));
-    $("#opp-count").textContent = `${list.length} open role${list.length === 1 ? "" : "s"} at ${new Set(list.map((p) => p.org)).size} Think Tank organizations`;
+    $("#opp-count").textContent = `${list.length} open role${list.length === 1 ? "" : "s"} at ${new Set(list.map((p) => p.org)).size} employers`;
     $("#opp-list").innerHTML = list.map(oppCard).join("") || `<div class="empty">${OPPS.postings.length ? "Nothing matches those filters." : "No openings yet. The Program Lead refreshes the job feeds weekly."}</div>`;
-    $("#opp-foot").textContent = `${OPPS.employers ? OPPS.employers.length : 0} Think Tank organizations with official public job feeds${OPPS.no_feed ? `, ${OPPS.no_feed.length} more without one` : ""}. ${OPPS.last_refresh ? `Last checked ${oppDate(OPPS.last_refresh)}.` : ""} AI labels can be wrong; always confirm details and eligibility on the employer's posting. The Hub never applies for you.`;
+    const nUnc = (OPPS.unconnected || []).length;
+    $("#opp-foot").textContent = `${OPPS.employers ? OPPS.employers.length - nUnc : 0} Think Tank organizations with official public job feeds${OPPS.no_feed ? `, ${OPPS.no_feed.length} more without one` : ""}${nUnc ? `, plus ${nUnc} other Minnesota employers with no direct Summit connection` : ""}.${(OPPS.via_adzuna || []).length ? " Some roles come from the Adzuna job-search API (Jobs by Adzuna)." : ""} ${OPPS.last_refresh ? `Last checked ${oppDate(OPPS.last_refresh)}.` : ""} AI labels can be wrong; always confirm details and eligibility on the employer's posting. The Hub never applies for you.`;
   }
   ["opp-q", "opp-kind", "opp-field", "opp-loc", "opp-sort"].forEach((id) => $("#" + id).addEventListener(id === "opp-q" ? "input" : "change", renderOpportunities));
   document.addEventListener("click", (e) => {
@@ -1382,6 +1390,8 @@
   // (profile → one per employer → thinking → done) and are played back in order, so what
   // lights up is what the Hub actually evaluated.
   const ORG_META = {
+    "Target": ["TGT", "#cc0000"], "General Mills": ["GIS", "#1f3f99"], "C.H. Robinson": ["CHR", "#0a5aa5"],
+    "Xcel Energy": ["XEL", "#00599c"], "Solventum": ["SOLV", "#3d1f6b"], "Thrivent": ["TFL", "#3a2a6a"], "CHS": ["CHS", "#00703c"],
     "3M": ["3M", "#e1251b"], "Medtronic": ["MDT", "#004b87"], "Federal Reserve": ["FRB", "#2a5d4f"],
     "Ameriprise Financial Services, LLC": ["AMP", "#00335f"], "Land O'Lakes, Inc.": ["LOL", "#007a3d"],
     "Securian Financial": ["SF", "#003a70"], "HealthPartners": ["HP", "#00539b"], "Hormel": ["HRL", "#c8102e"],
@@ -1402,8 +1412,12 @@
     const [abbr, color] = ORG_META[org] || [initials(org), "#1d4166"];
     const m = (OPPS.members || {})[org] || { think_tank: [], emeritus: [] };
     const who = [m.think_tank.length ? `Think Tank: ${m.think_tank.join(", ")}` : "", m.emeritus.length ? `Emeritus: ${m.emeritus.join(", ")}` : ""].filter(Boolean).join("\n");
-    const badge = m.think_tank.length ? `<b class="ox-tt">${m.think_tank.length}</b>` : m.emeritus.length ? `<b class="ox-tt emer">E</b>` : "";
-    return `<div class="ox-org" data-org="${esc(org)}" style="--brand:${color}" title="${esc(org + (who ? "\n" + who : ""))}">
+    const noconn = (OPPS.unconnected || []).includes(org);
+    const badge = m.think_tank.length ? `<b class="ox-tt summit" aria-label="${m.think_tank.length} Think Tank member${m.think_tank.length === 1 ? "" : "s"} here"></b>` : m.emeritus.length ? `<b class="ox-tt emer">E</b>` : noconn ? `<b class="ox-tt none">–</b>` : "";
+    const viaAdzuna = (OPPS.via_adzuna || []).includes(org);
+    const tip = [noconn ? (viaAdzuna ? "Found through Adzuna · no direct Summit connection" : "Minnesota Fortune 500 · no direct Summit connection") : who,
+                 viaAdzuna && !noconn ? "Roles found through Adzuna" : ""].filter(Boolean).join("\n");
+    return `<div class="ox-org${noconn ? " noconn" : ""}" data-org="${esc(org)}" style="--brand:${color}" title="${esc(org + (tip ? "\n" + tip : ""))}">
       <div class="ox-logo">${badge}<span>${esc(abbr)}</span><img src="/api/org-logo/${orgKey(org)}" alt="" onload="this.parentNode.classList.add('has-img'); if (this.naturalWidth > 1.7 * this.naturalHeight) this.parentNode.classList.add('wide')" onerror="this.remove()"></div>
       <div class="ox-name">${esc(orgShort(org))}</div><div class="ox-meta"></div></div>`;
   }
@@ -1450,6 +1464,7 @@
       t.style.left = `${x}px`; t.style.top = `${y}px`;
       return { org: t.dataset.org, x, y };
     });
+    OX.geom = { cx, cy, rx, ry, w, h, top, reserve, phone };
     $("#ox-me").style.left = `${cx}px`; $("#ox-me").style.top = `${cy}px`;
     $("#ox-lines").setAttribute("viewBox", `0 0 ${fullW} ${h}`);
     $("#ox-lines").innerHTML = OX.layout.map((p) => `<line data-org="${esc(p.org)}" x1="${cx}" y1="${cy}" x2="${p.x}" y2="${p.y}" pathLength="100"/>`).join("");
@@ -1471,9 +1486,94 @@
     const nf = OPPS.no_feed || [];
     $("#ox-nofeed").innerHTML = nf.length ? `<div class="lbl small muted">Also in the Think Tank, with no job feed the Hub can read (hover for why). Ask the member there directly.</div>
       <div class="chips">${nf.map((o) => `<span class="chip" title="${esc(o.reason)}">${esc(orgShort(o.org))}${o.emeritus_only ? "<em>Emeritus</em>" : ""}</span>`).join("")}</div>` : "";
+    const unf = OPPS.unconnected_no_feed || [];
+    if (unf.length) $("#ox-nofeed").innerHTML += `<div class="lbl small muted" style="margin-top:10px">Other Minnesota Fortune 500 employers, no direct Summit connection and no job feed the Hub can read (hover for why). Check their careers sites yourself.</div>
+      <div class="chips">${unf.map((o) => `<span class="chip noconn" title="${esc(o.reason)}">${esc(o.org)}</span>`).join("")}</div>`;
     requestAnimationFrame(oxLayout);
   }
-  window.addEventListener("resize", () => { if (!OX.busy) oxLayout(); });
+  window.addEventListener("resize", () => { if (OX.busy) return; oxLayout(); if (OX.best) bubbleLayout(OX.best, false); });
+
+  // After a run the ring turns into a bubble graph: matched employers grow into bubbles sized by fit
+  // and gather around the intern (closer = better fit); the rest shrink, grey out, and get pushed
+  // out to the edges. Tiles and their lines move together with a springy ease.
+  function bubbleLayout(best, animate) {
+    const g = OX.geom; if (!g) return;
+    const stage = $("#ox-stage");
+    const tiles = $$("#ox-orgs .ox-org");
+    const matched = tiles.filter((t) => best[t.dataset.org] !== undefined).sort((a, b) => best[b.dataset.org] - best[a.dataset.org]);
+    const others = tiles.filter((t) => best[t.dataset.org] === undefined);
+    const inner = Math.min(g.rx, g.ry), targets = [];
+    matched.forEach((t, i) => {
+      const fit = best[t.dataset.org];
+      const r = Math.min(inner * 0.9, (g.phone ? 70 : 100) + (100 - fit) * (g.phone ? 1.6 : 2.6) + (i % 2) * 14);
+      const a = -Math.PI / 2 + (2 * Math.PI * i) / Math.max(matched.length, 1) + (matched.length === 1 ? 0 : 0.35);
+      t.style.setProperty("--s", 1 + fit / (g.phone ? 320 : 230));
+      t.style.setProperty("--dd", `${(i * 0.7).toFixed(1)}s`);
+      targets.push({ t, x: g.cx + r * Math.cos(a), y: g.cy + r * 0.82 * Math.sin(a) });
+    });
+    // Spread the bubbles so none overlap each other or the intern in the middle: measure each one at
+    // its final size, then push overlapping boxes apart a little at a time.
+    const me = $("#ox-me"), meW = me.offsetWidth + 70, meH = me.offsetHeight + 90;
+    const box = targets.map(({ t }) => {
+      const s = parseFloat(t.style.getPropertyValue("--s")) || 1;
+      return { w: t.offsetWidth * s + 18, h: t.offsetHeight * s + 12 };
+    });
+    const minY = g.top + 8, maxY = g.h - g.reserve - 4;
+    for (let it = 0; it < 160; it++) {
+      let moved = false;
+      for (let i = 0; i < targets.length; i++) {
+        const a = targets[i], A = box[i];
+        // Out of the intern's area.
+        let dx = a.x - g.cx, dy = a.y - g.cy;
+        let ox = (A.w + meW) / 2 - Math.abs(dx), oy = (A.h + meH) / 2 - Math.abs(dy);
+        if (ox > 0 && oy > 0) {
+          const d = Math.hypot(dx, dy) || 1;
+          a.x += (dx / d) * 4; a.y += (dy / d) * 4; moved = true;
+        }
+        for (let j = i + 1; j < targets.length; j++) {
+          const b = targets[j], B = box[j];
+          dx = b.x - a.x; dy = b.y - a.y;
+          ox = (A.w + B.w) / 2 - Math.abs(dx); oy = (A.h + B.h) / 2 - Math.abs(dy);
+          if (ox > 0 && oy > 0) {  // separate along the axis that needs the smaller push
+            if (ox / A.w < oy / A.h) { const p = (ox / 2 + 1) * Math.sign(dx || 1); a.x -= p; b.x += p; }
+            else { const p = (oy / 2 + 1) * Math.sign(dy || 1); a.y -= p; b.y += p; }
+            moved = true;
+          }
+        }
+        a.x = Math.max(A.w / 2, Math.min(g.w - A.w / 2, a.x));
+        a.y = Math.max(minY + A.h / 2, Math.min(maxY - A.h / 2, a.y));
+      }
+      if (!moved) break;
+    }
+    others.forEach((t) => {
+      const x0 = parseFloat(t.style.left), y0 = parseFloat(t.style.top), a = Math.atan2(y0 - g.cy, x0 - g.cx);
+      const ex = g.w / 2 - (g.phone ? 26 : 34), ey = (g.h - g.reserve - g.top) / 2 - (g.phone ? 18 : 24);
+      targets.push({ t, x: Math.max(26, Math.min(g.w - 26, g.cx + ex * Math.cos(a))), y: g.cy + ey * Math.sin(a) });
+    });
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const moves = targets.map(({ t, x, y }) => ({ t, l: lineOf(t.dataset.org), x0: parseFloat(t.style.left), y0: parseFloat(t.style.top), x, y }));
+    const place = (m, e) => {
+      const x = m.x0 + (m.x - m.x0) * e, y = m.y0 + (m.y - m.y0) * e;
+      m.t.style.left = `${x}px`; m.t.style.top = `${y}px`;
+      if (m.l) { m.l.setAttribute("x2", x); m.l.setAttribute("y2", y); }
+    };
+    stage.classList.remove("settled");
+    if (!animate || reduce) { moves.forEach((m) => place(m, 1)); stage.classList.add("settled"); return; }
+    // easeOutBack: overshoots a little, then settles, so the bubbles land with a bounce.
+    const ease = (p) => { const c = 1.6; return 1 + (c + 1) * Math.pow(p - 1, 3) + c * Math.pow(p - 1, 2); };
+    const start = performance.now(), dur = 1100;
+    const step = (now) => {
+      let done = true;
+      moves.forEach((m, i) => {
+        const delay = best[m.t.dataset.org] !== undefined ? 120 + i * 70 : 0;
+        const p = Math.min(1, Math.max(0, (now - start - delay) / dur));
+        if (p < 1) done = false;
+        place(m, ease(p));
+      });
+      if (done) stage.classList.add("settled"); else requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
 
   async function streamExplore(question, onEvent) {
     const res = await fetch("/api/opportunities/explore", {
@@ -1519,7 +1619,9 @@
       const t = tileOf(ev.org), l = lineOf(ev.org);
       status(`Checking <b>${esc(orgShort(ev.org))}</b>: ${ev.roles} open role${ev.roles === 1 ? "" : "s"}${ev.domain_hits.length ? ` · ${esc(ev.domain_hits[0].split(" & ")[0])}` : ""}`);
       if (t) {
-        t.classList.add("scan"); l && l.classList.add("scan");
+        t.classList.remove("bounce"); void t.offsetWidth;  // restart the hop if it's still running
+        t.classList.add("scan", "bounce"); l && l.classList.add("scan");
+        t.addEventListener("animationend", () => t.classList.remove("bounce"), { once: true });
         $(".ox-meta", t).textContent = ev.roles ? `${ev.roles} checked` : "no openings";
         await sleep(170);
         t.classList.remove("scan");
@@ -1533,12 +1635,14 @@
       stage.classList.remove("thinking", "scanning"); stage.classList.add("done");
       const best = {};
       ev.matches.forEach((m) => { const o = m.posting.org; best[o] = Math.max(best[o] || 0, m.fit); });
-      $$("#ox-orgs .ox-org").forEach((t) => {
+      $$("#ox-stage .ox-org").forEach((t) => {
         const fit = best[t.dataset.org], l = lineOf(t.dataset.org);
         t.classList.toggle("match", fit !== undefined); t.classList.toggle("dim", fit === undefined);
         if (l) { l.classList.toggle("match", fit !== undefined); l.style.strokeWidth = fit !== undefined ? 1.5 + fit / 22 : ""; }
         if (fit !== undefined) $(".ox-meta", t).textContent = `${fit}% fit`;
       });
+      OX.best = best;
+      bubbleLayout(best, true);
       status(ev.matches.length ? `${ev.answer.exact_match ? "Found it." : "Closest fits:"} ${ev.matches.length} role${ev.matches.length === 1 ? "" : "s"} at ${Object.keys(best).length} organization${Object.keys(best).length === 1 ? "" : "s"}.` : "Nothing fits that question right now.");
       renderExplore(ev);
     } else if (ev.stage === "error") {
@@ -1563,7 +1667,8 @@
           <p class="summary">${esc(m.why)}</p>
           ${m.gaps.length ? `<div class="elig"><b>Before you apply:</b><ul>${m.gaps.map((g) => `<li>${esc(g)}</li>`).join("")}</ul></div>` : ""}
           ${warm.length ? `<div class="warm"><b>You know someone there:</b><br>${warm.map((w) => `<button class="speaker" type="button" data-person="${esc(w.slug)}">${avatar(w, "sm")}${esc(w.name)}${w.emeritus ? `<span class="emer">Emeritus</span>` : ""}</button>`).join("")}</div>` : ""}
-          <div class="actions"><a class="btn primary small" href="${esc(p.url)}" target="_blank" rel="noopener">View &amp; apply ↗</a>
+          ${noConnNote(p)}
+          <div class="actions"><a class="btn primary small" href="${esc(p.url)}" target="_blank" rel="noopener">${applyLabel(p, true)}</a>${adzunaCredit(p)}
           ${warm.length ? `<button class="btn small" type="button" data-ask-warm="${esc(p.id)}">How should I reach out to ${esc(firstName(warm[0].name))}?</button>` : ""}</div>
         </article>`;
       }).join("")}</div>
@@ -1580,7 +1685,7 @@
       status(`<span class="error">Couldn't load the job feeds: ${esc(err.message)}</span>`);
       return;
     }
-    oxReset(); $("#ox-result").innerHTML = "";
+    OX.best = null; oxReset(); $("#ox-result").innerHTML = "";
     await sleep(60);
     const queue = []; let finished = false;
     const player = (async () => {

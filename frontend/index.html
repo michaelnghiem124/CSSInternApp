@@ -334,9 +334,9 @@
     <!-- ============ OPPORTUNITIES ============ -->
     <section id="tab-opportunities" class="tab" hidden>
       <div class="hero">
-        <div class="eyebrow">Pilot · Opportunities at Think Tank organizations</div>
+        <div class="eyebrow">Opportunities at Think Tank organizations and Minnesota employers</div>
         <h1>Internships and entry-level roles <span class="hl">where you already have a connection.</span></h1>
-        <p>Open roles pulled weekly from the official job sites of Think Tank members' employers, screened by AI for internships, co-ops, and early-career fit. Each one shows who you know there.</p>
+        <p>Open roles pulled weekly from the official job sites of Think Tank members' employers, plus other Minnesota Fortune 500 companies and Minnesota roles found through the Adzuna job-search API, screened by AI for internships, co-ops, and early-career fit. Each one shows who you know there, or says plainly when there's no direct Summit connection.</p>
       </div>
       <div class="seg opp-view" id="opp-view" role="tablist" aria-label="Opportunities view">
         <button type="button" data-v="explore" class="on" role="tab">✨ Explorer</button>
@@ -358,9 +358,9 @@
           <svg class="ox-lines" id="ox-lines" aria-hidden="true"></svg>
           <div class="ox-orgs" id="ox-orgs"></div>
           <div class="ox-rail" id="ox-rail" hidden></div>
-          <div class="ox-legend"><span><b class="ox-tt">1</b> Think Tank member(s) there</span><span><b class="ox-tt emer">E</b> Emeritus members only</span></div>
+          <div class="ox-legend"><span><b class="ox-tt summit"></b> Think Tank member(s) there</span><span><b class="ox-tt emer">E</b> Emeritus members only</span><span><b class="ox-tt none">–</b> No direct Summit connection</span></div>
           <div class="ox-me" id="ox-me"></div>
-          <div class="ox-status" id="ox-status">Ask a question. The Explorer reads your resume, checks every Think Tank organization's open roles, and shows where you fit.</div>
+          <div class="ox-status" id="ox-status">Ask a question. The Explorer reads your resume, checks every listed employer's open roles, and shows where you fit.</div>
         </div>
         <div class="ox-nofeed" id="ox-nofeed"></div>
         <div id="ox-result"></div>
@@ -526,12 +526,12 @@
           </div>
         </div>
 
-        <!-- ===== Opportunities (job-feed pilot) ===== -->
+        <!-- ===== Opportunities (job feeds) ===== -->
         <div data-asec-panel="opportunities" hidden>
           <div class="card agent-hero">
             <div>
-              <h2>Opportunities pilot</h2>
-              <p class="muted small">Connectors read the <b>official public job feeds</b> (Workday, Oracle Cloud, iCIMS, Greenhouse; USAJOBS with a free key) of Think Tank organizations. A <b>Job Classifier</b> agent labels each new posting: internship, co-op, or entry-level; field; relevance; location; eligibility. Interns only see early-career, relevant, US roles you haven't hidden.</p>
+              <h2>Opportunities</h2>
+              <p class="muted small">Connectors read the <b>official public job feeds</b> (Workday, Oracle Cloud, iCIMS, Greenhouse; USAJOBS with a free key) of Think Tank organizations, plus Minnesota Fortune 500 employers with no Summit connection (marked as such), plus other Minnesota early-career tech roles from the <b>Adzuna API</b> (2 calls per refresh, at most once every 20 hours, to save the free allowance). A <b>Job Classifier</b> agent labels each new posting: internship, co-op, or entry-level; field; relevance; location; eligibility. Interns only see early-career, relevant, US roles you haven't hidden.</p>
             </div>
             <div class="agent-actions">
               <button class="btn primary" type="button" id="opp-refresh">Refresh job feeds</button>

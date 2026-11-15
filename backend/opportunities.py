@@ -42,14 +42,16 @@ from pydantic_ai.usage import UsageLimits
 
 from . import config, cyber_domains, db, directory, safety
 
-USER_AGENT = "InternSummitHub/1.0 (Cyber Security Summit intern program job-feed pilot)"
+USER_AGENT = "InternSummitHub/1.0 (Cyber Security Summit intern program job feeds)"
 REQUEST_DELAY = 0.6          # seconds between requests to the same employer
 MAX_DETAILS_PER_SOURCE = 40  # detail pages fetched per employer per refresh
 MAX_CLASSIFY_PER_RUN = 400   # budget guard for the classifier per refresh
 
 # `org` is the employer name shown to interns. `people_orgs` lists the Think Tank directory
 # `org` values that belong to it (default: `org` itself); that's how the warm intro (the
-# Think Tank or Emeritus member who works there) is found.
+# Think Tank or Emeritus member who works there) is found. `connected: False` marks a
+# Minnesota Fortune 500 employer with no Think Tank or Emeritus member: listed so interns see
+# the big local employers, but shown as having no direct Summit connection.
 SOURCES: list[dict] = [
     {"org": "3M", "platform": "workday", "host": "3m.wd1.myworkdayjobs.com", "tenant": "3m", "site": "Search"},
     {"org": "Medtronic", "platform": "workday", "host": "medtronic.wd1.myworkdayjobs.com", "tenant": "medtronic", "site": "MedtronicCareers"},
@@ -80,6 +82,18 @@ SOURCES: list[dict] = [
     {"org": "City of Saint Paul", "platform": "neogov", "agency": "stpaul", "host": "www.governmentjobs.com"},
     {"org": "B. Braun", "platform": "sf_rss", "host": "jobs.bbraun.com", "people_orgs": ["B. Braun Medical Inc."]},
     {"org": "Midwest Reliability Organization", "platform": "wp_jobs", "host": "www.mro.net", "default_location": "Saint Paul, MN"},
+    # Minnesota Fortune 500 employers (2026 list) with no Think Tank or Emeritus member.
+    {"org": "Target", "platform": "workday", "host": "target.wd5.myworkdayjobs.com", "tenant": "target", "site": "targetcareers", "connected": False},
+    {"org": "General Mills", "platform": "workday", "host": "genmills.wd1.myworkdayjobs.com", "tenant": "genmills", "site": "GMI_External_Careers", "connected": False},
+    {"org": "C.H. Robinson", "platform": "workday", "host": "chrobinson.wd5.myworkdayjobs.com", "tenant": "chrobinson", "site": "CHRobinson", "connected": False},
+    {"org": "Xcel Energy", "platform": "workday", "host": "xcelenergy.wd1.myworkdayjobs.com", "tenant": "xcelenergy", "site": "External", "connected": False},
+    {"org": "Solventum", "platform": "workday", "host": "healthcare.wd1.myworkdayjobs.com", "tenant": "healthcare", "site": "Search", "connected": False},
+    {"org": "Thrivent", "platform": "workday", "host": "thrivent.wd5.myworkdayjobs.com", "tenant": "thrivent", "site": "External", "connected": False},
+    {"org": "CHS", "platform": "radancy", "host": "jobs.chsinc.com", "connected": False},
+    # Other Minnesota employers' early-career tech/security roles through the Adzuna job-search API
+    # (free key at developer.adzuna.com). Each posting keeps its real employer as `org`; employers
+    # already covered above are skipped, and Think Tank organizations (e.g. Lumen) keep their warm intro.
+    {"org": "Adzuna", "platform": "adzuna", "host": "www.adzuna.com", "aggregator": True},
     # Federal roles via the official USAJOBS API. Off until USAJOBS_API_KEY and USAJOBS_EMAIL
     # are set (free: developer.usajobs.gov). Agency codes from USAJOBS's own code list.
     {"org": "CISA", "platform": "usajobs", "agency": "HSCA", "host": "www.usajobs.gov"},
@@ -102,17 +116,40 @@ NO_FEED_REASONS = {
 }
 NO_FEED_DEFAULT = "No public job feed on its website."
 
+# Minnesota Fortune 500 employers with no Think Tank connection AND no feed the Hub can read.
+UNCONNECTED_NO_FEED = {
+    "Best Buy": "Its careers portal only works in a browser session; no public feed.",
+    "APi Group": "Its careers site sits behind a bot challenge, so the Hub leaves it alone.",
+    "Fastenal": "Its job search needs a browser session token; no public feed.",
+}
+
+
+def is_connected(org: str) -> bool:
+    """False for the Minnesota Fortune 500 employers with no Think Tank or Emeritus member."""
+    src = next((s for s in SOURCES if s["org"] == org), None)
+    if src is None:  # an employer found through Adzuna
+        return any(p.org == org for p in directory.load_people())
+    return src.get("connected", True)
+
+
+def unconnected_orgs() -> list[str]:
+    return [s["org"] for s in SOURCES if not s.get("connected", True)]
+
+
+def unconnected_no_feed() -> list[dict]:
+    return [{"org": o, "emeritus_only": False, "reason": r} for o, r in UNCONNECTED_NO_FEED.items()]
+
 
 def people_orgs(src: dict) -> list[str]:
     return src.get("people_orgs") or [src["org"]]
 
 
-def org_members() -> dict[str, dict]:
+def org_members(extra_orgs: list[str] | tuple = ()) -> dict[str, dict]:
     """For each employer with a feed: its current Think Tank members (Co-chairs included) and
     its Emeritus members, by name, so the Explorer can show who represents it."""
     people = directory.load_people()
     out = {}
-    for src in SOURCES:
+    for src in [*SOURCES, *({"org": o} for o in extra_orgs)]:
         names = set(people_orgs(src))
         here = [p for p in people if p.org in names]
         out[src["org"]] = {"think_tank": [p.name for p in here if p.section != "Emeritus"],
@@ -123,6 +160,8 @@ def org_members() -> dict[str, dict]:
 def no_feed_orgs() -> list[dict]:
     """Every Think Tank / Emeritus organization not covered by a job feed."""
     covered = {o for s in SOURCES for o in people_orgs(s)}
+    with db.conn() as c:
+        covered |= {r[0] for r in c.execute("SELECT DISTINCT org FROM job_postings WHERE platform = 'adzuna' AND active = 1")}
     orgs: dict[str, set] = {}
     for p in directory.load_people():
         if p.org and p.org not in covered:
@@ -307,6 +346,8 @@ def fetch_radancy(src: dict) -> list[Posting]:
             data = json.loads(_request(f"{base}/search-jobs/results?{q}", headers={"X-Requested-With": "XMLHttpRequest"}))
             html = data.get("results", "")
             items = re.findall(r'(?s)<a href="(/job/[^"]+)"[^>]*>.*?<h2>(.*?)</h2>.*?class="job-location[^"]*">([^<]*)<', html)
+            if not items:  # newer TalentBrew layout (e.g. CHS): <h2><a href=...>Title</a></h2> ... __location
+                items = re.findall(r'(?s)<h2[^>]*>\s*<a href="(/job/[^"]+)"[^>]*>(.*?)</a>\s*</h2>.*?__location">([^<]*)<', html)
             for path, title, loc in items:
                 title, loc = htmllib.unescape(title).strip(), htmllib.unescape(loc).strip()
                 if _title_looks_early(title) and _looks_us(loc):
@@ -377,6 +418,73 @@ def fetch_usajobs(src: dict) -> list[Posting]:
                 url=m.get("PositionURI", "")))
         time.sleep(REQUEST_DELAY)
     return list(out.values())
+
+
+def adzuna_enabled() -> bool:
+    return bool(os.environ.get("ADZUNA_APP_ID") and os.environ.get("ADZUNA_APP_KEY"))
+
+
+# Adzuna's free tier has a small call allowance, so each refresh makes at most these searches and
+# never more than one refresh's worth per ADZUNA_MIN_HOURS (default 20 h).
+ADZUNA_QUERIES = [
+    {"what": "intern", "what_or": "cybersecurity security cyber information"},
+    {"what_phrase": "entry level", "what_or": "cybersecurity security cyber soc"},
+]
+ADZUNA_TECH_RE = re.compile(r"\b(cyber\w*|\w*security|secure|soc|information|it|technolog\w*|tech|network\w*|software|data|"
+                            r"cloud|infrastructure|systems?|identity|privacy|risk|audit\w*|devops|developer|engineer\w*|"
+                            r"digital|ai|vulnerab\w*|threat\w*|incident|forensic\w*|penetration|compliance|grc)\b", re.I)
+_NAME_NOISE = {"inc", "llc", "corp", "corporation", "co", "company", "the", "technologies", "technology", "group",
+               "holdings", "services", "solutions", "international", "of", "and"}
+
+
+def _norm_org(name: str) -> str:
+    words = re.findall(r"[a-z0-9]+", (name or "").lower().replace("'", ""))
+    return " ".join(w for w in words if w not in _NAME_NOISE)
+
+
+def directory_org_for(company: str) -> str | None:
+    """The Think Tank directory organization an outside employer name refers to, if any
+    (Adzuna's "Lumen" -> "Lumen Technologies")."""
+    key = _norm_org(company)
+    if not key:
+        return None
+    for p in directory.load_people():
+        if p.org and _norm_org(p.org) == key:
+            return p.org
+    return None
+
+
+def _covered_keys() -> set[str]:
+    return {_norm_org(o) for s in SOURCES if not s.get("aggregator") for o in [s["org"], *people_orgs(s)]}
+
+
+def fetch_adzuna(src: dict) -> list[Posting]:
+    if not adzuna_enabled():
+        return []
+    covered, out, seen = _covered_keys(), [], set()
+    for params in ADZUNA_QUERIES:
+        q = urllib.parse.urlencode({"app_id": os.environ["ADZUNA_APP_ID"], "app_key": os.environ["ADZUNA_APP_KEY"],
+                                    "results_per_page": 50, "where": "Minnesota", "max_days_old": 90,
+                                    "content-type": "application/json", **params})
+        d = json.loads(_request("https://api.adzuna.com/v1/api/jobs/us/search/1?" + q))
+        db.set_setting("adzuna_calls", str(int(db.get_setting("adzuna_calls") or 0) + 1))
+        for r in d.get("results", []):
+            company = (r.get("company") or {}).get("display_name", "").strip()
+            title = htmllib.unescape(r.get("title", "")).strip()
+            if not company or _norm_org(company) in covered:
+                continue  # already read from the employer's own feed
+            if not (_title_looks_early(title) and ADZUNA_TECH_RE.search(title)):
+                continue
+            key = (_norm_org(company), title.lower())
+            if key in seen:
+                continue  # the same role listed for several towns
+            seen.add(key)
+            out.append(Posting(org=directory_org_for(company) or company, platform="adzuna", ext_id=str(r.get("id")),
+                               title=title, location=(r.get("location") or {}).get("display_name", ""),
+                               posted=r.get("created", ""), url=r.get("redirect_url", ""),
+                               description="(Listed via Adzuna: description excerpt only.)\n" + _text(r.get("description", ""))))
+        time.sleep(REQUEST_DELAY)
+    return out
 
 
 def fetch_mcloud(src: dict) -> list[Posting]:
@@ -503,7 +611,7 @@ def fetch_wp_jobs(src: dict) -> list[Posting]:
 CONNECTORS = {"workday": fetch_workday, "oracle": fetch_oracle, "icims": fetch_icims,
               "greenhouse": fetch_greenhouse, "usajobs": fetch_usajobs, "radancy": fetch_radancy,
               "mcloud": fetch_mcloud, "ashby": fetch_ashby, "ukg": fetch_ukg, "neogov": fetch_neogov,
-              "sf_rss": fetch_sf_rss, "wp_jobs": fetch_wp_jobs}
+              "sf_rss": fetch_sf_rss, "wp_jobs": fetch_wp_jobs, "adzuna": fetch_adzuna}
 
 
 # ---------------------------------------------------------------------------
@@ -573,12 +681,10 @@ def _store(src: dict, postings: list[Posting]) -> int:
                 "title=excluded.title, location=excluded.location, url=excluded.url, posted=excluded.posted, "
                 "description=excluded.description, content_hash=excluded.content_hash, last_seen=excluded.last_seen, active=1",
                 (pid, p.org, p.platform, p.title[:300], p.location[:300], p.url, p.posted[:40], p.description[:8000], h, now, now))
-        # Anything from this employer not seen this run has closed.
-        if ids:
-            c.execute(f"UPDATE job_postings SET active = 0 WHERE org = ? AND id NOT IN ({','.join('?' * len(ids))})",
-                      (src["org"], *ids))
-        else:
-            c.execute("UPDATE job_postings SET active = 0 WHERE org = ?", (src["org"],))
+        # Anything from this employer (or, for an aggregator, this platform) not seen this run has closed.
+        col, val = ("platform", src["platform"]) if src.get("aggregator") else ("org", src["org"])
+        keep = f" AND id NOT IN ({','.join('?' * len(ids))})" if ids else ""
+        c.execute(f"UPDATE job_postings SET active = 0 WHERE {col} = ?{keep}", (val, *ids))
     return len(ids)
 
 
@@ -716,6 +822,20 @@ def refresh(sync: bool = False) -> dict:
     return PROGRESS
 
 
+def _adzuna_min_hours() -> int:
+    return config._int("ADZUNA_MIN_HOURS", 20)
+
+
+def _adzuna_recent() -> bool:
+    last = db.get_setting("adzuna_last_run")
+    if not last:
+        return False
+    try:
+        return (datetime.now() - datetime.fromisoformat(last)).total_seconds() < _adzuna_min_hours() * 3600
+    except ValueError:
+        return False
+
+
 def _run() -> None:
     init()
     try:
@@ -724,10 +844,19 @@ def _run() -> None:
             ok, msg, n = True, "", 0
             if src["platform"] == "usajobs" and not usajobs_enabled():
                 ok, msg = False, "Off: add USAJOBS_API_KEY and USAJOBS_EMAIL to .env (free at developer.usajobs.gov)"
+            elif src["platform"] == "adzuna" and not adzuna_enabled():
+                ok, msg = False, "Off: add ADZUNA_APP_ID and ADZUNA_APP_KEY to .env (free at developer.adzuna.com)"
+            elif src["platform"] == "adzuna" and _adzuna_recent():
+                with db.conn() as c:
+                    n = c.execute("SELECT COUNT(*) FROM job_postings WHERE platform = 'adzuna' AND active = 1").fetchone()[0]
+                msg = f"Skipped to save API calls (searched in the last {_adzuna_min_hours()} h); {n} postings kept"
             else:
                 try:
                     n = _store(src, CONNECTORS[src["platform"]](src))
                     msg = f"{n} early-career candidates"
+                    if src["platform"] == "adzuna":
+                        db.set_setting("adzuna_last_run", _now())
+                        msg += f" ({len(ADZUNA_QUERIES)} API calls; {db.get_setting('adzuna_calls')} used in total)"
                 except urllib.error.HTTPError as e:
                     ok, msg = False, f"Feed refused (HTTP {e.code}); left alone"
                 except Exception as e:  # noqa: BLE001
@@ -786,7 +915,8 @@ def list_postings(include_all: bool = False) -> list[dict]:
         out.append({"id": r["id"], "org": r["org"], "platform": r["platform"], "title": r["title"],
                     "location": r["location"], "url": r["url"], "posted": r["posted"],
                     "first_seen": r["first_seen"], "last_seen": r["last_seen"], "hidden": bool(r["hidden"]),
-                    "visible": visible, "classification": cls, "warm": warm_cache[r["org"]]})
+                    "visible": visible, "classification": cls, "warm": warm_cache[r["org"]],
+                    "connected": is_connected(r["org"])})
     return out
 
 

@@ -1,5 +1,5 @@
 """Opportunities Explorer: an intern asks a question ("is there an entry-level SOC analyst
-role?") and the Hub evaluates every Think Tank organization's open roles against that
+role?") and the Hub evaluates every listed employer's open roles against that
 question AND the intern's resume.
 
 How a run works (streamed to the browser as NDJSON, one event per line, so the page can
@@ -53,7 +53,8 @@ class ExplorerAnswer(BaseModel):
 
 INSTRUCTIONS = f"""You are the Opportunities Explorer for the Cyber Security Summit intern program in Minnesota.
 An intern asks about open roles. You get their profile (from their resume) and a list of CANDIDATE roles at
-Think Tank organizations, already pulled from official job feeds and labeled.
+Think Tank organizations (plus Minnesota Fortune 500 employers with no Summit connection), already pulled from
+official job feeds and labeled.
 
 - Rank up to 6 candidates by fit for this intern and this question. Use only candidate ids given; never invent roles.
 - Be honest: if they ask for a "SOC analyst" role and none exists, set exact_match false, say so plainly, and offer the
@@ -63,7 +64,8 @@ Think Tank organizations, already pulled from official job feeds and labeled.
   work is comparable, and say plainly which results are internships instead.
 - `why` must connect specific resume evidence (a skill, course, project, job) to specific duties of the role.
 - `gaps`: concrete, short. Include eligibility flags from the role (citizenship, graduation window) when present.
-- `next_step`: usually the Think Tank member at that organization (warm intro) or a Think Tank Talk.
+- `next_step`: usually the Think Tank member at that organization (warm intro) or a Think Tank Talk. Roles marked
+  "no Summit connection" have no member to ask: say to apply directly on the employer's site; never invent a contact.
 - The 12 cybersecurity domains and words associated with each:
 {cyber_domains.prompt_block()}
 
@@ -192,7 +194,7 @@ async def explore(question: str, user: dict, st, session: str) -> AsyncIterator[
     lines = []
     for p in candidates:
         c = p["classification"] or {}
-        warm = ", ".join(w["name"] for w in p["warm"]) or "none"
+        warm = ", ".join(w["name"] for w in p["warm"]) or ("none" if p.get("connected", True) else "none (no Summit connection; apply directly)")
         lines.append(f"- id={p['id']} | {p['title']} | {p['org']} | {p['location'][:60]} | {c.get('kind')} | "
                      f"domains: {', '.join(c.get('cyber_domains', [])) or 'none'} | relevance {c.get('relevance')} | "
                      f"{c.get('summary', '')} | evidence: {'; '.join(c.get('security_evidence', []))} | "

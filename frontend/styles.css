@@ -848,3 +848,67 @@ input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 4px rgba(4,105,141
   .thinking .t-dot, .thinking .t-text::after, .empty:not(.ox-org)::before { animation: none !important; }
   .hero::after, .home-hero::after, .gate::after { display: none; }
 }
+
+/* Minnesota Fortune 500 employers with no Think Tank member: dashed, muted tile + plain note. */
+.ox-tt.none { background: #e6ecf2; color: #5b6f82; }
+.ox-org.noconn .ox-logo { border-style: dashed; opacity: .82; }
+.ox-org.noconn .ox-name { color: var(--muted); }
+.noconn-note { border-top: 1px dashed var(--line); padding-top: 8px; margin-top: 4px; font-size: .8rem; color: var(--muted); }
+.chip.noconn { border-style: dashed; }
+
+/* Think Tank member badge: the Summit globe (same crop as the Home hero) in a navy disc, instead of a gold count.
+   The count and names stay in the tile's tooltip. */
+.ox-tt.summit, .ox-rail .ox-tt.summit, .ox-legend .ox-tt.summit { width: 22px; height: 22px; min-width: 0; padding: 0;
+  background: #0a1d31; border: 1.5px solid var(--gold); box-shadow: 0 0 8px rgba(244,185,66,.45); }
+.ox-tt.summit::after { content: ""; position: absolute; left: 50%; top: 50%; width: 76%; aspect-ratio: 140 / 146; transform: translate(-50%, -50%);
+  background: url("https://www.cybersecuritysummit.org/wp-content/uploads/2024/05/CS_SUMMIT_Logotag_reverse_hi-res-768x203.png") no-repeat;
+  background-size: 548.57% auto; background-position: 1.433% 36.84%; }
+.ox-tt.summit { top: -9px; right: -9px; }
+.ox-rail .ox-tt.summit { width: 17px; height: 17px; top: -6px; right: -6px; border-width: 1px; }
+.ox-legend .ox-tt.summit { position: relative; top: auto; right: auto; width: 18px; height: 18px; }
+@media (max-width: 700px) {
+  .ox-tt.summit { width: 18px; height: 18px; top: -7px; right: -7px; }
+  .ox-legend .ox-tt.summit { width: 15px; height: 15px; }
+}
+/* Three legend lines would cover the top-left tile; on desktop the legend sits in the bottom-left corner, beside the status bar. */
+@media (min-width: 701px) { .ox-legend { top: auto; bottom: 14px; } }
+
+/* Adzuna attribution (their terms: an "Adzuna" label at least 116x23 px, linked to Adzuna). */
+.adzuna-credit { display: inline-flex; align-items: center; justify-content: center; min-width: 116px; min-height: 23px; padding: 2px 10px;
+  margin-left: 8px; border-radius: 6px; border: 1px solid #c9d6e2; background: #fff; color: #3d4f61; font-size: .74rem; text-decoration: none; vertical-align: middle; }
+.adzuna-credit b { color: #2e7d32; margin-left: 4px; }
+.adzuna-credit:hover { border-color: #2e7d32; }
+
+/* ---- Explorer motion: hop while assessed, then a bubble graph of the results ---- */
+@keyframes ox-hop { 0% { transform: translateY(0) scale(1); } 28% { transform: translateY(-15px) scale(1.06, .95); }
+  52% { transform: translateY(0) scale(1.12, .86); } 72% { transform: translateY(-5px) scale(.97, 1.04); } 100% { transform: none; } }
+@keyframes ox-ping { from { opacity: .9; transform: scale(1); } to { opacity: 0; transform: scale(1.7); } }
+.ox-org.bounce .ox-logo { animation: ox-hop .55s cubic-bezier(.3,.7,.4,1); }
+.ox-org.bounce .ox-logo::after { content: ""; position: absolute; inset: -5px; border-radius: inherit; border: 2px solid var(--neon);
+  pointer-events: none; animation: ox-ping .6s ease-out forwards; }
+/* Results: matches become bubbles (round, scaled by fit, dashed orbit ring, gentle drift); the rest grey out and shrink. */
+.ox-stage.done .ox-org { transition: opacity .6s, filter .6s, transform .7s cubic-bezier(.34,1.56,.64,1); }
+.ox-stage.done .ox-org.match { transform: translate(-50%, -50%) scale(var(--s, 1.12)); z-index: 3; }
+.ox-stage.done .ox-org.match .ox-logo { border-radius: 50%; }
+.ox-stage.done .ox-org.match .ox-logo.wide { border-radius: 999px; }
+.ox-stage.done .ox-org.match .ox-logo img { border-radius: 50%; inset: 9px; width: calc(100% - 18px); height: calc(100% - 18px); }
+.ox-stage.done .ox-org.match .ox-logo.wide img { border-radius: 8px; inset: 6px 10px; width: calc(100% - 20px); height: calc(100% - 12px); }
+.ox-stage.done .ox-org.match .ox-logo::before { content: ""; position: absolute; inset: -9px; border-radius: 50%;
+  border: 1.5px dashed rgba(244,185,66,.85); pointer-events: none; animation: ox-spin 9s linear infinite; }
+.ox-stage.done .ox-org.match .ox-logo.wide::before { border-radius: 999px; animation: none; }
+.ox-stage.done .ox-org.dim { opacity: .3; filter: grayscale(1); transform: translate(-50%, -50%) scale(.64); }
+.ox-stage.done .ox-org.dim .ox-meta, .ox-stage.done .ox-org.dim .ox-tt { display: none; }
+.ox-stage.done .ox-rail .ox-org { opacity: .35; filter: grayscale(1); }
+@keyframes ox-drift { 0% { transform: translate(0, 0); } 33% { transform: translate(5px, -6px); } 66% { transform: translate(-4px, -2px); } 100% { transform: translate(2px, 5px); } }
+.ox-stage.settled .ox-org.match .ox-logo { animation: ox-drift 5.5s ease-in-out infinite alternate; animation-delay: var(--dd, 0s); }
+/* Data packets flow from the intern to each matched employer. */
+.ox-stage.settled .ox-lines line.match { stroke-dasharray: 2 8; animation: ox-flow .8s linear infinite; }
+.ox-stage.done .ox-lines line:not(.match) { opacity: .08; }
+@media (prefers-reduced-motion: reduce) {
+  .ox-org.bounce .ox-logo, .ox-org.bounce .ox-logo::after, .ox-stage.done .ox-org.match .ox-logo::before,
+  .ox-stage.settled .ox-org.match .ox-logo, .ox-stage.settled .ox-lines line.match { animation: none !important; }
+}
+.ox-stage.done .ox-org.match .ox-name { color: #fff; }
+/* The "no openings" rail keeps its own layout after a run (only greyed, never moved or shrunk). */
+.ox-stage.done .ox-rail .ox-org { transform: none; }
+@media (max-width: 700px) { .ox-stage.done .ox-orgs .ox-org.dim { opacity: .18; } }
