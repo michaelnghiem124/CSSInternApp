@@ -9,6 +9,13 @@ An AI-powered resource for the **Cyber Security Summit Intern Program** (Minneap
   - **Committee & Cyber Coach Matchmaker**: places every intern on a Summit committee and pairs them with a Think Tank Cyber Coach. It produces a ranked assignment matrix with one-sentence "why this match works" lines, and drafts intro emails and Slack DMs.
   - **Cohort Pulse & Program Lead's Monday Brief**: reads Slack (through an MCP server) and committee meeting notes. It flags interns who need a nudge, wins to spotlight, and blockers to escalate, with names pseudonymized before the AI sees anything.
 
+## Course deliverables
+
+- [`report.html`](report.html): the written report (13 printed pages, US Letter), self-contained with every screenshot embedded.
+- [`slides.html`](slides.html): the 10-slide reveal.js deck. Arrow keys move between slides; **F** goes fullscreen.
+
+Both are built from editable sources in `report/` (`report_src.html`, `slides_src.html`, `diagram.svg`, `img/`). After editing, run `python3 scripts/build_deliverables.py` to inline the images and regenerate both files.
+
 ## Run it locally
 
 Requirements: Python 3.11 or newer. These steps take about 3 minutes.

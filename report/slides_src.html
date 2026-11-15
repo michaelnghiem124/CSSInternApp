@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Intern Summit Hub · Slides · Michael Nghiem</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reset.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css">
+<style>
+  :root { --navy:#102c49; --navy2:#1d4166; --deep:#0a1d31; --neon:#21fefe; --accent:#04698d; --ink:#14213d; --muted:#5c6b80;
+          --line:#e2e8f0; --bg:#f3f6fa; --gold:#f4b942; --soft:#e2f4f9; }
+  html, body { background: var(--bg); }
+  .reveal { font-family: Inter, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; font-size: 30px; color: var(--ink); }
+  .reveal .slides { text-align: left; }
+  .reveal .slides section { height: 100%; padding: 26px 40px !important; box-sizing: border-box; }
+  .reveal h1, .reveal h2, .reveal h3 { font-family: inherit; color: var(--navy); letter-spacing: -.01em; text-transform: none; margin: 0 0 18px; }
+  .reveal h1 { font-size: 2.3em; line-height: 1.05; }
+  .reveal h2 { font-size: 1.45em; line-height: 1.15; }
+  .reveal h3 { font-size: .95em; color: var(--accent); }
+  .reveal p, .reveal li { line-height: 1.35; }
+  .reveal ul { margin: 0 0 0 1em; }
+  .reveal li { margin: 10px 0; }
+  .kicker { font-size: .5em; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
+  .small { font-size: .86em; }
+  .reveal b, .reveal strong { font-weight: 750; }
+  .xs { font-size: .5em; color: var(--muted); }
+  .muted { color: var(--muted); }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; align-items: start; }
+  .cols.wide-l { grid-template-columns: 1.35fr 1fr; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin: 18px 0 26px; }
+  .stats.three { grid-template-columns: repeat(3, 1fr); }
+  .stat { background: #fff; border-radius: 16px; padding: 20px 20px; box-shadow: 0 2px 10px rgba(16,24,40,.07); }
+  .stat b { display: block; font-size: 1.5em; line-height: 1.05; color: var(--navy); font-weight: 800; white-space: nowrap; }
+  .stat span { display: block; font-size: .6em; color: var(--muted); margin-top: 8px; line-height: 1.3; }
+  .shot { width: 100%; border-radius: 12px; box-shadow: 0 6px 24px rgba(16,24,40,.18); display: block; }
+  .card { background: #fff; border-radius: 16px; padding: 14px 18px; box-shadow: 0 2px 10px rgba(16,24,40,.07); }
+  .card h3 { margin: 0 0 6px; }
+  table { width: 100%; border-collapse: collapse; font-size: .8em; }
+  th { text-align: left; background: var(--navy); color: #fff; padding: 12px 14px; }
+  td { padding: 14px 14px; border-bottom: 1px solid var(--line); background: #fff; vertical-align: top; }
+  td.n, th.n { text-align: right; white-space: nowrap; }
+  .dark { background: radial-gradient(ellipse at 30% 30%, #17406a 0%, var(--navy) 45%, var(--deep) 100%); color: #e6f2f8; }
+  .reveal section.dark h1, .reveal section.dark h2 { color: #fff; }
+  .hl { color: var(--neon); }
+  .gold { color: var(--gold); }
+  .pill { display: inline-block; font-size: .5em; font-weight: 800; padding: 3px 10px; border-radius: 999px; background: var(--soft); color: var(--accent); margin-right: 6px; }
+  .diagram svg { width: 100%; height: auto; max-height: 560px; }
+  pre.term { font: .5em/1.55 "JetBrains Mono", SFMono-Regular, Menlo, Consolas, monospace; background: var(--deep); color: #d9f6ff;
+             padding: 12px 14px; border-radius: 12px; white-space: pre-wrap; margin: 0; box-shadow: none; width: 100%; }
+  pre.term .bad { color: #ffb4a9; } pre.term .ok { color: #7ef0a4; }
+  .reveal .progress { color: var(--neon); }
+  .reveal .slide-number { background: transparent; color: var(--muted); font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="reveal"><div class="slides">
+
+<!-- 1 · Title -->
+<section class="dark" data-background-color="#0a1d31">
+  <div class="kicker" style="color:var(--neon)">MGT 409 · AI Foundations for Managers · Final Project</div>
+  <h1>Intern Summit Hub</h1>
+  <p style="font-size:1.05em;max-width:1050px">AI that matches each Cyber Security Summit intern with the Think Tank members to meet and the open roles where they work, and gives a volunteer Program Lead hours back every week.</p>
+  <p class="small" style="margin-top:40px"><b>Michael Nghiem</b> · Program Lead, Intern Cyber Security Program<br>
+  <span style="color:#8fb3c9">github.com/michaelnghiem124/CSSInternApp · runs locally with the course key (gpt-6-luna)</span></p>
+</section>
+
+<!-- 2 · Problem -->
+<section>
+  <div class="kicker">The problem</div>
+  <h2>A volunteer program, unpaid interns, and a workforce gap</h2>
+  <div class="stats">
+    <div class="stat"><b>12–15</b><span>interns a year, students and career-changers, unpaid</span></div>
+    <div class="stat"><b>~50</b><span>volunteer Think Tank leaders, 64 published bios</span></div>
+    <div class="stat"><b>2–4 h</b><span>a week of manual coordination for the Program Lead (estimate)</span></div>
+    <div class="stat"><b>21% vs 3%</b><span>job growth, info-security analysts vs. all jobs, 2025–35 (BLS)</span></div>
+  </div>
+  <ul class="small">
+    <li>Interns juggle Slack, email, and meetings on top of school and work, and read 64 bios alone to decide whom to approach.</li>
+    <li>Placements live in a spreadsheet; nobody sees an intern drifting until it's too late.</li>
+    <li>Skills gaps, not headcount, are now cybersecurity's biggest concern (ISC2, 2025). Mentorship is how we close them.</li>
+  </ul>
+</section>
+
+<!-- 3 · What's new -->
+<section>
+  <div class="kicker">What is new</div>
+  <h2>Grounded in one program's real people, enforced in code</h2>
+  <table>
+    <tr><th style="width:28%">Alternative</th><th>Where it falls short here</th></tr>
+    <tr><td><b>ChatGPT / Claude + resume</b></td><td>Doesn't know the 64 members, talks, or committees, and can invent people.</td></tr>
+    <tr><td><b>Chronus, Mentorloop</b></td><td>Paid, questionnaire-driven; volunteer leaders won't fill in forms.</td></tr>
+    <tr><td><b>LinkedIn, Handshake</b></td><td>No link between "who should I meet" and "who's hiring" at their employer.</td></tr>
+    <tr><td><b>Spreadsheet + Slack (today)</b></td><td>Manual placements, scattered messages, no early warning.</td></tr>
+  </table>
+  <p class="small" style="margin-top:18px">The hub ties <b>mentor matching</b>, <b>job leads with a named Think Tank contact</b>, <b>committee placement</b>, and a <b>privacy-safe engagement brief</b> together. Its answers can only name real people, real talks, and real postings.</p>
+</section>
+
+<!-- 4 · Agents -->
+<section>
+  <div class="kicker">How the agents work</div>
+  <h2 style="margin-bottom:6px">8 agents · 4 workflows · code decides who runs next</h2>
+  <div class="diagram"><!--DIAGRAM--></div>
+</section>
+
+<!-- 5 · Demo: Mentor Match -->
+<section>
+  <div class="kicker">Demo · Mentor Match (real run, fictional intern)</div>
+  <div class="cols wide-l">
+    <img class="shot" src="img/run-2-reply.jpg" alt="Mentor Match recommendations">
+    <div>
+      <h2 style="font-size:1.15em">Resume in, five people to meet out</h2>
+      <ul class="small">
+        <li><b>Profile Reader</b> builds the profile: 3.7 s, $0.004</li>
+        <li><b>Mentor Matcher</b>: 2 model calls, 6 tool calls, 80% of input from cache: 9.8 s, $0.015</li>
+        <li>Each pick has shared ground, a reason, and three openers</li>
+        <li>Code rejects anyone not on the roster</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 6 · Demo: Opportunity Match -->
+<section>
+  <div class="kicker">Demo · Opportunity Match</div>
+  <div class="cols wide-l">
+    <img class="shot" src="img/explorer.jpg" alt="Opportunity Explorer">
+    <div>
+      <h2 style="font-size:1.15em">Who's hiring, and who you know there</h2>
+      <ul class="small">
+        <li>25 member employers' official job feeds, classified weekly; 23 roles fit interns today</li>
+        <li>Each tile lights up as it's checked; gold = match with fit score</li>
+        <li>Honest answer: "no exact SOC internship; closest is…"</li>
+        <li>Badge = Think Tank members there for a warm intro</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 7 · Cost -->
+<section>
+  <div class="kicker">Cost to run (measured, 556 logged runs)</div>
+  <h2>About 15¢ per intern per month</h2>
+  <div class="stats">
+    <div class="stat"><b>$0.012</b><span>per Mentor Match reply · 17.6k tokens in (79% cached), 552 out</span></div>
+    <div class="stat"><b>$0.05</b><span>per session: profile + 3 replies + 1 job question</span></div>
+    <div class="stat"><b>$16/mo</b><span>at 100 users (≈)</span></div>
+    <div class="stat"><b>$1,500/mo</b><span>at 10,000 users (≈; needs per-user quotas)</span></div>
+  </div>
+  <ul class="small">
+    <li><b>Cuts:</b> cheap tier for extraction, prompt caching, pay-once classification, code pre-filters, hard caps.</li>
+    <li><b>Trade-off:</b> gpt-6-luna is 54% cheaper per reply than Sonnet but takes more steps (2.4 vs 1.9 calls).</li>
+    <li><b>Cut a feature:</b> "Career paths" cost $0.43 in one refresh for little intern value, so it's gone.</li>
+  </ul>
+</section>
+
+<!-- 8 · Safety -->
+<section>
+  <div class="kicker">Safety</div>
+  <div class="cols" style="grid-template-columns:1.1fr 1fr">
+    <div>
+      <h2 style="font-size:1.15em">Blocked before it reaches the model</h2>
+      <img class="shot" src="img/safety-chat-block-crop.jpg" alt="Injection attempt blocked" style="margin-bottom:12px">
+      <p class="xs" style="margin:0 0 10px">0 tokens, $0, and logged for the Program Lead:</p>
+      <img class="shot" src="img/safety-log-crop.jpg" alt="Admin safety log">
+    </div>
+    <div>
+      <ul class="small" style="margin-bottom:12px">
+        <li><b>Injection:</b> 4 layers: screen, flag, data tags, validators</li>
+        <li><b>Made-up facts:</b> only real people, talks, posting ids</li>
+        <li><b>Wrong actions:</b> drafts only; read-only tools; human approves</li>
+        <li><b>Overspend:</b> per-run caps, 6 msgs/min, 2M tokens/day</li>
+      </ul>
+<pre class="term">injected resume: flagged, <span class="bad">2 lines removed</span>
+budget test:     request <span class="bad">BLOCKED (budget)</span>
+rate test:       msgs 1-6 <span class="ok">allowed</span>, msg 7 <span class="bad">BLOCKED</span></pre>
+    </div>
+  </div>
+</section>
+
+<!-- 9 · Impact -->
+<section>
+  <div class="kicker">Impact</div>
+  <h2>Hours back for volunteers, faster first connections for interns</h2>
+  <div class="stats">
+    <div class="stat"><b>2–4h → 15m</b><span>Program Lead coordination per week (estimate)</span></div>
+    <div class="stat"><b>130 h/yr</b><span>volunteer time saved (estimate)</span></div>
+    <div class="stat"><b>13.5 s</b><span>resume to a named mentor shortlist (measured)</span></div>
+    <div class="stat"><b>$37/yr</b><span>AI cost for today's program (≈)</span></div>
+  </div>
+  <ul class="small">
+    <li>25 employers' career sites checked for each intern every week, with a named Think Tank contact at each.</li>
+    <li>Every intern who lands a first security job through a Think Tank connection is the mission.</li>
+    <li class="muted">Next: a pilot with past interns for real before-and-after numbers.</li>
+  </ul>
+</section>
+
+<!-- 10 · Next -->
+<section class="dark" data-background-color="#0a1d31">
+  <div class="kicker" style="color:var(--neon)">What's next</div>
+  <h2>With another month</h2>
+  <div class="cols">
+    <ul class="small">
+      <li><b class="gold">Pilot</b> with the 2026 cohort and past interns</li>
+      <li><b class="gold">Quality eval:</b> fixed resume set on every model change</li>
+      <li><b class="gold">Separate budgets</b> for background jobs + per-user quotas</li>
+    </ul>
+    <ul class="small">
+      <li><b class="gold">Talk recordings + transcripts</b> fed into Mentor Match</li>
+      <li><b class="gold">Live Slack sync</b> and USAJOBS federal roles</li>
+      <li><b class="gold">Deploy</b> with persistent storage</li>
+    </ul>
+  </div>
+  <p class="small" style="margin-top:40px;color:#8fb3c9">Thank you · github.com/michaelnghiem124/CSSInternApp</p>
+</section>
+
+</div></div>
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
+<script>
+  Reveal.initialize({ hash: true, slideNumber: 'c/t', width: 1280, height: 720, margin: 0.04, transition: 'fade', center: false });
+</script>
+</body>
+</html>

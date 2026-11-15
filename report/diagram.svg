@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 640" font-family="Inter, -apple-system, Segoe UI, Helvetica, Arial, sans-serif" role="img" aria-label="How the eight agents are organized into four workflows">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#5c6b80"/></marker>
+    <style>
+      .t{font-size:12.5px;fill:#14213d}
+      .s{font-size:10.5px;fill:#5c6b80}
+      .h{font-size:13.5px;font-weight:700;fill:#102c49}
+      .w{font-size:12.5px;font-weight:700;fill:#ffffff}
+      .code{fill:#f3f6fa;stroke:#c9d3df}
+      .fast{fill:#e2f4f9;stroke:#04698d}
+      .match{fill:#fff4dc;stroke:#c98a00}
+      .out{fill:#ffffff;stroke:#102c49}
+      line,path.l{stroke:#5c6b80;stroke-width:1.4;fill:none}
+    </style>
+  </defs>
+
+  <!-- users -->
+  <rect x="250" y="8" width="180" height="34" rx="17" fill="#102c49"/><text x="340" y="30" text-anchor="middle" class="w">Intern</text>
+  <rect x="570" y="8" width="180" height="34" rx="17" fill="#102c49"/><text x="660" y="30" text-anchor="middle" class="w">Program Lead</text>
+  <line x1="340" y1="42" x2="340" y2="62" marker-end="url(#ar)"/><line x1="660" y1="42" x2="660" y2="62" marker-end="url(#ar)"/>
+
+  <!-- guardrails -->
+  <rect x="20" y="64" width="960" height="44" rx="10" class="code"/>
+  <text x="500" y="83" text-anchor="middle" class="h">FastAPI app: plain-code guardrails run before any model call</text>
+  <text x="500" y="100" text-anchor="middle" class="s">sign-in · 6 msgs/min · 30 turns · length caps · 2M-token daily budget · injection screen · per-run caps (8 calls, 10 tools, 120k tokens)</text>
+
+  <!-- column headers -->
+  <g>
+    <text x="132" y="136" text-anchor="middle" class="h">Mentor Match</text><text x="132" y="151" text-anchor="middle" class="s">intern</text>
+    <text x="374" y="136" text-anchor="middle" class="h">Opportunity Match</text><text x="374" y="151" text-anchor="middle" class="s">intern (job feeds run weekly)</text>
+    <text x="626" y="136" text-anchor="middle" class="h">Committee placements</text><text x="626" y="151" text-anchor="middle" class="s">Program Lead</text>
+    <text x="868" y="136" text-anchor="middle" class="h">Cohort Pulse</text><text x="868" y="151" text-anchor="middle" class="s">Program Lead</text>
+  </g>
+  <line x1="132" y1="108" x2="132" y2="120" /><line x1="374" y1="108" x2="374" y2="120" /><line x1="626" y1="108" x2="626" y2="120" /><line x1="868" y1="108" x2="868" y2="120" />
+
+  <!-- Mentor Match -->
+  <rect x="27" y="164" width="210" height="58" rx="9" class="fast"/><text x="132" y="186" text-anchor="middle" class="h">① Profile Reader</text><text x="132" y="203" text-anchor="middle" class="s">resume + intro → InternProfile</text><text x="132" y="216" text-anchor="middle" class="s">flags hidden instructions</text>
+  <line x1="132" y1="222" x2="132" y2="244" marker-end="url(#ar)"/>
+  <rect x="27" y="246" width="210" height="58" rx="9" class="match"/><text x="132" y="268" text-anchor="middle" class="h">② Mentor Matcher</text><text x="132" y="285" text-anchor="middle" class="s">cached roster of 64 members</text><text x="132" y="298" text-anchor="middle" class="s">3–5 picks + talks + openings</text>
+  <rect x="27" y="316" width="210" height="58" rx="9" class="code"/><text x="132" y="336" text-anchor="middle" class="t">Tools (code)</text><text x="132" y="352" text-anchor="middle" class="s">get_bio · search_directory</text><text x="132" y="366" text-anchor="middle" class="s">upcoming_talks · find_opportunities</text>
+  <line x1="132" y1="374" x2="132" y2="396" marker-end="url(#ar)"/>
+  <rect x="27" y="398" width="210" height="46" rx="9" class="code"/><text x="132" y="418" text-anchor="middle" class="t">Roster validator (code)</text><text x="132" y="434" text-anchor="middle" class="s">every person/event must exist, else retry</text>
+  <line x1="132" y1="444" x2="132" y2="466" marker-end="url(#ar)"/>
+  <rect x="27" y="468" width="210" height="40" rx="9" class="out"/><text x="132" y="492" text-anchor="middle" class="t">Reply with cost + token line</text>
+
+  <!-- Opportunity Match -->
+  <rect x="269" y="164" width="210" height="46" rx="9" class="code"/><text x="374" y="184" text-anchor="middle" class="t">Job-feed connectors (code)</text><text x="374" y="200" text-anchor="middle" class="s">25 employers' official feeds + title filter</text>
+  <line x1="374" y1="210" x2="374" y2="230" marker-end="url(#ar)"/>
+  <rect x="269" y="232" width="210" height="58" rx="9" class="fast"/><text x="374" y="254" text-anchor="middle" class="h">③ Job Classifier</text><text x="374" y="271" text-anchor="middle" class="s">type · 12 cyber domains + evidence</text><text x="374" y="284" text-anchor="middle" class="s">relevance 0–100 · cached by hash</text>
+  <line x1="374" y1="290" x2="374" y2="310" marker-end="url(#ar)"/>
+  <rect x="269" y="312" width="210" height="46" rx="9" class="code"/><text x="374" y="332" text-anchor="middle" class="t">Pre-score in code</text><text x="374" y="348" text-anchor="middle" class="s">question + resume → top 24 roles</text>
+  <line x1="374" y1="358" x2="374" y2="378" marker-end="url(#ar)"/>
+  <rect x="269" y="380" width="210" height="58" rx="9" class="match"/><text x="374" y="402" text-anchor="middle" class="h">④ Opportunity Explorer</text><text x="374" y="419" text-anchor="middle" class="s">ranks ≤6 with fit, reason, gaps</text><text x="374" y="432" text-anchor="middle" class="s">may only pick ids it was given</text>
+  <line x1="374" y1="438" x2="374" y2="466" marker-end="url(#ar)"/>
+  <rect x="269" y="468" width="210" height="40" rx="9" class="out"/><text x="374" y="486" text-anchor="middle" class="t">Matches + warm intro to the</text><text x="374" y="501" text-anchor="middle" class="t">Think Tank member there</text>
+  <path class="l" d="M269,262 C230,262 250,350 237,350" marker-end="url(#ar)"/>
+  <text x="246" y="246" class="s" text-anchor="middle">labels</text>
+
+  <!-- Placements -->
+  <rect x="521" y="164" width="210" height="58" rx="9" class="fast"/><text x="626" y="186" text-anchor="middle" class="h">⑤ Fit Extractor</text><text x="626" y="203" text-anchor="middle" class="s">one call per intern</text><text x="626" y="216" text-anchor="middle" class="s">cached by profile hash</text>
+  <line x1="626" y1="222" x2="626" y2="244" marker-end="url(#ar)"/>
+  <rect x="521" y="246" width="210" height="58" rx="9" class="match"/><text x="626" y="268" text-anchor="middle" class="h">⑥ Placement Matcher</text><text x="626" y="285" text-anchor="middle" class="s">one call per cohort</text><text x="626" y="298" text-anchor="middle" class="s">committee + Cyber Coach matrix</text>
+  <line x1="626" y1="304" x2="626" y2="326" marker-end="url(#ar)"/>
+  <rect x="521" y="328" width="210" height="58" rx="9" class="code"/><text x="626" y="348" text-anchor="middle" class="t">Validator → human approval</text><text x="626" y="364" text-anchor="middle" class="s">capacity · schedules · no duplicates</text><text x="626" y="378" text-anchor="middle" class="s">Program Lead approves or overrides</text>
+  <line x1="626" y1="386" x2="626" y2="408" marker-end="url(#ar)"/>
+  <rect x="521" y="410" width="210" height="46" rx="9" class="fast"/><text x="626" y="430" text-anchor="middle" class="h">⑦ Intro Drafter</text><text x="626" y="446" text-anchor="middle" class="s">email + Slack DM drafts, never sent</text>
+  <line x1="626" y1="456" x2="626" y2="466" marker-end="url(#ar)"/>
+  <rect x="521" y="468" width="210" height="40" rx="9" class="out"/><text x="626" y="492" text-anchor="middle" class="t">Approved placements + drafts</text>
+
+  <!-- Pulse -->
+  <rect x="763" y="164" width="210" height="58" rx="9" class="code"/><text x="868" y="184" text-anchor="middle" class="t">Cohort MCP server (code)</text><text x="868" y="200" text-anchor="middle" class="s">Slack + meeting notes, read-only</text><text x="868" y="214" text-anchor="middle" class="s">names → pseudonyms (Intern-03)</text>
+  <line x1="868" y1="222" x2="868" y2="244" marker-end="url(#ar)"/>
+  <rect x="763" y="246" width="210" height="58" rx="9" class="match"/><text x="868" y="268" text-anchor="middle" class="h">⑧ Pulse Analyst</text><text x="868" y="285" text-anchor="middle" class="s">reads only through 5 MCP tools</text><text x="868" y="298" text-anchor="middle" class="s">no tool can post or send</text>
+  <line x1="868" y1="304" x2="868" y2="326" marker-end="url(#ar)"/>
+  <rect x="763" y="328" width="210" height="46" rx="9" class="code"/><text x="868" y="348" text-anchor="middle" class="t">Privacy validator (code)</text><text x="868" y="364" text-anchor="middle" class="s">rejects names, emails, phones</text>
+  <line x1="868" y1="374" x2="868" y2="466" marker-end="url(#ar)"/>
+  <rect x="763" y="468" width="210" height="40" rx="9" class="out"/><text x="868" y="486" text-anchor="middle" class="t">Monday Brief: nudges, wins,</text><text x="868" y="501" text-anchor="middle" class="t">blockers (names restored for admin)</text>
+
+  <!-- shared data -->
+  <rect x="20" y="532" width="960" height="40" rx="10" fill="#ffffff" stroke="#c9d3df" stroke-dasharray="5 4"/>
+  <text x="500" y="557" text-anchor="middle" class="t">SQLite: Think Tank roster (64 bios) · talks calendar · intern profiles · job postings + labels · usage_log · safety_log</text>
+
+  <!-- legend -->
+  <rect x="160" y="592" width="18" height="14" rx="3" class="match"/><text x="184" y="604" class="s">"match" tier: judgment (Sonnet 5.5, or gpt-6-luna)</text>
+  <rect x="470" y="592" width="18" height="14" rx="3" class="fast"/><text x="494" y="604" class="s">"fast" tier: extraction (Haiku 5.5, or gpt-6-luna)</text>
+  <rect x="760" y="592" width="18" height="14" rx="3" class="code"/><text x="784" y="604" class="s">plain code, no tokens</text>
+  <text x="500" y="630" text-anchor="middle" class="s">Code, not a model, decides who runs next. Each workflow is a fixed pipeline; agents hand off through typed outputs and the database.</text>
+</svg>
