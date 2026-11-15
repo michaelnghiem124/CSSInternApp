@@ -739,3 +739,112 @@ label.check-inline input { width: auto; margin: 0; }
 .profile-side .pw-form { border-top: 0; margin-top: 0; padding-top: 0; grid-template-columns: 1fr; }
 .profile-side .pw-form .span2 { grid-column: auto; }
 .suggestions.dynamic::before { content: "Ask next"; font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); align-self: center; margin-right: 2px; }
+
+/* ============================================================================
+   Console polish (v2.28): one consistent "security operations console" feel.
+   Monospace system labels, a HUD frame and scan beam on the dark banners,
+   quiet hover edges on cards, and short purposeful motion. Everything here is
+   decoration: it adds no content and stands still under reduced motion.
+   ========================================================================== */
+:root { --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+::selection { background: rgba(33,254,254,.35); color: var(--navy-deep); }
+
+/* System labels read like console output. */
+.eyebrow { font-family: var(--mono); font-weight: 700; letter-spacing: .1em; }
+.eyebrow::before { content: "// "; opacity: .55; }
+.usage-line, .ox-meta, .o-bin, .home-stat b, .stat .v { font-family: var(--mono); }
+.home-stat b { font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.home-stat span { font-family: var(--mono); font-size: .68rem; letter-spacing: .02em; }
+
+/* Header: a live signal line instead of a flat border, and a lit active tab. */
+.topbar { border-bottom: 0; }
+.topbar::after { content: ""; display: block; height: 2px;
+  background: linear-gradient(90deg, var(--neon) 0%, var(--sky) 30%, var(--magenta) 50%, var(--sky) 70%, var(--neon) 100%);
+  background-size: 200% 100%; animation: sig-line 9s linear infinite; }
+@keyframes sig-line { to { background-position: -200% 0; } }
+.tabs a { transition: color .15s, background .15s, box-shadow .2s; }
+.tabs a.active { box-shadow: 0 0 0 1px rgba(33,254,254,.35), 0 0 16px rgba(33,254,254,.4); }
+
+/* Dark banners: corner brackets + faint grid (::before) and a slow scan beam (::after). */
+.hero > *, .gate-inner { position: relative; z-index: 1; }
+.hero::before, .gate::before { content: ""; position: absolute; inset: 10px; pointer-events: none; opacity: .6; border-radius: 4px;
+  --b: linear-gradient(var(--neon), var(--neon));
+  background:
+    var(--b) left top / 16px 1.5px no-repeat, var(--b) left top / 1.5px 16px no-repeat,
+    var(--b) right top / 16px 1.5px no-repeat, var(--b) right top / 1.5px 16px no-repeat,
+    var(--b) left bottom / 16px 1.5px no-repeat, var(--b) left bottom / 1.5px 16px no-repeat,
+    var(--b) right bottom / 16px 1.5px no-repeat, var(--b) right bottom / 1.5px 16px no-repeat,
+    linear-gradient(rgba(33,254,254,.05) 1px, transparent 1px) 0 0 / 28px 28px,
+    linear-gradient(90deg, rgba(33,254,254,.05) 1px, transparent 1px) 0 0 / 28px 28px; }
+.hero::after, .home-hero::after, .gate::after { content: ""; position: absolute; inset: 0; width: auto; height: auto; right: 0; bottom: 0;
+  border: 0; border-radius: 0; pointer-events: none;
+  background: linear-gradient(90deg, transparent 0%, rgba(33,254,254,.10) 9%, rgba(33,254,254,.02) 14%, transparent 15%);
+  transform: translateX(-16%); animation: scan-beam 9s cubic-bezier(.4,0,.2,1) infinite; }
+@keyframes scan-beam { 0% { transform: translateX(-16%); } 55%, 100% { transform: translateX(100%); } }
+.gate { position: relative; overflow: hidden; }
+.gate::before { inset: 14px; }
+
+/* Pages ease in; Home's tool cards rise in sequence (the one staged moment). */
+.tab { animation: page-in .28s cubic-bezier(.2,.7,.2,1); }
+@keyframes page-in { from { opacity: 0; transform: translateY(8px); } }
+.home-grid .tool-card { animation: rise-in .5s cubic-bezier(.2,.7,.2,1) both; }
+.home-grid .tool-card:nth-child(2) { animation-delay: .06s; } .home-grid .tool-card:nth-child(3) { animation-delay: .12s; }
+.home-grid .tool-card:nth-child(4) { animation-delay: .18s; } .home-grid .tool-card:nth-child(5) { animation-delay: .24s; }
+@keyframes rise-in { from { opacity: 0; transform: translateY(14px); } }
+.recs .rec, .ox-matches .ox-match { animation: rise-in .45s cubic-bezier(.2,.7,.2,1) both; }
+.recs .rec:nth-child(2), .ox-matches .ox-match:nth-child(2) { animation-delay: .08s; }
+.recs .rec:nth-child(3), .ox-matches .ox-match:nth-child(3) { animation-delay: .16s; }
+.recs .rec:nth-child(4), .ox-matches .ox-match:nth-child(4) { animation-delay: .24s; }
+.recs .rec:nth-child(n+5), .ox-matches .ox-match:nth-child(n+5) { animation-delay: .32s; }
+
+/* Cards: a signal edge draws across the top on hover. */
+.person, .opp, .tool-card, .rec, .past-talk {
+  background: linear-gradient(90deg, var(--accent), var(--neon)) left top / 0% 2px no-repeat, #fff;
+  transition: background-size .35s ease, transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
+.person:hover, .opp:hover, .tool-card:hover, .rec:hover, .past-talk:hover { background-size: 100% 2px, auto; border-color: #b5e6f0; }
+.past-talk.is-huddle { background: linear-gradient(90deg, var(--gold), #ffe3a1) left top / 0% 2px no-repeat, #fffaf0; }
+.past-talk.is-huddle:hover { background-size: 100% 2px, auto; }
+.tool-icon { transition: transform .2s ease, box-shadow .2s ease; }
+.tool-card:hover .tool-icon { transform: translateY(-2px) scale(1.05); box-shadow: 0 6px 16px rgba(4,105,141,.3); }
+.tool-card .go { transition: letter-spacing .2s ease; }
+.tool-card:hover .go { letter-spacing: .03em; }
+
+/* Buttons and focus. */
+.btn { transition: transform .12s ease, box-shadow .18s ease, background .15s, border-color .15s, color .15s, filter .15s; }
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn.primary { background: linear-gradient(180deg, #0a7ba3, var(--accent)); }
+.btn.primary:hover { box-shadow: 0 4px 14px rgba(4,105,141,.35); }
+.btn.neon:hover { box-shadow: 0 0 0 3px rgba(33,254,254,.2), 0 0 22px rgba(33,254,254,.55); }
+input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 4px rgba(4,105,141,.14); }
+.topbar :focus-visible, .hero :focus-visible, .home-hero :focus-visible { outline: 2px solid var(--neon); outline-offset: 2px; }
+
+/* Mentor Match while it works: a console line that names the step, not three grey dots. */
+.thinking { display: inline-flex; align-items: center; gap: 10px; padding: 11px 15px; border-radius: 14px 14px 14px 4px;
+  background: var(--navy-deep); color: #cfe8f3; font-family: var(--mono); font-size: .8rem; border: 1px solid rgba(33,254,254,.25); }
+.thinking .t-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--neon); box-shadow: 0 0 10px var(--neon); animation: t-pulse 1s ease-in-out infinite; }
+.thinking .t-text::after { content: "▍"; margin-left: 2px; color: var(--neon); animation: t-caret .9s steps(1) infinite; }
+@keyframes t-pulse { 50% { opacity: .35; transform: scale(.8); } }
+@keyframes t-caret { 50% { opacity: 0; } }
+
+/* Empty states: a quiet radar ping above the message. */
+.empty::before { content: ""; display: block; width: 44px; height: 44px; margin: 0 auto 14px; border-radius: 50%;
+  border: 1.5px solid rgba(4,105,141,.35);
+  background: radial-gradient(circle, var(--accent) 0 3px, transparent 4px), radial-gradient(circle, transparent 0 12px, rgba(4,105,141,.22) 12.5px 13.5px, transparent 14px);
+  animation: radar-ping 2.6s ease-out infinite; }
+@keyframes radar-ping { 0% { box-shadow: 0 0 0 0 rgba(4,105,141,.35); } 100% { box-shadow: 0 0 0 16px rgba(4,105,141,0); } }
+
+/* Sign-in: how the account is protected, in plain terms. */
+.gate-trust { display: flex; align-items: center; gap: 10px; margin-top: 26px; padding: 10px 12px; max-width: 460px; border-radius: 10px;
+  border: 1px solid rgba(33,254,254,.22); background: rgba(10,29,49,.45); font-family: var(--mono); font-size: .72rem; line-height: 1.5; color: #b9d3e3; }
+.gate-trust svg { flex: none; width: 18px; height: 18px; color: var(--neon); }
+
+@media (max-width: 700px) {
+  .hero::before { inset: 7px; } .gate::before { inset: 8px; }
+  .home-stat span { font-size: .62rem; }
+  .thinking { font-size: .74rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .topbar::after, .hero::after, .home-hero::after, .gate::after, .tab, .home-grid .tool-card, .recs .rec, .ox-matches .ox-match,
+  .thinking .t-dot, .thinking .t-text::after, .empty::before { animation: none !important; }
+  .hero::after, .home-hero::after, .gate::after { display: none; }
+}

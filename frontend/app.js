@@ -231,6 +231,22 @@
   const log = $("#chat-log");
   const scroll = () => { log.scrollTop = log.scrollHeight; };
 
+  // Home's headline numbers count up once, the first time the page is shown.
+  function countUpStats() {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    $$("#home-stats .home-stat b").forEach((b) => {
+      const end = Number(b.textContent);
+      if (!Number.isFinite(end) || end <= 0) return;
+      const t0 = performance.now(), ms = 900;
+      const tick = (t) => {
+        const k = Math.min(1, (t - t0) / ms);
+        b.textContent = Math.round(end * (1 - Math.pow(1 - k, 3)));
+        if (k < 1) requestAnimationFrame(tick);
+      };
+      b.textContent = "0"; requestAnimationFrame(tick);
+    });
+  }
+
   function usageBits(u) {
     const cached = u.cache_read_tokens ? ` (${fmt(u.cache_read_tokens)} cached)` : "";
     return `<span>🤖 ${esc(u.model)}</span><span>${fmt(u.input_tokens)} in${cached}</span><span>${fmt(u.output_tokens)} out</span>
@@ -244,7 +260,16 @@
     const d = document.createElement("div"); d.className = "msg system"; d.textContent = text; log.appendChild(d); scroll();
   }
   function addTyping() {
-    const d = document.createElement("div"); d.className = "msg bot"; d.innerHTML = `<div class="typing"><i></i><i></i><i></i></div>`;
+    // A console-style line that names what Mentor Match is doing. The steps are the order the
+    // work happens in on the server; the timing is a guide (the reply arrives in one piece).
+    const steps = ["Reading your question", "Searching the Think Tank roster", "Checking talks and open roles", "Writing your matches"];
+    const d = document.createElement("div"); d.className = "msg bot";
+    d.innerHTML = `<div class="thinking" role="status"><span class="t-dot"></span><span class="t-text">${steps[0]}</span></div>`;
+    let i = 0;
+    const timer = setInterval(() => {
+      if (!d.isConnected) return clearInterval(timer);
+      if (i < steps.length - 1) $(".t-text", d).textContent = steps[++i];
+    }, 2600);
     log.appendChild(d); scroll(); return d;
   }
 
@@ -356,6 +381,7 @@
     const upcoming = events.filter((e) => new Date(e.ends_at) >= now);
     const thisYear = events.filter((e) => e.starts_at.startsWith(year)).length;
     const stat = (n, label) => `<div class="home-stat"><b>${n}</b><span>${esc(label)}</span></div>`;
+    setTimeout(countUpStats, 0);
     $("#home-stats").innerHTML = [
       stat(META.people_count, "Think Tank and Emeritus leaders"),
       stat(opps ? opps.employers.length + (opps.no_feed || []).length : "—", "member organizations"),
