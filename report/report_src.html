@@ -80,8 +80,8 @@
 <div class="meta">
   <div><b>Michael Nghiem</b><br>Program Lead, Intern Cyber Security Program<br>Cyber Security Summit, Minneapolis</div>
   <div><b>Code:</b> <a href="https://github.com/michaelnghiem124/CSSInternApp">github.com/michaelnghiem124/CSSInternApp</a><br>
-       <b>App:</b> runs locally; no public deployment. The README gets it running in about five minutes with the course's Portkey key (gpt-6-luna).<br>
-       <b>Version:</b> v2.10, November 14, 2026</div>
+       <b>Live:</b> <a href="https://intern-summit-hub.onrender.com">intern-summit-hub.onrender.com</a> (free tier: the first visit after 15 idle minutes takes about 50 s). Locally, the README gets it running in about five minutes with the course's Portkey key (gpt-6-luna).<br>
+       <b>Version:</b> v2.23, November 15, 2026</div>
 </div>
 <p class="xs" style="margin-top:8px">I built the app and drafted this report with help from Claude Code. Every number below comes from the app's own <code>usage_log</code> and <code>safety_log</code> tables or is labeled as an estimate. Screenshots show a fictional test intern ("Jordan Rivera") on a copy of the database, so no real intern data appears.</p>
 
@@ -134,12 +134,12 @@
 
 <!-- ============================ 4. AGENTS ============================ -->
 <h2><span class="n">4</span>The agents</h2>
-<p>The app has <b>eight agents in four workflows</b>. Each is a PydanticAI agent with a typed output, and most have a code validator that rejects bad output and makes the model retry. Plain code does everything that doesn't need judgment, which keeps cost and risk down.</p>
+<p>The app has <b>eight agents in four workflows</b>. Each is a PydanticAI agent with a typed output, and most have a code validator that rejects bad output and makes the model retry. Plain code does everything that doesn't need judgment, which keeps cost and risk down. Interns reach the agents from a Home page (live counts, the next event, a card for each tool) and keep their resume, photo, and interests on a Profile page that both match agents read.</p>
 <table>
   <tr><th style="width:18%">Agent</th><th style="width:8%">Tier</th><th>Job</th><th style="width:27%">Tools and checks</th></tr>
   <tr><td colspan="4" style="background:#eef3f8;font-weight:700;color:var(--navy)">Mentor Match (intern) · <code>agents.py</code></td></tr>
   <tr><td>① Profile Reader</td><td><span class="tag">fast</span></td><td>Turns a resume and intro into a structured profile (school, skills, interests, background, goal) and flags hidden instructions.</td><td>No tools; structured output only. Raw resume text never reaches the matcher.</td></tr>
-  <tr><td>② Mentor Matcher</td><td><span class="tag m">match</span></td><td>Recommends 3–5 Think Tank members, each with the shared ground, the reason, and conversation openers, plus relevant talks and openings.</td><td><code>get_bio</code>, <code>search_directory</code>, <code>upcoming_talks</code>, <code>find_opportunities</code>. Validator: every person and event must exist.</td></tr>
+  <tr><td>② Mentor Matcher</td><td><span class="tag m">match</span></td><td>Recommends 3–5 Think Tank members, each with the shared ground, the reason, and conversation openers, plus relevant events and openings, and suggests up to 4 follow-up questions that fit the conversation so far.</td><td><code>get_bio</code>, <code>search_directory</code>, <code>summit_talks</code> (67 past Summit talks by 33 members), <code>upcoming_talks</code>, <code>find_opportunities</code>. Validator: every person and event must exist.</td></tr>
   <tr><td colspan="4" style="background:#eef3f8;font-weight:700;color:var(--navy)">Opportunity Match (intern) · <code>opportunities.py</code>, <code>explorer.py</code></td></tr>
   <tr><td>③ Job Classifier</td><td><span class="tag">fast</span></td><td>Labels each new posting from 25 employers' official job feeds: internship / co-op / entry-level, up to 3 of 12 cyber domains with quoted evidence, relevance 0–100, location, eligibility.</td><td>No tools. Validator: no quoted evidence means no domain, and a role with no domain is capped at 59. Cached by content hash.</td></tr>
   <tr><td>④ Opportunity Explorer</td><td><span class="tag m">match</span></td><td>Answers an intern's question ("Is there an entry-level SOC role for me?") by ranking up to 6 roles with fit, reason, and gaps, and says plainly when nothing matches exactly.</td><td>No tools; code pre-scores all roles and sends only the top 24. Validator: may only pick ids it was given.</td></tr>
@@ -280,7 +280,7 @@ TEST 3 - per-minute rate limit (RATE_LIMIT_PER_MINUTE = 6)
       <li>The 2M-token daily budget is shared, so a large job refresh can pause Mentor Match.</li>
       <li>Job feeds cover 25 member organizations. Lumen's job API refuses automated requests, State of Minnesota jobs (MNIT, State Patrol) sit behind a CAPTCHA, and some sites post only on LinkedIn; the app respects those blocks. Federal roles (CISA, National Guard, Army) need a free USAJOBS key.</li>
       <li>In November few member employers have security internships open, so most interns see a handful of roles until spring postings arrive.</li>
-      <li>Single server: SQLite, an in-memory rate limiter, chats kept for 3 hours, one admin account, and no public deployment.</li>
+      <li>Single server: SQLite, an in-memory rate limiter, chats kept for 3 hours, and one admin account. The live site runs on Render's free tier with no persistent disk: it sleeps after 15 idle minutes and restarts from a public seed copy of the data (events and job postings, no intern data), so accounts and RSVPs made online don't last.</li>
     </ul>
   </div>
   <div>
@@ -288,10 +288,10 @@ TEST 3 - per-minute rate limit (RATE_LIMIT_PER_MINUTE = 6)
     <ul class="small">
       <li><b>Pilot</b> with the 2026 cohort and past interns to collect the user evidence above and decide what to build next.</li>
       <li><b>Quality eval:</b> a fixed set of resumes scored on every prompt or model change, to settle whether gpt-6-luna matches Sonnet.</li>
-      <li><b>Separate budgets</b> for background jobs and per-user daily quotas, then deploy with persistent storage.</li>
+      <li><b>Separate budgets</b> for background jobs and per-user daily quotas, then move the live site to a paid instance with a persistent disk ($7 a month).</li>
       <li><b>Think Tank Talk recordings and transcripts</b> on the hub, with key takeaways fed into Mentor Match.</li>
       <li><b>Live Slack sync</b> for Cohort Pulse, and a USAJOBS key to add federal roles.</li>
-      <li><b>Calendar integration:</b> send Think Tank Talk invites through the Google Calendar API (Google sign-in), so each intern gets one invite and the Program Lead keeps managing RSVPs in Google Calendar. A private calendar-subscription feed is already built in the backend but hidden from interns: Google and Outlook can only read it once the Hub is deployed, and using it alongside emailed invites would put every talk on an intern's calendar twice.</li>
+      <li><b>Calendar integration:</b> send Think Tank Talk invites through the Google Calendar API (Google sign-in), so each intern gets one invite and the Program Lead keeps managing RSVPs in Google Calendar. A private calendar-subscription feed is already built in the backend but hidden from interns: Google and Outlook can only read it from a server that stays up, and using it alongside emailed invites would put every talk on an intern's calendar twice.</li>
     </ul>
   </div>
 </div>

@@ -61,7 +61,7 @@
   <h1>Intern Summit Hub</h1>
   <p style="font-size:1.05em;max-width:1050px">AI that matches each Cyber Security Summit intern with the Think Tank members to meet and the open roles where they work, and gives a volunteer Program Lead hours back every week.</p>
   <p class="small" style="margin-top:40px"><b>Michael Nghiem</b> · Program Lead, Intern Cyber Security Program<br>
-  <span style="color:#8fb3c9">github.com/michaelnghiem124/CSSInternApp · runs locally with the course key (gpt-6-luna)</span></p>
+  <span style="color:#8fb3c9">Live: intern-summit-hub.onrender.com · github.com/michaelnghiem124/CSSInternApp · gpt-6-luna</span></p>
 </section>
 
 <!-- 2 · Problem -->
@@ -138,11 +138,11 @@
   <rect x="27" y="164" width="210" height="58" rx="9" class="fast"/><text x="132" y="186" text-anchor="middle" class="h">① Profile Reader</text><text x="132" y="203" text-anchor="middle" class="s">resume + intro → InternProfile</text><text x="132" y="216" text-anchor="middle" class="s">flags hidden instructions</text>
   <line x1="132" y1="222" x2="132" y2="244" marker-end="url(#ar)"/>
   <rect x="27" y="246" width="210" height="58" rx="9" class="match"/><text x="132" y="268" text-anchor="middle" class="h">② Mentor Matcher</text><text x="132" y="285" text-anchor="middle" class="s">cached roster of 64 members</text><text x="132" y="298" text-anchor="middle" class="s">3–5 picks + talks + openings</text>
-  <rect x="27" y="316" width="210" height="58" rx="9" class="code"/><text x="132" y="336" text-anchor="middle" class="t">Tools (code)</text><text x="132" y="352" text-anchor="middle" class="s">get_bio · search_directory</text><text x="132" y="366" text-anchor="middle" class="s">upcoming_talks · find_opportunities</text>
+  <rect x="27" y="316" width="210" height="58" rx="9" class="code"/><text x="132" y="332" text-anchor="middle" class="t">5 tools (code)</text><text x="132" y="345" text-anchor="middle" class="s">get_bio · search_directory</text><text x="132" y="357" text-anchor="middle" class="s">summit_talks · upcoming_talks</text><text x="132" y="369" text-anchor="middle" class="s">find_opportunities</text>
   <line x1="132" y1="374" x2="132" y2="396" marker-end="url(#ar)"/>
   <rect x="27" y="398" width="210" height="46" rx="9" class="code"/><text x="132" y="418" text-anchor="middle" class="t">Roster validator (code)</text><text x="132" y="434" text-anchor="middle" class="s">every person/event must exist, else retry</text>
   <line x1="132" y1="444" x2="132" y2="466" marker-end="url(#ar)"/>
-  <rect x="27" y="468" width="210" height="40" rx="9" class="out"/><text x="132" y="492" text-anchor="middle" class="t">Reply with cost + token line</text>
+  <rect x="27" y="468" width="210" height="40" rx="9" class="out"/><text x="132" y="492" text-anchor="middle" class="t">Reply + cost line + follow-ups</text>
 
   <!-- Opportunity Match -->
   <rect x="269" y="164" width="210" height="46" rx="9" class="code"/><text x="374" y="184" text-anchor="middle" class="t">Job-feed connectors (code)</text><text x="374" y="200" text-anchor="middle" class="s">25 employers' official feeds + title filter</text>
@@ -202,6 +202,7 @@
         <li><b>Mentor Matcher</b>: 2 model calls, 6 tool calls, 80% of input from cache: 9.8 s, $0.015</li>
         <li>Each pick has shared ground, a reason, and three openers</li>
         <li>Code rejects anyone not on the roster</li>
+        <li>5 tools, incl. 67 past Summit talks; suggests follow-up questions</li>
       </ul>
     </div>
   </div>
@@ -295,11 +296,11 @@ rate test:       msgs 1-6 <span class="ok">allowed</span>, msg 7 <span class="ba
     <ul class="small">
       <li><b class="gold">Talk recordings + transcripts</b> fed into Mentor Match</li>
       <li><b class="gold">Live Slack sync</b> and USAJOBS federal roles</li>
-      <li><b class="gold">Deploy</b> with persistent storage</li>
+      <li><b class="gold">Persistent disk</b> for the live site ($7/month)</li>
       <li><b class="gold">Calendar invites</b> via Google Calendar, one per intern</li>
     </ul>
   </div>
-  <p class="small" style="margin-top:40px;color:#8fb3c9">Thank you · github.com/michaelnghiem124/CSSInternApp</p>
+  <p class="small" style="margin-top:40px;color:#8fb3c9">Thank you · intern-summit-hub.onrender.com · github.com/michaelnghiem124/CSSInternApp</p>
 </section>
 
 </div></div>
