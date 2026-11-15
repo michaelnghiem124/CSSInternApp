@@ -384,6 +384,13 @@
             <p class="muted" id="admin-title"></p>
           </div>
         </div>
+        <div class="card restore-card" id="restore-card" hidden>
+          <h2 class="card-title">Restore a database (one-time move)</h2>
+          <p class="small">Replaces this server's database with an <code>app.db</code> from another copy of the Hub. The current one is kept as a backup on the server. Turn <code>ALLOW_DB_RESTORE</code> off again right after.</p>
+          <input type="file" id="restore-file" accept=".db,application/octet-stream">
+          <button class="btn danger-fill" type="button" id="restore-btn">Upload and replace</button>
+          <span class="small" id="restore-msg"></span>
+        </div>
 
         <nav class="admin-nav" id="admin-nav" role="tablist">
           <button type="button" data-asec="interns" class="on">Interns</button>

@@ -553,6 +553,7 @@ def meta(request: Request):
         "us_states": sorted(US_STATES - {"Other"}) + ["Other"],
         "sectors": list(directory.Sector.__args__),  # type: ignore[attr-defined]
         "people_count": len(directory.load_people()),
+        "db_restore_enabled": auth.is_admin(request) and _restore_enabled(),
     }
 
 
@@ -925,6 +926,47 @@ def _calendar(evts: list[dict], subscribe: bool = False) -> PlainTextResponse:
 @app.get("/api/calendar.ics", dependencies=[Depends(auth.require_user)])
 def calendar_feed():
     return _calendar(db.list_events(upcoming_only=True))
+
+
+# One-time database restore (moving the Hub to a new server). Off unless the server has
+# ALLOW_DB_RESTORE=1; admin-only; the file must be a healthy Hub database. The previous file is
+# kept next to it as <db>.before-restore. Turn the variable off again right after.
+def _restore_enabled() -> bool:
+    return os.environ.get("ALLOW_DB_RESTORE") == "1"
+
+
+@app.post("/api/admin/restore-db", dependencies=[Depends(auth.require_admin)])
+async def restore_db(file: Annotated[UploadFile, File()]):
+    import shutil  # noqa: PLC0415
+    import sqlite3  # noqa: PLC0415
+
+    if not _restore_enabled():
+        raise HTTPException(403, "Database restore is off. Set ALLOW_DB_RESTORE=1 on the server to use it once.")
+    data = await file.read(200_000_001)
+    if len(data) > 200_000_000:
+        raise HTTPException(400, "That file is over 200 MB.")
+    if not data.startswith(b"SQLite format 3\x00"):
+        raise HTTPException(400, "That isn't a SQLite database file.")
+    target = config.DB_PATH
+    tmp = target.with_name(target.name + ".restore-tmp")
+    tmp.write_bytes(data)
+    try:
+        chk = sqlite3.connect(tmp)
+        ok = chk.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+        tables = {r[0] for r in chk.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        counts = {t: chk.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0] for t in ("users", "events") if t in tables}
+        chk.close()
+        if not ok or not {"users", "events", "settings"} <= tables:
+            raise HTTPException(400, "That file isn't a healthy Intern Summit Hub database.")
+        if target.exists():
+            shutil.copyfile(target, target.with_name(target.name + ".before-restore"))
+        os.replace(tmp, target)
+    finally:
+        if tmp.exists():
+            tmp.unlink()
+    db.init()  # run migrations on the restored file
+    db.log_safety("admin", "db_restored", f"{len(data):,} bytes; users={counts.get('users')}, events={counts.get('events')}")
+    return {"ok": True, "bytes": len(data), **counts}
 
 
 # Live subscription: a private link per person that calendar apps poll. It carries every talk

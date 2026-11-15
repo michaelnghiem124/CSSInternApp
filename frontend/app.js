@@ -441,12 +441,27 @@
       }).join("")}</div>` : "";
   }
 
+  // ---------- admin: one-time database restore ----------
+  $("#restore-btn").addEventListener("click", async () => {
+    const f = $("#restore-file").files[0];
+    if (!f) { toast("Choose an app.db file first."); return; }
+    if (!(await modal({ title: "Replace this server's database?", body: `Everything on this server (accounts, events, postings) is replaced by ${f.name}. The current database is kept as a backup on the server.`, ok: "Replace", danger: true }))) return;
+    $("#restore-msg").textContent = "Uploading…";
+    try {
+      const fd = new FormData(); fd.append("file", f);
+      const r = await api("/api/admin/restore-db", { method: "POST", body: fd });
+      $("#restore-msg").textContent = `Restored ${(r.bytes / 1e6).toFixed(1)} MB: ${r.users} users, ${r.events} events. Reloading…`;
+      setTimeout(() => location.reload(), 1500);
+    } catch (err) { $("#restore-msg").textContent = err.message; }
+  });
+
   // ---------- admin ----------
   let adminSpeakers = [];
   async function loadAdmin() {
     if (!META.is_admin) return;
     $("#admin-panel").hidden = false;
     $("#admin-name").textContent = META.admin_name; $("#admin-title").textContent = META.admin_title;
+    $("#restore-card").hidden = !META.db_restore_enabled;
     await Promise.all([loadInterns(), loadResetRequests(), loadAccessCode(), loadAdminEvents(), loadAnnouncements(), loadDemoStatus()]);
     showAdminSection(store.get("css_admin_sec") || "interns");
   }
