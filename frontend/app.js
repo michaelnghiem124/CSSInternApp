@@ -79,11 +79,12 @@
 
   // ---------- tabs ----------
   function showTab() {
-    const tab = (location.hash || "#match").slice(1).split("/")[0];
-    const tabs = ["match", "opportunities", "directory", "calendar", "cohort"].concat(META.is_admin ? ["admin"] : []);
-    const valid = tabs.includes(tab) ? tab : (META.is_admin && !ME ? "admin" : "match");
+    const tab = (location.hash || "#home").slice(1).split("/")[0];
+    const tabs = ["home", "match", "opportunities", "directory", "calendar", "cohort"].concat(META.is_admin ? ["admin"] : []);
+    const valid = tabs.includes(tab) ? tab : (META.is_admin && !ME ? "admin" : "home");
     $$(".tab").forEach((s) => (s.hidden = s.id !== "tab-" + valid));
     $$(".tabs a").forEach((a) => a.classList.toggle("active", a.dataset.tab === valid));
+    if (valid === "home") loadHome();
     if (valid === "calendar") loadEvents();
     if (valid === "admin") loadAdmin();
     if (valid === "cohort") loadCohort();
@@ -308,6 +309,72 @@
   }
 
   const placeOf = (u) => [u.city, u.state].filter(Boolean).join(", ");
+
+  // ---------- home (the intern front door) ----------
+  const ICONS = {
+    match: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M16 4.5a3 3 0 0 1 0 6"/><path d="M18 14.3c1.8.8 3 2.7 3 5.7"/><path d="m14.5 11.5 1.2 1.2 2.6-2.6"/></svg>',
+    opps: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M3 13h18"/><circle cx="12" cy="13" r="1.6"/></svg>',
+    tank: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 3 7.5v1.5h18V7.5L12 3Z"/><path d="M5 9v8M9.5 9v8M14.5 9v8M19 9v8"/><path d="M3 20h18"/></svg>',
+    events: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="m9.5 15 1.8 1.8 3.5-3.5"/></svg>',
+    cohort: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7" r="3"/><circle cx="5" cy="10" r="2.3"/><circle cx="19" cy="10" r="2.3"/><path d="M7 20c0-2.8 2.2-5 5-5s5 2.2 5 5"/><path d="M1.5 19c0-2 1.5-3.6 3.5-3.6M22.5 19c0-2-1.5-3.6-3.5-3.6"/></svg>',
+  };
+  const TOOLS = [
+    { href: "#match", icon: "match", color: "linear-gradient(135deg,#04698d,#21c7d9)", title: "Mentor Match",
+      text: "Add your resume and ask who to meet. It looks up the Think Tank bios and suggests people, why, and what to ask first." },
+    { href: "#opportunities", icon: "opps", color: "linear-gradient(135deg,#102c49,#2d6aa3)", title: "Opportunity Match",
+      text: "Internships and entry-level roles at Think Tank organizations, with the member who works there for a warm intro." },
+    { href: "#directory", icon: "tank", color: "linear-gradient(135deg,#7a4d00,#f4b942)", title: "Think Tank",
+      text: "Browse the CISOs, directors, and leaders who volunteer their time. Search by employer, school, skill, or hobby." },
+    { href: "#calendar", icon: "events", color: "linear-gradient(135deg,#5b2c86,#a46fd6)", title: "Events",
+      text: "Think Tank Talks and monthly intern huddles, with RSVPs and calendar reminders." },
+    { href: "#cohort", icon: "cohort", color: "linear-gradient(135deg,#1f8a4c,#5bc98a)", title: "Cohort",
+      text: "Meet your fellow interns: schools, interests, hobbies, and how to say hi." },
+  ];
+  let HOME_LOADED = false;
+  async function loadHome() {
+    $("#home-hello").innerHTML = ME ? `Welcome, <span class="hl">${esc(ME.first_name)}.</span>` : `Welcome to the <span class="hl">Intern Summit Hub.</span>`;
+    $("#home-tools").innerHTML = TOOLS.map((t) => `<a class="tool-card" href="${t.href}">
+        <div class="tool-icon" style="--tool:${t.color}">${ICONS[t.icon]}</div>
+        <h3>${esc(t.title)}</h3><p>${esc(t.text)}</p><span class="go">Open →</span></a>`).join("");
+    renderHomeProfile();
+    if (HOME_LOADED) return;
+    const [events, opps] = await Promise.all([api("/api/events?include_past=true").catch(() => []), api("/api/opportunities").catch(() => null)]);
+    HOME_LOADED = true;
+    const now = new Date(), year = String(now.getFullYear());
+    const upcoming = events.filter((e) => new Date(e.ends_at) >= now);
+    const thisYear = events.filter((e) => e.starts_at.startsWith(year)).length;
+    const stat = (n, label) => `<div class="home-stat"><b>${n}</b><span>${esc(label)}</span></div>`;
+    $("#home-stats").innerHTML = [
+      stat(META.people_count, "Think Tank and Emeritus leaders"),
+      stat(opps ? opps.employers.length + (opps.no_feed || []).length : "—", "member organizations"),
+      stat(opps ? opps.postings.length : "—", "open roles for interns"),
+      stat(thisYear, `events in ${year}`),
+    ].join("");
+    const next = upcoming[0];
+    if (next) {
+      const d = new Date(next.starts_at);
+      $("#home-next").innerHTML = `<div class="home-event"><div class="datebox"><div class="dow">${esc(d.toLocaleString([], { weekday: "short" }))}</div><div class="day">${d.getDate()}</div><div class="mon">${esc(d.toLocaleString([], { month: "short" }))}</div></div>
+        <div><h3>${esc(next.title)}</h3><div class="muted small">${esc(timeRange(next))}${next.location ? ` · ${esc(next.location)}` : ""}</div>
+        <a class="btn small" href="#calendar" style="margin-top:8px">See all events</a></div></div>`;
+    } else {
+      $("#home-next").innerHTML = `<p class="muted" style="margin:8px 0 10px">No upcoming events right now. New Think Tank Talks and huddles show up here as soon as they're scheduled.</p><a class="btn small" href="#calendar">See past events</a>`;
+    }
+  }
+  function renderHomeProfile() {
+    if (!ME) { $("#home-profile").innerHTML = `<p class="muted" style="margin:8px 0 0">Sign in as an intern to see your profile here.</p>`; return; }
+    const steps = [
+      ["Add a profile photo", !!ME.photo_url],
+      ["Add your LinkedIn", !!ME.linkedin_url],
+      ["Share your interests and hobbies", !!(ME.interests && ME.hobbies)],
+      ["Upload your resume for sharper matches", !!ME.resume_uploaded_at],
+    ];
+    const done = steps.filter((x) => x[1]).length, pct = Math.round((done / steps.length) * 100);
+    $("#home-profile").innerHTML = `<div class="meter-bar"><i style="width:${pct}%"></i></div>
+      <div class="small muted" style="margin-bottom:6px">${pct}% complete</div>
+      <ul class="todo">${steps.map(([t, ok]) => `<li class="${ok ? "done" : ""}">${ok ? "✓" : "○"} ${esc(t)}</li>`).join("")}</ul>
+      <button class="btn small primary" type="button" id="home-edit-profile">Update my profile</button>`;
+    $("#home-edit-profile").addEventListener("click", () => $("#edit-me-btn").click());
+  }
 
   // ---------- calendar ----------
   async function loadEvents() {

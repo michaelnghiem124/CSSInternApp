@@ -14,7 +14,7 @@
 <body>
   <header class="topbar">
     <div class="wrap topbar-inner">
-      <a class="brand" href="#match" aria-label="Intern Summit Hub home">
+      <a class="brand" href="#home" aria-label="Intern Summit Hub home">
         <img class="brand-logo" src="https://www.cybersecuritysummit.org/wp-content/uploads/2024/05/CS_SUMMIT_Logotag_reverse_hi-res-768x203.png" alt="Cyber Security Summit" referrerpolicy="no-referrer" onerror="this.replaceWith(Object.assign(document.createElement('strong'),{textContent:'Cyber Security Summit'}))">
         <span class="brand-tag">Intern Summit Hub</span>
       </a>
@@ -138,6 +138,41 @@
   <div id="notices" class="wrap"></div>
 
   <main class="wrap" id="app-main" hidden>
+    <!-- ============ HOME ============ -->
+    <section id="tab-home" class="tab" hidden>
+      <div class="home-hero">
+        <div class="home-hero-text">
+          <div class="eyebrow">Cyber Security Summit · Intern Program</div>
+          <h1 id="home-hello">Welcome to the <span class="hl">Intern Summit Hub.</span></h1>
+          <p>Your front door to the Think Tank: meet the leaders shaping cybersecurity in Minnesota, find roles where you already have a connection, and keep up with every event.</p>
+          <div class="home-cta">
+            <a class="btn neon" href="#match">Find who to meet</a>
+            <a class="btn outline-light" href="#opportunities">Explore open roles</a>
+          </div>
+        </div>
+        <svg class="home-net" viewBox="0 0 320 240" aria-hidden="true">
+          <g class="edges">
+            <line x1="160" y1="120" x2="60" y2="50"/><line x1="160" y1="120" x2="270" y2="45"/><line x1="160" y1="120" x2="40" y2="170"/>
+            <line x1="160" y1="120" x2="280" y2="185"/><line x1="160" y1="120" x2="165" y2="20"/><line x1="160" y1="120" x2="150" y2="220"/>
+            <line x1="60" y1="50" x2="165" y2="20"/><line x1="270" y1="45" x2="280" y2="185"/><line x1="40" y1="170" x2="150" y2="220"/>
+          </g>
+          <g class="nodes">
+            <circle cx="60" cy="50" r="7"/><circle cx="270" cy="45" r="9"/><circle cx="40" cy="170" r="6"/>
+            <circle cx="280" cy="185" r="8"/><circle cx="165" cy="20" r="5"/><circle cx="150" cy="220" r="6"/>
+          </g>
+          <circle class="hub-ring" cx="160" cy="120" r="30"/><circle class="hub" cx="160" cy="120" r="20"/>
+        </svg>
+        <div class="home-stats" id="home-stats"></div>
+      </div>
+
+      <div class="home-grid" id="home-tools"></div>
+
+      <div class="home-lower">
+        <div class="card home-next"><div class="lbl small muted">Up next</div><div id="home-next"></div></div>
+        <div class="card home-profile"><div class="lbl small muted">Your profile</div><div id="home-profile"></div></div>
+      </div>
+    </section>
+
     <!-- ============ MENTOR MATCH ============ -->
     <section id="tab-match" class="tab" hidden>
       <div class="hero">
@@ -184,11 +219,10 @@
 
     <!-- ============ DIRECTORY ============ -->
     <section id="tab-directory" class="tab" hidden>
-      <div class="section-head">
-        <div>
-          <h1>Think Tank directory</h1>
-          <p class="muted">Bios as published on cybersecuritysummit.org. Click anyone for the full bio.</p>
-        </div>
+      <div class="hero">
+        <div class="eyebrow">Intern Program · Think Tank</div>
+        <h1>The leaders <span class="hl">behind the Summit.</span></h1>
+        <p>Think Tank and Emeritus members, with bios as published on cybersecuritysummit.org. Click anyone for the full bio.</p>
       </div>
       <div class="filters">
         <input type="search" id="dir-q" placeholder="Search names, employers, schools, skills, hobbies…" aria-label="Search">
@@ -206,11 +240,10 @@
 
     <!-- ============ CALENDAR ============ -->
     <section id="tab-calendar" class="tab" hidden>
-      <div class="section-head">
-        <div>
-          <h1>Events</h1>
-          <p class="muted">Think Tank Talks with CISOs and leaders who give their time to interns, plus monthly intern huddles with the Program Co-Chairs. Times are Minneapolis (Central).</p>
-        </div>
+      <div class="hero">
+        <div class="eyebrow">Intern Program · Events</div>
+        <h1>Talks, huddles, and <span class="hl">the Summit.</span></h1>
+        <p>Think Tank Talks with CISOs and leaders who give their time to interns, plus monthly intern huddles with the Program Co-Chairs. Times are Minneapolis (Central).</p>
       </div>
       <div id="event-list"></div>
       <div id="past-talks"></div>
@@ -267,12 +300,13 @@
 
     <!-- ============ COHORT ============ -->
     <section id="tab-cohort" class="tab" hidden>
-      <div class="section-head">
+      <div class="hero hero-row">
         <div>
-          <h1>Your intern cohort</h1>
-          <p class="muted">Interns who chose to share their profile. Say hi on Slack or LinkedIn.</p>
+          <div class="eyebrow">Intern Program · Cohort</div>
+          <h1>Your <span class="hl">intern cohort.</span></h1>
+          <p>Interns who chose to share their profile. Say hi on Slack or LinkedIn.</p>
         </div>
-        <div class="head-actions"><button class="btn" type="button" id="edit-me-btn">Edit my profile</button></div>
+        <div class="head-actions"><button class="btn outline-light" type="button" id="edit-me-btn">Edit my profile</button></div>
       </div>
       <div class="filters cohort-filters">
         <input type="search" id="cohort-q" placeholder="Search names, schools, interests, hobbies…" aria-label="Search cohort">
