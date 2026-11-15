@@ -105,6 +105,32 @@
         ${e.prep_note ? `· ${esc(e.prep_note)}` : ""}</span> <a href="#calendar">Details</a></div>`).join("");
   }
 
+  // ---------- calendar subscription ----------
+  // Each person gets a private feed link that calendar apps poll, so talks stay current.
+  const calDialog = $("#cal-dialog");
+  function showCalLink(r) {
+    $("#cal-url").value = r.url;
+    $("#cal-webcal").href = r.webcal_url;
+    $("#cal-google").href = `https://calendar.google.com/calendar/render?cid=${encodeURIComponent(r.webcal_url)}`;
+    $("#cal-local").hidden = r.public;
+  }
+  $("#cal-subscribe-btn").addEventListener("click", async () => {
+    try { showCalLink(await api("/api/me/calendar-link")); calDialog.showModal(); }
+    catch (err) { toast(err.message); }
+  });
+  $(".dialog-close", calDialog).addEventListener("click", () => calDialog.close());
+  calDialog.addEventListener("click", (e) => { if (e.target === calDialog) calDialog.close(); });
+  $("#cal-copy").addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText($("#cal-url").value); toast("Link copied"); }
+    catch { $("#cal-url").select(); toast("Press Cmd+C to copy"); }
+  });
+  $("#cal-reset").addEventListener("click", async () => {
+    calDialog.close();
+    const ok = await modal({ title: "Reset your calendar link?", body: "Calendars subscribed with the old link stop updating. You'll need to add the new link again.", ok: "Reset link", danger: true });
+    if (ok) { try { showCalLink(await api("/api/me/calendar-link/reset", { method: "POST" })); toast("New link created"); } catch (err) { toast(err.message); } }
+    calDialog.showModal();
+  });
+
   // ---------- person dialog ----------
   const dialog = $("#person-dialog");
   $(".dialog-close", dialog).addEventListener("click", () => dialog.close());

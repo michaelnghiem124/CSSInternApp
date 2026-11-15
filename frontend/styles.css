@@ -596,3 +596,11 @@ label.check-inline input { width: auto; margin: 0; }
   .ox-status { font-size: .78rem; padding: 6px 10px; bottom: 10px; }
 }
 @media (prefers-reduced-motion: reduce) { .ox-stage *, .ox-stage *::before { animation: none !important; transition: none !important; } }
+
+/* Calendar subscription dialog */
+.cal-link { display: flex; gap: 8px; margin: 12px 0; }
+.cal-link input { flex: 1; font: 13px/1.4 "JetBrains Mono", SFMono-Regular, Menlo, monospace; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--ink); }
+.cal-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.cal-help { margin: 8px 0; }
+.cal-help summary { cursor: pointer; font-weight: 600; color: var(--accent-ink); }
+.cal-note { background: #fff7e3; border-left: 4px solid var(--gold); border-radius: 0 10px 10px 0; padding: 9px 12px; font-size: .86rem; color: #5a4200; margin: 4px 0 10px; }

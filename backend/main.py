@@ -8,6 +8,7 @@ from __future__ import annotations
 import csv
 import io
 import logging
+import os
 import re
 import time
 import zipfile
@@ -905,19 +906,54 @@ def _vevent(e: dict) -> str:
     return "\r\n".join(lines)
 
 
-def _calendar(evts: list[dict]) -> PlainTextResponse:
+def _calendar(evts: list[dict], subscribe: bool = False) -> PlainTextResponse:
+    # A subscribed feed asks calendar apps to re-check every 6 hours (Apple and Outlook honor
+    # this; Google refreshes on its own schedule, usually within a day).
+    refresh = ["REFRESH-INTERVAL;VALUE=DURATION:PT6H", "X-PUBLISHED-TTL:PT6H"] if subscribe else []
     body = "\r\n".join(["BEGIN:VCALENDAR", "VERSION:2.0",
-                        "PRODID:-//Intern Summit Hub//EN", "CALSCALE:GREGORIAN",
+                        "PRODID:-//Intern Summit Hub//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH",
                         "X-WR-CALNAME:Intern Summit Hub - Think Tank Talks",
+                        "X-WR-TIMEZONE:America/Chicago", *refresh,
                         VTIMEZONE.replace("\n", "\r\n"), *(_vevent(e) for e in evts),
                         "END:VCALENDAR"]) + "\r\n"
+    disposition = 'inline; filename="css-talks.ics"' if subscribe else 'attachment; filename="css-talks.ics"'
     return PlainTextResponse(body, media_type="text/calendar",
-                             headers={"Content-Disposition": 'attachment; filename="css-talks.ics"'})
+                             headers={"Content-Disposition": disposition, "Cache-Control": "no-cache"})
 
 
 @app.get("/api/calendar.ics", dependencies=[Depends(auth.require_user)])
 def calendar_feed():
     return _calendar(db.list_events(upcoming_only=True))
+
+
+# Live subscription: a private link per person that calendar apps poll. It carries every talk
+# from the last 90 days onward, so past talks stay on the calendar and changes flow through.
+_CAL_TOKEN_RE = re.compile(r"[A-Za-z0-9_-]{24,64}")
+
+
+def _calendar_links(request: Request, token: str) -> dict:
+    base = (os.environ.get("PUBLIC_BASE_URL") or str(request.base_url)).rstrip("/")
+    https_url = f"{base}/api/calendar/{token}.ics"
+    return {"url": https_url, "webcal_url": re.sub(r"^https?://", "webcal://", https_url),
+            "public": not re.search(r"//(localhost|127\.0\.0\.1|\[::1\])", base)}
+
+
+@app.get("/api/me/calendar-link")
+def my_calendar_link(request: Request, user: Annotated[dict, Depends(auth.require_user)]):
+    return _calendar_links(request, db.calendar_token(user["id"]))
+
+
+@app.post("/api/me/calendar-link/reset")
+def reset_calendar_link(request: Request, user: Annotated[dict, Depends(auth.require_user)]):
+    return _calendar_links(request, db.calendar_token(user["id"], reset=True))
+
+
+@app.get("/api/calendar/{token}.ics")
+def subscribed_calendar(token: str):
+    if not _CAL_TOKEN_RE.fullmatch(token) or not db.calendar_token_valid(token):
+        raise HTTPException(404, "Unknown calendar link. Get a new one from the Talks tab.")
+    since = (datetime.now() - timedelta(days=90)).strftime("%Y-%m-%dT%H:%M")
+    return _calendar([e for e in db.list_events() if e["ends_at"] >= since], subscribe=True)
 
 
 @app.get("/api/events/{event_id}.ics", dependencies=[Depends(auth.require_user)])

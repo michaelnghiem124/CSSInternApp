@@ -227,6 +227,7 @@ MIGRATIONS = {
         "background_summary": "TEXT NOT NULL DEFAULT ''",  # short bio, e.g. from the roster
         "email_pending": "INTEGER NOT NULL DEFAULT 0",     # imported with a placeholder login
         "admin_edited_at": "TEXT",                         # last time the Program Lead edited the profile
+        "calendar_token": "TEXT",                          # private calendar-subscription link (v2.13)
     },
 }
 
@@ -237,6 +238,8 @@ def _migrate(c: sqlite3.Connection) -> None:
         for name, decl in cols.items():
             if name not in have:
                 c.execute(f"ALTER TABLE {table} ADD COLUMN {name} {decl}")
+    c.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_calendar_token ON users(calendar_token) "
+              "WHERE calendar_token IS NOT NULL")
     # v2.2: the intern-facing agents were renamed to Mentor Match.
     for old, new in (("matchmaker", "mentor_matcher"), ("profile_reader", "mentor_profile_reader")):
         c.execute("UPDATE usage_log SET agent = ? WHERE agent = ?", (new, old))
@@ -428,6 +431,42 @@ def update_user(user_id: int, data: dict[str, Any]) -> None:
     with conn() as c:
         c.execute(f"UPDATE users SET {', '.join(f'{k} = ?' for k in keys)}, updated_at = ? WHERE id = ?",
                   (*(_user_val(k, data[k]) for k in keys), _now(), user_id))
+
+
+# ---------------------------------------------------------------------------
+# Calendar subscription links. Calendar apps (Google, Apple, Outlook) can't sign in, so each
+# person gets a long random token in the feed URL. Anyone with the link sees the talk calendar
+# (no intern data is in it); resetting the link revokes the old one.
+# ---------------------------------------------------------------------------
+_ADMIN_CAL_KEY = "admin_calendar_token"
+
+
+def calendar_token(user_id: int, reset: bool = False) -> str:
+    import secrets  # noqa: PLC0415
+    if user_id == 0:  # the Program Lead has no users row
+        tok = get_setting(_ADMIN_CAL_KEY)
+        if reset or not tok:
+            tok = secrets.token_urlsafe(24)
+            set_setting(_ADMIN_CAL_KEY, tok)
+        return tok
+    with conn() as c:
+        row = c.execute("SELECT calendar_token FROM users WHERE id = ?", (user_id,)).fetchone()
+        if row is None:
+            raise KeyError(user_id)
+        tok = row[0]
+        if reset or not tok:
+            tok = secrets.token_urlsafe(24)
+            c.execute("UPDATE users SET calendar_token = ? WHERE id = ?", (tok, user_id))
+        return tok
+
+
+def calendar_token_valid(token: str) -> bool:
+    import hmac  # noqa: PLC0415
+    admin_tok = get_setting(_ADMIN_CAL_KEY)
+    if admin_tok and hmac.compare_digest(admin_tok, token):
+        return True
+    with conn() as c:
+        return c.execute("SELECT 1 FROM users WHERE calendar_token = ?", (token,)).fetchone() is not None
 
 
 def get_user(user_id: int) -> dict[str, Any] | None:

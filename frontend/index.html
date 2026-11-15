@@ -212,7 +212,8 @@
           <p class="muted">CISOs and Think Tank members who are giving their time to interns. Times are Minneapolis (Central).</p>
         </div>
         <div class="head-actions">
-          <a class="btn" id="subscribe-btn" href="/api/calendar.ics" download>Add all to my calendar</a>
+          <button class="btn primary" id="cal-subscribe-btn" type="button">Subscribe in my calendar</button>
+          <a class="btn ghost" id="subscribe-btn" href="/api/calendar.ics" download title="A one-time copy that won't update">Download .ics</a>
         </div>
       </div>
       <div id="event-list"></div>
@@ -578,6 +579,28 @@
         <button class="btn ghost" type="button" id="confirm-cancel">Cancel</button>
         <button class="btn primary" type="button" id="confirm-ok">OK</button>
       </div>
+    </div>
+  </dialog>
+
+  <dialog id="cal-dialog" class="dialog" style="width:min(620px,94vw)">
+    <button class="dialog-close" type="button" aria-label="Close">×</button>
+    <div style="padding:26px">
+      <h2 style="margin-top:0">Subscribe to Think Tank Talks</h2>
+      <p class="muted">Add this private link to your calendar once. New talks, time changes, and cancellations then show up on their own, with reminders a day and an hour before.</p>
+      <div class="cal-link"><input id="cal-url" type="text" readonly aria-label="Your private calendar link"><button class="btn" id="cal-copy" type="button">Copy</button></div>
+      <div class="cal-actions">
+        <a class="btn primary" id="cal-google" target="_blank" rel="noopener">Add to Google Calendar</a>
+        <a class="btn" id="cal-webcal">Open in Apple Calendar / Outlook</a>
+      </div>
+      <div class="cal-note" id="cal-local" hidden>This Hub is running on this computer (localhost), so Google Calendar and Outlook on the web can't reach the link yet. Apple Calendar on this Mac can. Once the Hub is deployed, the same button gives a link that works everywhere.</div>
+      <details class="cal-help"><summary>Step-by-step instructions</summary>
+        <ul class="small">
+          <li><b>Google Calendar:</b> click <i>Add to Google Calendar</i>, or on calendar.google.com choose <i>Other calendars → + → From URL</i> and paste the link. Google refreshes it on its own schedule, usually within a day.</li>
+          <li><b>Apple Calendar (Mac, iPhone):</b> click <i>Open in Apple Calendar</i>, or choose <i>File → New Calendar Subscription</i> and paste the link. Set <i>Auto-refresh</i> to every hour.</li>
+          <li><b>Outlook:</b> choose <i>Add calendar → Subscribe from web</i> and paste the link.</li>
+        </ul>
+      </details>
+      <p class="fine">Anyone with this link can see the talk schedule (not your profile). If you shared it by mistake, <button class="linkish" id="cal-reset" type="button">reset the link</button>; the old one stops working.</p>
     </div>
   </dialog>
 
