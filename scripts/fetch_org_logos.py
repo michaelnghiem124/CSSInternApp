@@ -11,11 +11,12 @@ inside this internal program tool and are not committed to the repository.
 from __future__ import annotations
 
 import re
+import sqlite3
 import time
 import urllib.parse
 import urllib.request
 
-from backend import config, db
+from backend import config
 from backend.opportunities import SOURCES, USER_AGENT
 
 SITES = {
@@ -81,11 +82,16 @@ def icon_candidates(base: str, html: str) -> list[str]:
 def main(only: set[str] | None = None) -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     # Feed employers, plus employers currently listed through the Adzuna aggregator.
-    try:
-        with db.conn() as c:
-            via_adzuna = [r[0] for r in c.execute("SELECT DISTINCT org FROM job_postings WHERE platform = 'adzuna' AND active = 1")]
-    except Exception:  # noqa: BLE001  (no database yet, e.g. a fresh deploy)
-        via_adzuna = []
+    # Read-only, and only if the database already exists: this script runs during Render's build,
+    # and opening a missing database would create an empty file that stops data/seed.db being used.
+    via_adzuna = []
+    if config.DB_PATH.exists():
+        try:
+            con = sqlite3.connect(f"file:{config.DB_PATH}?mode=ro", uri=True)
+            via_adzuna = [r[0] for r in con.execute("SELECT DISTINCT org FROM job_postings WHERE platform = 'adzuna' AND active = 1")]
+            con.close()
+        except sqlite3.Error:
+            pass
     for src in [s for s in SOURCES if not s.get("aggregator")] + [{"org": o, "platform": "adzuna"} for o in via_adzuna]:
         if only and src["org"] not in only:
             continue

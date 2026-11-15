@@ -912,3 +912,11 @@ input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 4px rgba(4,105,141
 /* The "no openings" rail keeps its own layout after a run (only greyed, never moved or shrunk). */
 .ox-stage.done .ox-rail .ox-org { transform: none; }
 @media (max-width: 700px) { .ox-stage.done .ox-orgs .ox-org.dim { opacity: .18; } }
+
+/* Past events: same card as upcoming ones, a little quieter. */
+.event.past { box-shadow: none; }
+.event.past .datebox { background: #34506b; }
+.event.past .datebox .dow { color: #b9d3e3; }
+.event.past.is-huddle .datebox { background: #6b5320; }
+.event.past.is-huddle .datebox .dow { color: #ffe3a1; }
+.badge.past { background: #eef2f6; color: #5b6f82; }

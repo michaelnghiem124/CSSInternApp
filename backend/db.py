@@ -252,7 +252,8 @@ def _copy_seed() -> None:
     """A brand-new server (a fresh clone, or Render's free plan, whose disk resets on every
     restart) starts from data/seed.db: the public copy made by scripts.export_public_db, with
     events and job postings but no intern data. An existing database is never touched."""
-    if DB_PATH.exists() or not SEED_DB.exists():
+    # An empty (0-byte) file counts as missing: something only opened the path without creating tables.
+    if (DB_PATH.exists() and DB_PATH.stat().st_size > 0) or not SEED_DB.exists():
         return
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     src = sqlite3.connect(SEED_DB)

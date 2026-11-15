@@ -453,21 +453,29 @@
     }));
   }
 
+  // Past events use the same card as upcoming ones (date tile on the left, large title), grouped by
+  // month, newest first, with a "Past" badge and no RSVP buttons.
   function renderPast(past) {
     const talks = past.filter((e) => e.kind !== "Intern huddle").length, huddles = past.length - talks;
     const counts = [talks ? `${talks} Think Tank Talk${talks === 1 ? "" : "s"}` : "", huddles ? `${huddles} intern huddle${huddles === 1 ? "" : "s"}` : ""].filter(Boolean).join(" and ");
+    let month = "";
     $("#past-talks").innerHTML = past.length ? `<div class="section-head past-head"><div><h2>Past events</h2>
         <p class="muted">${counts} this program year. Click a speaker for their bio.</p></div></div>
-      <div class="past-list">${past.map((e) => {
+      ${past.map((e) => {
         const d = new Date(e.starts_at), huddle = e.kind === "Intern huddle";
-        const who = huddle
-          ? `<span class="speaker static huddle">🤝 Intern monthly huddle${e.location ? ` · ${esc(e.location)}` : ""}</span>`
-          : e.speakers.length
-          ? e.speakers.map((sp) => `<button class="speaker" type="button" data-person="${esc(sp.slug)}">${avatar(sp, "sm")}${esc(sp.name)}</button>`).join("")
-          : `<span class="speaker static">${esc(e.title.replace(/^Think Tank Talk:\s*/, ""))}</span>`;
-        return `<div class="past-talk${huddle ? " is-huddle" : ""}"><div class="past-date">${esc(d.toLocaleString([], { month: "short", day: "numeric" }))}<small>${esc(d.toLocaleString([], { year: "numeric" }))}</small></div>
-          <div><div class="speakers">${who}</div><div class="muted small">${esc(e.description)}</div></div></div>`;
-      }).join("")}</div>` : "";
+        const m = d.toLocaleString([], { month: "long", year: "numeric" });
+        const head = m !== month ? `<div class="month">${esc(m)}</div>` : ""; month = m;
+        const title = huddle ? "Intern monthly huddle" : e.title.replace(/^Think Tank Talk:\s*/, "");
+        return `${head}<article class="event past${huddle ? " is-huddle" : ""}">
+          <div class="datebox"><div class="dow">${esc(d.toLocaleString([], { weekday: "short" }))}</div><div class="day">${d.getDate()}</div><div class="mon">${esc(d.toLocaleString([], { month: "short" }))}</div></div>
+          <div>
+            <div class="badges"><span class="badge ${huddle ? "huddle" : ""}">${esc(e.kind)}</span><span class="badge past">Past</span></div>
+            <h3>${esc(title)}</h3>
+            <div class="meta"><span>🕒 ${esc(timeRange(e))}</span>${e.location ? `<span>📍 ${esc(e.location)}</span>` : ""}</div>
+            ${e.speakers.length ? `<div class="speakers">${e.speakers.map((sp) => `<button class="speaker" type="button" data-person="${esc(sp.slug)}">${avatar(sp, "sm")}${esc(sp.name)}${sp.org ? ` <span class="muted">· ${esc(sp.org)}</span>` : ""}</button>`).join("")}</div>` : ""}
+            ${e.description && !huddle ? `<p>${esc(e.description)}</p>` : e.description ? `<p class="muted">${esc(e.description)}</p>` : ""}
+          </div></article>`;
+      }).join("")}` : "";
   }
 
   // ---------- admin: one-time database restore ----------
