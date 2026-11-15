@@ -319,6 +319,24 @@ h3.sub { font-size: .85rem; margin: 18px 0 8px; color: var(--navy-2); }
 .table tr.clickable { cursor: pointer; }
 .table tr.clickable:hover td { background: #f6fafd; }
 
+/* Phones: the brand on one line, then every tab in a single row that scrolls sideways,
+   so the sticky header stays about 100px tall instead of three wrapped rows. */
+@media (max-width: 700px) {
+  .topbar-inner { gap: 4px 12px; min-height: 0; padding: 8px 16px 2px; }
+  .brand { gap: 8px; } .brand-logo { height: 28px; } .brand-tag { font-size: .66rem; padding: 2px 7px; }
+  .topbar .tabs { flex-wrap: nowrap; overflow-x: auto; width: calc(100% + 32px); margin: 0 -16px; padding: 4px 16px 8px;
+    scrollbar-width: none; -webkit-overflow-scrolling: touch; scroll-padding: 0 16px; }
+  .topbar .tabs::-webkit-scrollbar { display: none; }
+  .topbar .tabs a { flex: none; white-space: nowrap; padding: 7px 12px; font-size: .84rem; }
+  .topbar .who { flex: none; white-space: nowrap; margin-left: 4px; }
+  /* iPhone Safari zooms the page in when a field under 16px gets focus, and stays zoomed. */
+  input:not([type=checkbox]):not([type=radio]):not([type=file]), textarea, select { font-size: 16px !important; }
+  /* Page banners: compact, so each tool starts on the first screen. */
+  .hero { padding: 16px 18px; margin-bottom: 14px; border-radius: 16px; }
+  .hero .eyebrow { font-size: .62rem; margin-bottom: 4px; }
+  .hero h1 { font-size: 1.3rem; margin-bottom: 6px; }
+  .hero p { font-size: .86rem; line-height: 1.45; }
+}
 @media (max-width: 900px) {
   .gate-inner { grid-template-columns: 1fr; }
   .gate-intro h1 { font-size: 1.8rem; }
@@ -564,7 +582,7 @@ label.check-inline input { width: auto; margin: 0; }
 .ox-rail .ox-name { margin: 0; font-size: .68rem; }
 .ox-rail .ox-meta { display: none; }
 .ox-rail .ox-org.scan { transform: none; background: rgba(33,254,254,.12); }
-@media (max-width: 760px) { .ox-rail { width: 128px; } }
+@media (max-width: 760px) and (min-width: 701px) { .ox-rail { width: 128px; } }
 .ox-nofeed { margin: 12px 2px 4px; }
 .ox-nofeed .lbl { margin-bottom: 6px; }
 .ox-nofeed .chips { gap: 6px; }
@@ -592,11 +610,31 @@ label.check-inline input { width: auto; margin: 0; }
 .ox-fit b { color: var(--ink); }
 #ox-go.busy { opacity: .7; pointer-events: none; }
 @media (max-width: 700px) {
-  .ox-stage { height: 660px; }
-  .ox-org { width: 74px; } .ox-logo { width: 42px; height: 42px; font-size: .74rem; border-radius: 11px; }
-  .ox-name { font-size: .62rem; } .ox-me { width: 84px; height: 84px; }
-  .ox-domains { width: 200px; } .ox-ask { flex-direction: column; }
-  .ox-status { font-size: .78rem; padding: 6px 10px; bottom: 10px; }
+  /* Phones: the ring uses the full width; the legend is one line at the top and the
+     "no openings" list a sideways-scrolling strip above the status bar (oxLayout reads both). */
+  .ox-stage, .ox-stage.dense { height: 600px; border-radius: 16px; }
+  .ox-org, .ox-stage.dense .ox-org { width: 68px; }
+  .ox-logo, .ox-stage.dense .ox-logo { width: 40px; height: 40px; font-size: .7rem; border-radius: 10px; }
+  .ox-logo.wide, .ox-stage.dense .ox-logo.wide { width: 60px; }
+  .ox-name, .ox-stage.dense .ox-name { font-size: .6rem; margin-top: 4px; }
+  .ox-meta { font-size: .6rem; }
+  .ox-tt { top: -6px; right: -6px; min-width: 16px; height: 16px; line-height: 14px; font-size: .58rem; }
+  .ox-org.scan, .ox-org.match { transform: translate(-50%, -50%) scale(1.06); }
+  .ox-me { width: 64px; height: 64px; font-size: 1.3rem; }
+  .ox-me-name { font-size: .72rem; top: calc(100% + 5px); }
+  .ox-domains { width: 150px; top: calc(100% + 24px); }
+  .ox-dom { font-size: .58rem; padding: 2px 6px; }
+  .ox-dom:nth-child(n+3) { display: none; }
+  .ox-legend { left: 10px; right: 10px; top: 10px; flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 4px 12px; padding: 6px 8px; font-size: .62rem; }
+  .ox-legend .ox-tt { min-width: 14px; height: 14px; line-height: 12px; font-size: .52rem; }
+  .ox-rail { top: auto; right: 10px; left: 10px; bottom: 58px; width: auto; display: flex; gap: 6px; overflow-x: auto; overflow-y: hidden;
+    padding: 22px 8px 8px; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; }
+  .ox-rail h4 { position: absolute; top: 6px; left: 12px; margin: 0; font-size: .56rem; }
+  .ox-rail .ox-org { flex: none; flex-direction: column; width: 64px; gap: 4px; padding: 4px 2px; text-align: center; scroll-snap-align: start; }
+  .ox-rail .ox-name { font-size: .56rem; line-height: 1.1; max-height: 2.2em; overflow: hidden; }
+  .ox-ask { flex-direction: column; }
+  .ox-status { font-size: .76rem; padding: 6px 10px; bottom: 10px; width: calc(100% - 20px); }
+  .ox-matches { grid-template-columns: 1fr; }
 }
 @media (prefers-reduced-motion: reduce) { .ox-stage *, .ox-stage *::before { animation: none !important; transition: none !important; } }
 
@@ -675,6 +713,15 @@ label.check-inline input { width: auto; margin: 0; }
   .home-orbit { grid-row: 1; max-width: 190px; }
   .home-hero h1 { font-size: 1.8rem; }
   .home-stats { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 700px) {
+  /* Phones: a compact banner so the tool cards start sooner. */
+  .home-hero { padding: 18px 18px 16px; gap: 10px; }
+  .home-orbit { max-width: 150px; }
+  .home-hero h1 { font-size: 1.55rem; }
+  .home-hero p { font-size: .9rem; margin-bottom: 14px; }
+  .home-cta .btn { flex: 1 1 auto; text-align: center; }
+  .home-stat { padding: 10px 12px; } .home-stat b { font-size: 1.3rem; }
   .home-lower { grid-template-columns: 1fr; }
 }
 

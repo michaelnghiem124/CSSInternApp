@@ -603,8 +603,16 @@ class ExploreBody(BaseModel):
     question: str = Field(min_length=3, max_length=500)
 
 
+def _usage_for(request: Request, report) -> dict | None:
+    """Model, token, tool, and cost details for one AI run: shown to the admin only, never sent
+    to interns. Every run is still logged in usage_log either way."""
+    if report is None or not auth.is_admin(request):
+        return None
+    return report if isinstance(report, dict) else report.__dict__
+
+
 @app.post("/api/opportunities/explore")
-async def explore_opportunities(body: ExploreBody, session: Annotated[str, Depends(session_key)],
+async def explore_opportunities(body: ExploreBody, request: Request, session: Annotated[str, Depends(session_key)],
                                 user: Annotated[dict, Depends(auth.require_user)]):
     """Opportunities Explorer: streams NDJSON events (profile, one per employer, thinking, done)."""
     st = state_for(session, user)
@@ -622,6 +630,8 @@ async def explore_opportunities(body: ExploreBody, session: Annotated[str, Depen
     async def events():
         try:
             async for ev in explorer.explore(question, user, st, session):
+                if "usage" in ev:
+                    ev = {**ev, "usage": _usage_for(request, ev["usage"])}
                 yield explorer.to_ndjson(ev)
         except UsageLimitExceeded:
             yield explorer.to_ndjson({"stage": "error", "message": "That question needed more work than one run allows. Try a narrower one."})
@@ -677,6 +687,7 @@ def _extract_text(name: str, data: bytes) -> str:
 
 @app.post("/api/profile")
 async def build_profile(
+    request: Request,
     session: Annotated[str, Depends(session_key)],
     user: Annotated[dict, Depends(auth.require_user)],
     intro: Annotated[str, Form()] = "",
@@ -728,7 +739,7 @@ async def build_profile(
         saved = True
     return {
         "profile": profile.model_dump(),
-        "usage": report.__dict__,
+        "usage": _usage_for(request, report),
         "screened_lines": removed,
         "chars_read": len(text),
         "saved": saved,
@@ -746,7 +757,7 @@ class ChatBody(BaseModel):
 
 
 @app.post("/api/chat")
-async def chat(body: ChatBody, session: Annotated[str, Depends(session_key)],
+async def chat(body: ChatBody, request: Request, session: Annotated[str, Depends(session_key)],
                user: Annotated[dict, Depends(auth.require_user)]):
     st = state_for(session, user)
     try:
@@ -788,7 +799,7 @@ async def chat(body: ChatBody, session: Annotated[str, Depends(session_key)],
         "events": events,
         "opportunities": suggested_jobs,
         "follow_ups": out.follow_ups,
-        "usage": report.__dict__,
+        "usage": _usage_for(request, report),
         "guardrail": "Removed instruction-like text from your message." if screened.flagged else None,
     }
 

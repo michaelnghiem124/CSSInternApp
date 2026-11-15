@@ -84,6 +84,9 @@
     const valid = tabs.includes(tab) ? tab : (META.is_admin && !ME ? "admin" : "home");
     $$(".tab").forEach((s) => (s.hidden = s.id !== "tab-" + valid));
     $$(".tabs a").forEach((a) => a.classList.toggle("active", a.dataset.tab === valid));
+    // On phones the tab row scrolls sideways; bring the active tab into view (no page scroll).
+    const nav = $("#app-nav"), on = $(".tabs a.active");
+    if (nav && on && nav.scrollWidth > nav.clientWidth) nav.scrollLeft = Math.max(0, on.offsetLeft - nav.offsetLeft - 16);
     if (valid === "home") loadHome();
     if (valid === "profile") loadProfilePage();
     if (valid === "calendar") loadEvents();
@@ -1383,11 +1386,20 @@
     const stage = $("#ox-stage"); if (!stage || stage.offsetParent === null) return;
     // The status bar takes the bottom ~56px. Tiles sit on an ellipse, spaced by equal arc
     // length (not equal angle) so they don't bunch up at the ends of a wide stage.
-    const reserve = Math.max(56, $("#ox-status").offsetHeight + 26);
-    const rail = $("#ox-rail"), railW = rail.hidden ? 0 : rail.offsetWidth + 28;
-    const fullW = stage.clientWidth, w = fullW - railW, h = stage.clientHeight, cx = w / 2, cy = (h - reserve) / 2;
+    // On phones the "no openings" rail is a strip along the bottom and the legend a line at the
+    // top, so the ring gets the full width and the space between them.
+    const phone = window.matchMedia("(max-width: 700px)").matches;
+    const rail = $("#ox-rail"), legend = $(".ox-legend", stage);
+    const statusH = $("#ox-status").offsetHeight;
+    let reserve = Math.max(56, statusH + 26);
+    rail.style.bottom = phone ? `${statusH + 18}px` : "";
+    if (phone && !rail.hidden) reserve += rail.offsetHeight + 10;
+    const top = phone ? legend.offsetHeight + 18 : 0;
+    const railW = phone || rail.hidden ? 0 : rail.offsetWidth + 28;
+    const fullW = stage.clientWidth, w = fullW - railW, h = stage.clientHeight, cx = w / 2, cy = top + (h - reserve - top) / 2;
     const tiles = $$("#ox-orgs .ox-org"), n = tiles.length;
-    const rx = Math.max(110, Math.min(w / 2 - 50, 470)), ry = Math.max(110, cy - 48);
+    const edge = phone ? 40 : 50, minR = phone ? 80 : 110;
+    const rx = Math.max(minR, Math.min(w / 2 - edge, 470)), ry = Math.max(minR, (h - reserve - top) / 2 - (phone ? 40 : 48));
     // Up to 16 employers: one ring. More: an outer and an inner ring, the inner one rotated
     // half a step so tiles interleave instead of lining up behind each other.
     const outer = n > 16 ? Math.ceil(n * 0.6) : n;
@@ -1463,7 +1475,11 @@
 
   const tileOf = (org) => $(`#ox-stage .ox-org[data-org="${CSS.escape(org)}"]`);
   const lineOf = (org) => $(`#ox-lines line[data-org="${CSS.escape(org)}"]`);
-  const status = (html) => ($("#ox-status").innerHTML = html);
+  const status = (html) => {
+    $("#ox-status").innerHTML = html;
+    // On phones the "no openings" strip sits just above the status text, which changes length.
+    if (window.matchMedia("(max-width: 700px)").matches) $("#ox-rail").style.bottom = `${$("#ox-status").offsetHeight + 18}px`;
+  };
 
   async function play(ev) {
     const stage = $("#ox-stage");
@@ -1627,7 +1643,8 @@
     $("#who-name").textContent = ME ? `${ME.first_name} ${ME.last_name}` : `${META.admin_name} · Admin`;
     $("#who-name").href = ME ? "#profile" : "#admin";
     $("#footer-admin").textContent = `${META.admin_name}, ${META.admin_title}`;
-    $("#model-note").textContent = META.llm_ready ? `AI: ${META.match_model} + ${META.fast_model}` : "AI offline: no API key";
+    // Which models run is an admin detail; interns only hear about it when the AI is offline.
+    $("#model-note").textContent = !META.llm_ready ? "AI offline: no API key" : META.is_admin ? `AI: ${META.match_model} + ${META.fast_model}` : "";
     META.sectors.forEach((s) => $("#dir-sector").insertAdjacentHTML("beforeend", `<option>${esc(s)}</option>`));
     PEOPLE = await api("/api/people");
     PEOPLE.forEach((p) => (PEOPLE_BY_SLUG[p.slug] = p));

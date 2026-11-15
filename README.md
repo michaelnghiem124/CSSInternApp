@@ -132,7 +132,7 @@ FastAPI (backend/main.py)
   - Only the intern and the Program Lead can see a saved resume (Admin → intern → **View resume**). The intern can delete it any time with **Remove** in Mentor Match.
   - The committee Fit Extractor uses the resume's skills and background when placing interns.
   - **Chat conversations are not saved.** They live in server memory for 3 hours.
-- **Cost controls.** The roster sits in the Mentor Matcher's instructions, which never change between requests, so the provider caches them (`cache=True`). Thinking effort is `low`. The cheap model reads resumes, so the expensive model never sees raw resume text. Every reply shows its own token counts and cost.
+- **Cost controls.** The roster sits in the Mentor Matcher's instructions, which never change between requests, so the provider caches them (`cache=True`). Thinking effort is `low`. The cheap model reads resumes, so the expensive model never sees raw resume text. For the admin, every reply shows its own model, token counts, tool calls, and cost; interns never receive these details (the server leaves them out of their responses).
 
 ## Admin agents
 
