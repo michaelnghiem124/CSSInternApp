@@ -25,7 +25,7 @@
         <a href="#calendar" data-tab="calendar" role="tab">Events <span class="pill" id="talk-count" hidden></span></a>
         <a href="#cohort" data-tab="cohort" role="tab">Cohort</a>
         <a href="#admin" data-tab="admin" role="tab" id="admin-tab" hidden>Admin</a>
-        <span class="who"><span id="who-name"></span><button type="button" id="signout-btn">Sign out</button></span>
+        <span class="who"><a id="who-name" href="#profile" title="Your profile"></a><button type="button" id="signout-btn">Sign out</button></span>
       </nav>
     </div>
   </header>
@@ -170,6 +170,64 @@
       <div class="home-lower">
         <div class="card home-next"><div class="lbl small muted">Up next</div><div id="home-next"></div></div>
         <div class="card home-profile"><div class="lbl small muted">Your profile</div><div id="home-profile"></div></div>
+      </div>
+    </section>
+
+    <!-- ============ PROFILE ============ -->
+    <section id="tab-profile" class="tab" hidden>
+      <div class="hero">
+        <div class="eyebrow">Intern Program · Your profile</div>
+        <h1>Make it easy to <span class="hl">get to know you.</span></h1>
+        <p>Your photo, LinkedIn, interests, and resume help Think Tank members and fellow interns connect with you, and make Mentor Match and Opportunity Match sharper.</p>
+      </div>
+      <p class="muted small" id="me-admin-edited" hidden></p>
+      <div class="profile-page">
+        <div class="profile-side">
+          <div class="card">
+            <h2 class="card-title">Resume</h2>
+            <div id="pp-resume"></div>
+            <label class="btn small" for="pp-resume-file" style="margin-top:10px">Upload a new resume</label>
+            <input type="file" id="pp-resume-file" accept=".pdf,.docx,.txt,.md" hidden>
+            <p class="fine">PDF, DOCX, or TXT, up to 2 MB. Only you and the Program Lead can see it. Uploading also refreshes your Mentor Match profile.</p>
+          </div>
+          <div class="card">
+      <form id="pw-form" class="form-grid pw-form">
+        <h2 class="card-title span2">Password</h2>
+        <label class="span2">Current password<input type="password" id="pw-current" autocomplete="current-password" required></label>
+        <label>New password<input type="password" id="pw-new" minlength="12" autocomplete="new-password" required placeholder="12+ characters"></label>
+        <label>Confirm new password<input type="password" id="pw-new2" minlength="12" autocomplete="new-password" required></label>
+        <div class="span2"><label class="show-pw"><input type="checkbox" data-show="pw-current,pw-new,pw-new2"> Show password</label><ul class="pw-rules" data-pw="pw-new" data-confirm="pw-new2" aria-live="polite"><li data-rule="len">At least 12 characters</li><li data-rule="email">Not your email address</li><li data-rule="notcurrent">Different from your current password</li><li data-rule="match">Both entries match</li></ul></div>
+        <div class="span2 form-actions"><button class="btn" type="submit">Change password</button><span class="error" id="pw-error" hidden></span></div>
+      </form>
+          </div>
+        </div>
+        <div class="card profile-main">
+          <h2 class="card-title">About you</h2>
+      <form id="me-form" class="form-grid">
+        <div class="span2 photo-pick">
+          <label class="photo-drop" for="me-photo"><img id="me-photo-preview" alt="" hidden><span id="me-photo-ph">📷</span></label>
+          <div><strong>Profile photo</strong><br><input type="file" id="me-photo" accept="image/jpeg,image/png,image/webp,image/heic">
+            <button class="btn small ghost" type="button" id="me-photo-remove" hidden>Remove photo</button></div>
+        </div>
+        <label>First name <span class="req">*</span><input id="me-first" required maxlength="60"></label>
+        <label>Last name <span class="req">*</span><input id="me-last" required maxlength="60"></label>
+        <label>Cell phone <span class="req">*</span><input id="me-phone" type="tel" required maxlength="30"></label>
+        <label>Email <span class="req">*</span><input id="me-email" type="email" required></label>
+        <label>City <span class="req">*</span><input id="me-city" required maxlength="80"></label>
+        <label>State <span class="req">*</span><select id="me-state" required></select></label>
+        <label class="span2">School or current employer<input id="me-school" maxlength="120"></label>
+        <label class="span2">LinkedIn profile<input id="me-linkedin" maxlength="200" placeholder="linkedin.com/in/your-name"></label>
+        <label class="span2">Interests<textarea id="me-interests" rows="2" maxlength="1000"></textarea></label>
+        <label class="span2">Hobbies<textarea id="me-hobbies" rows="2" maxlength="1000"></textarea></label>
+        <label class="span2">What I want from the program<textarea id="me-goals" rows="3" maxlength="1500"></textarea></label>
+        <label class="span2">One fun fact about me<input id="me-fun" maxlength="300"></label>
+        <div class="span2 pref-field"><b>Committees you'd like to join</b> <small class="muted">up to 3, in order</small><div class="pref-grid" id="me-prefs"></div></div>
+        <label class="span2">Availability <small class="muted">when you can't meet</small><input id="me-avail" maxlength="300"></label>
+        <label class="check span2"><input type="checkbox" id="me-share"> Show my profile to other interns (never my phone number)</label>
+        <div class="span2 form-actions"><button class="btn primary" type="submit">Save</button><span class="error" id="me-error" hidden></span></div>
+      </form>
+
+        </div>
       </div>
     </section>
 
@@ -530,44 +588,6 @@
     <span id="model-note"></span>
   </footer>
 
-  <dialog id="me-dialog" class="dialog">
-    <button class="dialog-close" type="button" aria-label="Close">×</button>
-    <div style="padding:26px">
-      <h2>My profile</h2>
-      <p class="muted small" id="me-admin-edited" hidden></p>
-      <form id="me-form" class="form-grid">
-        <div class="span2 photo-pick">
-          <label class="photo-drop" for="me-photo"><img id="me-photo-preview" alt="" hidden><span id="me-photo-ph">📷</span></label>
-          <div><strong>Profile photo</strong><br><input type="file" id="me-photo" accept="image/jpeg,image/png,image/webp,image/heic">
-            <button class="btn small ghost" type="button" id="me-photo-remove" hidden>Remove photo</button></div>
-        </div>
-        <label>First name <span class="req">*</span><input id="me-first" required maxlength="60"></label>
-        <label>Last name <span class="req">*</span><input id="me-last" required maxlength="60"></label>
-        <label>Cell phone <span class="req">*</span><input id="me-phone" type="tel" required maxlength="30"></label>
-        <label>Email <span class="req">*</span><input id="me-email" type="email" required></label>
-        <label>City <span class="req">*</span><input id="me-city" required maxlength="80"></label>
-        <label>State <span class="req">*</span><select id="me-state" required></select></label>
-        <label class="span2">School or current employer<input id="me-school" maxlength="120"></label>
-        <label class="span2">LinkedIn profile<input id="me-linkedin" maxlength="200" placeholder="linkedin.com/in/your-name"></label>
-        <label class="span2">Interests<textarea id="me-interests" rows="2" maxlength="1000"></textarea></label>
-        <label class="span2">Hobbies<textarea id="me-hobbies" rows="2" maxlength="1000"></textarea></label>
-        <label class="span2">What I want from the program<textarea id="me-goals" rows="3" maxlength="1500"></textarea></label>
-        <label class="span2">One fun fact about me<input id="me-fun" maxlength="300"></label>
-        <div class="span2 pref-field"><b>Committees you'd like to join</b> <small class="muted">up to 3, in order</small><div class="pref-grid" id="me-prefs"></div></div>
-        <label class="span2">Availability <small class="muted">when you can't meet</small><input id="me-avail" maxlength="300"></label>
-        <label class="check span2"><input type="checkbox" id="me-share"> Show my profile to other interns (never my phone number)</label>
-        <div class="span2 form-actions"><button class="btn primary" type="submit">Save</button><span class="error" id="me-error" hidden></span></div>
-      </form>
-      <form id="pw-form" class="form-grid pw-form">
-        <h3 class="span2">Change password</h3>
-        <label class="span2">Current password<input type="password" id="pw-current" autocomplete="current-password" required></label>
-        <label>New password<input type="password" id="pw-new" minlength="12" autocomplete="new-password" required placeholder="12+ characters"></label>
-        <label>Confirm new password<input type="password" id="pw-new2" minlength="12" autocomplete="new-password" required></label>
-        <div class="span2"><label class="show-pw"><input type="checkbox" data-show="pw-current,pw-new,pw-new2"> Show password</label><ul class="pw-rules" data-pw="pw-new" data-confirm="pw-new2" aria-live="polite"><li data-rule="len">At least 12 characters</li><li data-rule="email">Not your email address</li><li data-rule="notcurrent">Different from your current password</li><li data-rule="match">Both entries match</li></ul></div>
-        <div class="span2 form-actions"><button class="btn" type="submit">Change password</button><span class="error" id="pw-error" hidden></span></div>
-      </form>
-    </div>
-  </dialog>
 
   <dialog id="intern-dialog" class="dialog">
     <button class="dialog-close" type="button" aria-label="Close">×</button>

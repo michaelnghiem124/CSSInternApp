@@ -659,3 +659,17 @@ label.check-inline input { width: auto; margin: 0; }
   .home-stats { grid-template-columns: repeat(2, 1fr); }
   .home-lower { grid-template-columns: 1fr; }
 }
+
+/* ---------- Profile page ---------- */
+.profile-page { display: grid; grid-template-columns: 340px 1fr; gap: 18px; align-items: start; }
+.profile-side { display: flex; flex-direction: column; gap: 18px; position: sticky; top: 84px; }
+.profile-side .card { margin-bottom: 0; }
+.card-title { font-size: 1.05rem; margin: 0 0 10px; color: var(--navy); }
+.pp-file { display: flex; gap: 10px; align-items: center; background: var(--bg); border-radius: 10px; padding: 10px 12px; }
+.pp-file .ico { font-size: 1.4rem; }
+.pp-file b { display: block; word-break: break-all; }
+#who-name { color: #fff; text-decoration: none; font-weight: 600; border-bottom: 1px dashed rgba(255,255,255,.4); }
+#who-name:hover { color: var(--neon); border-bottom-color: var(--neon); }
+@media (max-width: 900px) { .profile-page { grid-template-columns: 1fr; } .profile-side { position: static; } }
+.profile-side .pw-form { border-top: 0; margin-top: 0; padding-top: 0; grid-template-columns: 1fr; }
+.profile-side .pw-form .span2 { grid-column: auto; }

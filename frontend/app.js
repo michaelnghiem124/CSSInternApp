@@ -80,11 +80,12 @@
   // ---------- tabs ----------
   function showTab() {
     const tab = (location.hash || "#home").slice(1).split("/")[0];
-    const tabs = ["home", "match", "opportunities", "directory", "calendar", "cohort"].concat(META.is_admin ? ["admin"] : []);
+    const tabs = ["home", "match", "opportunities", "directory", "calendar", "cohort"].concat(ME ? ["profile"] : [], META.is_admin ? ["admin"] : []);
     const valid = tabs.includes(tab) ? tab : (META.is_admin && !ME ? "admin" : "home");
     $$(".tab").forEach((s) => (s.hidden = s.id !== "tab-" + valid));
     $$(".tabs a").forEach((a) => a.classList.toggle("active", a.dataset.tab === valid));
     if (valid === "home") loadHome();
+    if (valid === "profile") loadProfilePage();
     if (valid === "calendar") loadEvents();
     if (valid === "admin") loadAdmin();
     if (valid === "cohort") loadCohort();
@@ -373,7 +374,7 @@
       <div class="small muted" style="margin-bottom:6px">${pct}% complete</div>
       <ul class="todo">${steps.map(([t, ok]) => `<li class="${ok ? "done" : ""}">${ok ? "✓" : "○"} ${esc(t)}</li>`).join("")}</ul>
       <button class="btn small primary" type="button" id="home-edit-profile">Update my profile</button>`;
-    $("#home-edit-profile").addEventListener("click", () => $("#edit-me-btn").click());
+    $("#home-edit-profile").addEventListener("click", () => { location.hash = "#profile"; });
   }
 
   // ---------- calendar ----------
@@ -781,9 +782,9 @@
   }
   $("#cohort-q").addEventListener("input", renderCohort);
 
-  const meDialog = $("#me-dialog");
-  $("#edit-me-btn").addEventListener("click", () => {
-    if (!ME) { toast("The admin account has no intern profile."); return; }
+  // ---------- profile page (click your name, top right) ----------
+  function loadProfilePage() {
+    if (!ME) { location.hash = "#home"; return; }
     const m = { first: "first_name", last: "last_name", phone: "phone", email: "slack_email", city: "city", state: "state", school: "school", interests: "interests", hobbies: "hobbies", goals: "goals", fun: "fun_fact", linkedin: "linkedin_url" };
     Object.entries(m).forEach(([id, k]) => ($("#me-" + id).value = ME[k] || ""));
     PREFS.me = [...(ME.committee_prefs || [])]; renderPrefs("me"); $("#me-avail").value = ME.availability || "";
@@ -794,7 +795,34 @@
     $("#me-share").checked = ME.share_with_cohort; $("#me-error").hidden = true;
     $("#me-admin-edited").hidden = !ME.admin_edited_at;
     if (ME.admin_edited_at) $("#me-admin-edited").textContent = `Last updated by the Program Lead on ${new Date(ME.admin_edited_at).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })}. You can change anything here.`;
-    meDialog.showModal();
+    renderResumeCard();
+  }
+  function renderResumeCard() {
+    $("#pp-resume").innerHTML = ME.resume_uploaded_at
+      ? `<div class="pp-file"><span class="ico">📄</span><div><b>${esc(ME.resume_filename || "Resume")}</b><span class="muted small">Uploaded ${esc(new Date(ME.resume_uploaded_at).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" }))}</span></div></div>
+         <button class="btn small ghost" type="button" id="pp-resume-remove" style="margin-top:8px">Remove resume</button>`
+      : `<p class="muted small" style="margin:0">No resume yet. Add one so Mentor Match and Opportunity Match can tailor their suggestions.</p>`;
+    const rm = $("#pp-resume-remove");
+    if (rm) rm.addEventListener("click", async () => {
+      if (!(await modal({ title: "Remove your resume?", body: "Mentor Match will go back to using your profile answers.", ok: "Remove", danger: true }))) return;
+      try { await api("/api/me/resume", { method: "DELETE" }); ME = (await api("/api/me")).user; renderResumeCard(); toast("Resume removed"); }
+      catch (err) { toast(err.message); }
+    });
+  }
+  $("#pp-resume-file").addEventListener("change", async () => {
+    const f = $("#pp-resume-file").files[0]; if (!f) return;
+    const label = $('label[for="pp-resume-file"]'); label.textContent = "Reading your resume…";
+    try {
+      const fd = new FormData(); fd.append("file", f); fd.append("intro", "");
+      const r = await api("/api/profile", { method: "POST", body: fd });
+      if (r.blocked) throw new Error(r.message || "Couldn't read that resume.");
+      ME = (await api("/api/me")).user; renderResumeCard(); toast("Resume saved. Mentor Match has your updated profile.");
+    } catch (err) { toast(err.message); }
+    finally { label.textContent = "Upload a new resume"; $("#pp-resume-file").value = ""; }
+  });
+  $("#edit-me-btn").addEventListener("click", () => {
+    if (!ME) { toast("The admin account has no intern profile."); return; }
+    location.hash = "#profile";
   });
   $("#me-form").addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -806,7 +834,7 @@
     try {
       ME = (await api("/api/me", { method: "PUT", body })).user;
       if ($("#me-photo").files[0]) ME = await uploadPhoto($("#me-photo").files[0]);
-      meDialog.close(); toast("Profile saved"); $("#who-name").textContent = `${ME.first_name} ${ME.last_name}`; loadCohort(); }
+      toast("Profile saved"); $("#who-name").textContent = `${ME.first_name} ${ME.last_name}`; loadCohort(); loadProfilePage(); }
     catch (err) { $("#me-error").textContent = err.message; $("#me-error").hidden = false; }
   });
   $("#pw-form").addEventListener("submit", async (e) => {
@@ -824,7 +852,7 @@
     ME = (await api("/api/me")).user; $("#me-photo-preview").hidden = true; $("#me-photo-ph").hidden = false;
     $("#me-photo-remove").hidden = true; toast("Photo removed"); loadCohort();
   });
-  $$("#me-dialog .dialog-close, #intern-dialog .dialog-close").forEach((b) => b.addEventListener("click", () => b.closest("dialog").close()));
+  $$("#intern-dialog .dialog-close").forEach((b) => b.addEventListener("click", () => b.closest("dialog").close()));
 
   // ---------- admin: interns + access code ----------
   let INTERNS = [];
@@ -1574,6 +1602,7 @@
     $("#gate").hidden = true; $("#app-nav").hidden = false; $("#app-main").hidden = false;
     $("#admin-tab").hidden = !META.is_admin;
     $("#who-name").textContent = ME ? `${ME.first_name} ${ME.last_name}` : `${META.admin_name} · Admin`;
+    $("#who-name").href = ME ? "#profile" : "#admin";
     $("#footer-admin").textContent = `${META.admin_name}, ${META.admin_title}`;
     $("#model-note").textContent = META.llm_ready ? `AI: ${META.match_model} + ${META.fast_model}` : "AI offline: no API key";
     META.sectors.forEach((s) => $("#dir-sector").insertAdjacentHTML("beforeend", `<option>${esc(s)}</option>`));
