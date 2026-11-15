@@ -70,6 +70,9 @@ class Person(BaseModel):
     profile_url: str
     linkedin_url: str = ""
     facts: BioFacts | None = None
+    # Past Cyber Security Summit presentations, from the Summit's own presentations pages
+    # (scripts/fetch_summit_talks.py). Each: {"year", "title", "track", "source"}.
+    summit_talks: list[dict] = Field(default_factory=list)
 
 
 def _photo(path: str) -> str:
@@ -79,6 +82,10 @@ def _photo(path: str) -> str:
 @lru_cache(maxsize=1)
 def load_people() -> tuple[Person, ...]:
     raw = json.loads(THINK_TANK_RAW_PATH.read_text())
+    talks: dict[str, list] = {}
+    talks_path = THINK_TANK_PATH.parent / "summit_talks.json"
+    if talks_path.is_file():
+        talks = json.loads(talks_path.read_text())
     enriched: dict[str, dict] = {}
     if THINK_TANK_PATH.is_file():
         enriched = {p["slug"]: p for p in json.loads(THINK_TANK_PATH.read_text())}
@@ -96,6 +103,7 @@ def load_people() -> tuple[Person, ...]:
                 profile_url=PROFILE_BASE + r["slug"] + "/",
                 linkedin_url=("https://www." + r["linkedin"]) if r.get("linkedin") else "",
                 facts=BioFacts(**facts) if facts else None,
+                summit_talks=talks.get(r["slug"], []),
             )
         )
     return tuple(people)
@@ -110,7 +118,7 @@ def get_person(slug: str) -> Person | None:
 
 
 def _haystack(p: Person) -> str:
-    parts = [p.name, p.org, p.section, p.bio]
+    parts = [p.name, p.org, p.section, p.bio, *(t["title"] for t in p.summit_talks)]
     if p.facts:
         f = p.facts
         parts += [f.title, f.sector, *f.expertise, *f.background, *f.education,
@@ -152,6 +160,9 @@ def roster_text() -> str:
                 bits.append("interests: " + "; ".join(f.personal_interests[:4]))
             if f.is_ciso:
                 bits.append("CISO")
+            if p.summit_talks:
+                years = sorted({t["year"] for t in p.summit_talks}, reverse=True)
+                bits.append("Summit speaker " + ", ".join(map(str, years)))
         else:
             bits = [p.org, p.bio[:160]]
         lines.append(f"- {p.slug} | {p.name} ({p.section}) | " + " | ".join(b for b in bits if b))

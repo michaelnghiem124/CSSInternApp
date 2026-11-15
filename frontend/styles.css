@@ -673,3 +673,4 @@ label.check-inline input { width: auto; margin: 0; }
 @media (max-width: 900px) { .profile-page { grid-template-columns: 1fr; } .profile-side { position: static; } }
 .profile-side .pw-form { border-top: 0; margin-top: 0; padding-top: 0; grid-template-columns: 1fr; }
 .profile-side .pw-form .span2 { grid-column: auto; }
+.suggestions.dynamic::before { content: "Ask next"; font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); align-self: center; margin-right: 2px; }

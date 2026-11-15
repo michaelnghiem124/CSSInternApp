@@ -262,7 +262,14 @@
     return `<div class="prep"><strong>${esc(e.title)}</strong> · ${esc(fmtDate(e.starts_at, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }))} CT · <a href="#calendar">See talk</a></div>`;
   }
 
+  // Starter prompts, replaced after each answer by follow-ups built from that answer.
+  const STARTERS = [...$$("#suggestions button")].map((b) => b.textContent);
+  function setSuggestions(list, dynamic) {
+    $("#suggestions").innerHTML = list.map((q) => `<button type="button">${esc(q)}</button>`).join("");
+    $("#suggestions").classList.toggle("dynamic", !!dynamic);
+  }
   function addBot(r) {
+    if (r.follow_ups && r.follow_ups.length) setSuggestions(r.follow_ups, true);
     const d = document.createElement("div"); d.className = "msg bot";
     d.innerHTML = `<div class="bubble">${esc(r.reply).replace(/\n/g, "<br>")}</div>
       ${r.recommendations?.length ? `<div class="recs">${r.recommendations.map(recCard).join("")}</div>` : ""}
@@ -296,6 +303,7 @@
   $("#reset-chat").addEventListener("click", async () => {
     await api("/api/chat/reset", { method: "POST" });
     log.innerHTML = "";
+    setSuggestions(STARTERS, false);
     // A new chat clears the conversation, not the saved resume or profile.
     const st = await api("/api/chat/state");
     if (st.profile) renderProfile(st.profile, { resume: st.resume });

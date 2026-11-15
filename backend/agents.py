@@ -16,6 +16,7 @@ the Mentor Matcher's conversation. That keeps the expensive model away from raw 
 from __future__ import annotations
 
 import json
+import re
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -65,6 +66,10 @@ class MatchReply(BaseModel):
     suggested_opportunity_ids: list[str] = Field(
         default_factory=list, max_length=5,
         description="Exact ids from find_opportunities for openings worth applying to, if any.")
+    follow_ups: list[str] = Field(
+        default_factory=list, max_length=4,
+        description="2-4 short next questions the intern might ask, built from THIS answer (the people, "
+                    "organizations, talks, or roles you just named), in the intern's voice, under 70 characters each.")
 
 
 @dataclass
@@ -206,8 +211,31 @@ def match_agent() -> Agent[MatchDeps, MatchReply]:
         if not p:
             return f"No Think Tank member with slug '{slug}'. Use a slug from the roster."
         facts = p.facts.model_dump(exclude={"sector"}) if p.facts else {}
+        talks = [{k: t[k] for k in ("year", "title", "track")} for t in p.summit_talks]
         return json.dumps({"slug": p.slug, "name": p.name, "section": p.section, "org": p.org,
-                           "bio": p.bio, **facts}, ensure_ascii=False)
+                           "bio": p.bio, **facts,
+                           "past_summit_talks": talks or "none on record"}, ensure_ascii=False)
+
+    @agent.tool
+    def summit_talks(ctx: RunContext[MatchDeps], topic: str = "") -> str:
+        """Past Cyber Security Summit presentations (2016-2025) given by Think Tank and Emeritus
+        members, from the Summit's own presentations pages. Optional topic keyword (e.g. 'AI',
+        'medical device', 'workforce'); empty returns the most recent talks."""
+        ctx.deps.tools_used.append(f"summit_talks({topic!r})")
+        words = [w for w in re.findall(r"[a-z0-9+#]+", topic.lower()) if len(w) > 1]
+        rows = []
+        for person in directory.load_people():
+            for t in person.summit_talks:
+                text = f"{t['title']} {t['track']}".lower()
+                score = sum(text.count(w) for w in words) if words else 1
+                if score:
+                    rows.append((score, t["year"], person, t))
+        if not rows:
+            return ("No past Summit talk by a Think Tank member matches that topic in the Summit's "
+                    "presentation records. Say so plainly; don't guess.")
+        rows.sort(key=lambda r: (-r[0], -r[1]))
+        return "\n".join(f"- {t['year']} | {person.name} ({person.slug}) | {t['title']} | {t['track']}"
+                         for _, _, person, t in rows[:10])
 
     @agent.tool
     def search_directory(ctx: RunContext[MatchDeps], query: str, sector: str = "") -> str:
@@ -263,6 +291,7 @@ def match_agent() -> Agent[MatchDeps, MatchReply]:
         from . import opportunities  # noqa: PLC0415
         valid_jobs = {p["id"] for p in opportunities.list_postings()}
         out.suggested_opportunity_ids = [i for i in out.suggested_opportunity_ids if i in valid_jobs]
+        out.follow_ups = [q.strip()[:90] for q in out.follow_ups if q.strip()][:4]
         return out
 
     _match_agent = agent

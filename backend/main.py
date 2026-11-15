@@ -786,6 +786,7 @@ async def chat(body: ChatBody, session: Annotated[str, Depends(session_key)],
         "recommendations": recs,
         "events": events,
         "opportunities": suggested_jobs,
+        "follow_ups": out.follow_ups,
         "usage": report.__dict__,
         "guardrail": "Removed instruction-like text from your message." if screened.flagged else None,
     }
