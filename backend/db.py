@@ -245,7 +245,27 @@ def _migrate(c: sqlite3.Connection) -> None:
         c.execute("UPDATE usage_log SET agent = ? WHERE agent = ?", (new, old))
 
 
+SEED_DB = DATA_DIR / "seed.db"
+
+
+def _copy_seed() -> None:
+    """A brand-new server (a fresh clone, or Render's free plan, whose disk resets on every
+    restart) starts from data/seed.db: the public copy made by scripts.export_public_db, with
+    events and job postings but no intern data. An existing database is never touched."""
+    if DB_PATH.exists() or not SEED_DB.exists():
+        return
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    src = sqlite3.connect(SEED_DB)
+    dst = sqlite3.connect(DB_PATH)
+    try:
+        src.backup(dst)
+    finally:
+        src.close()
+        dst.close()
+
+
 def init() -> None:
+    _copy_seed()
     with conn() as c:
         c.executescript(SCHEMA)
         _migrate(c)

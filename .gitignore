@@ -5,6 +5,8 @@ data/.session_secret
 # runtime data: the database holds RSVP names and usage logs; it is rebuilt on first run
 data/*.db
 data/*.db-*
+# ...except the public starting copy (no intern data), made by scripts/export_public_db.py
+!data/seed.db
 
 # python
 .venv/
