@@ -151,18 +151,36 @@
             <a class="btn outline-light" href="#opportunities">Explore open roles</a>
           </div>
         </div>
-        <svg class="home-net" viewBox="0 0 320 240" aria-hidden="true">
-          <g class="edges">
-            <line x1="160" y1="120" x2="60" y2="50"/><line x1="160" y1="120" x2="270" y2="45"/><line x1="160" y1="120" x2="40" y2="170"/>
-            <line x1="160" y1="120" x2="280" y2="185"/><line x1="160" y1="120" x2="165" y2="20"/><line x1="160" y1="120" x2="150" y2="220"/>
-            <line x1="60" y1="50" x2="165" y2="20"/><line x1="270" y1="45" x2="280" y2="185"/><line x1="40" y1="170" x2="150" y2="220"/>
-          </g>
-          <g class="nodes">
-            <circle cx="60" cy="50" r="7"/><circle cx="270" cy="45" r="9"/><circle cx="40" cy="170" r="6"/>
-            <circle cx="280" cy="185" r="8"/><circle cx="165" cy="20" r="5"/><circle cx="150" cy="220" r="6"/>
-          </g>
-          <circle class="hub-ring" cx="160" cy="120" r="30"/><circle class="hub" cx="160" cy="120" r="20"/>
-        </svg>
+        <!-- Summit globe with a binary ring (echoing the logo), radar sweep, orbiting nodes, and pulses -->
+        <div class="home-orbit" aria-hidden="true">
+          <div class="o-sweep"></div>
+          <svg viewBox="0 0 320 320">
+            <defs>
+              <path id="o-bin-path" d="M160,160 m-121,0 a121,121 0 1,1 242,0 a121,121 0 1,1 -242,0"/>
+              <radialGradient id="o-core" cx="50%" cy="50%" r="50%">
+                <stop offset="0" stop-color="#21fefe" stop-opacity=".35"/><stop offset="1" stop-color="#21fefe" stop-opacity="0"/>
+              </radialGradient>
+            </defs>
+            <circle cx="160" cy="160" r="100" fill="url(#o-core)"/>
+            <circle class="o-pulse" cx="160" cy="160" r="72"/>
+            <circle class="o-pulse o-pulse-2" cx="160" cy="160" r="72"/>
+            <g class="o-spin o-spin-slow">
+              <circle class="o-track" cx="160" cy="160" r="148"/>
+              <circle class="o-node gold" cx="160" cy="12" r="5"/>
+              <circle class="o-node" cx="308" cy="160" r="3.5"/>
+              <circle class="o-node" cx="55" cy="265" r="4"/>
+            </g>
+            <g class="o-spin o-spin-rev">
+              <text class="o-bin"><textPath href="#o-bin-path" textLength="756" lengthAdjust="spacing">101010010010001000100101100110111010000110111110011100100101011111000011011101001010011011101101001110001101011110110011111011001101</textPath></text>
+            </g>
+            <g class="o-spin o-spin-fast">
+              <circle class="o-track o-track-dash" cx="160" cy="160" r="104"/>
+              <circle class="o-node" cx="160" cy="56" r="4"/>
+              <circle class="o-node gold" cx="250" cy="212" r="3"/>
+            </g>
+          </svg>
+          <div class="o-globe"></div>
+        </div>
         <div class="home-stats" id="home-stats"></div>
       </div>
 
