@@ -264,7 +264,7 @@
     // work happens in on the server; the timing is a guide (the reply arrives in one piece).
     const steps = ["Reading your question", "Searching the Think Tank roster", "Checking talks and open roles", "Writing your matches"];
     const d = document.createElement("div"); d.className = "msg bot";
-    d.innerHTML = `<div class="thinking" role="status"><span class="t-dot"></span><span class="t-text">${steps[0]}</span></div>`;
+    d.innerHTML = `<div class="mm-thinking" role="status"><span class="t-dot"></span><span class="t-text">${steps[0]}</span></div>`;
     let i = 0;
     const timer = setInterval(() => {
       if (!d.isConnected) return clearInterval(timer);

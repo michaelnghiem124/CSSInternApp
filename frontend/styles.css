@@ -819,10 +819,10 @@ input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 4px rgba(4,105,141
 .topbar :focus-visible, .hero :focus-visible, .home-hero :focus-visible { outline: 2px solid var(--neon); outline-offset: 2px; }
 
 /* Mentor Match while it works: a console line that names the step, not three grey dots. */
-.thinking { display: inline-flex; align-items: center; gap: 10px; padding: 11px 15px; border-radius: 14px 14px 14px 4px;
+.mm-thinking { display: inline-flex; align-items: center; gap: 10px; padding: 11px 15px; border-radius: 14px 14px 14px 4px;
   background: var(--navy-deep); color: #cfe8f3; font-family: var(--mono); font-size: .8rem; border: 1px solid rgba(33,254,254,.25); }
-.thinking .t-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--neon); box-shadow: 0 0 10px var(--neon); animation: t-pulse 1s ease-in-out infinite; }
-.thinking .t-text::after { content: "▍"; margin-left: 2px; color: var(--neon); animation: t-caret .9s steps(1) infinite; }
+.mm-thinking .t-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--neon); box-shadow: 0 0 10px var(--neon); animation: t-pulse 1s ease-in-out infinite; }
+.mm-thinking .t-text::after { content: "▍"; margin-left: 2px; color: var(--neon); animation: t-caret .9s steps(1) infinite; }
 @keyframes t-pulse { 50% { opacity: .35; transform: scale(.8); } }
 @keyframes t-caret { 50% { opacity: 0; } }
 
@@ -841,11 +841,11 @@ input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 4px rgba(4,105,141
 @media (max-width: 700px) {
   .hero::before { inset: 7px; } .gate::before { inset: 8px; }
   .home-stat span { font-size: .62rem; }
-  .thinking { font-size: .74rem; }
+  .mm-thinking { font-size: .74rem; }
 }
 @media (prefers-reduced-motion: reduce) {
   .topbar::after, .hero::after, .home-hero::after, .gate::after, .tab, .home-grid .tool-card, .recs .rec, .ox-matches .ox-match,
-  .thinking .t-dot, .thinking .t-text::after, .empty:not(.ox-org)::before { animation: none !important; }
+  .mm-thinking .t-dot, .mm-thinking .t-text::after, .empty:not(.ox-org)::before { animation: none !important; }
   .hero::after, .home-hero::after, .gate::after { display: none; }
 }
 
