@@ -1,0 +1,38 @@
+# Render Blueprint for the Intern Summit Hub (https://render.com/docs/blueprint-spec).
+# In the Render dashboard: New → Blueprint → pick this repo. Render reads this file, then asks
+# for the values marked `sync: false` (secrets are never stored in the repo).
+services:
+  - type: web
+    name: intern-summit-hub
+    runtime: python
+    # SQLite needs a persistent disk, which needs a paid instance. On the free plan the
+    # database (accounts, RSVPs, job postings) is wiped on every deploy and restart.
+    plan: starter
+    region: ohio
+    buildCommand: pip install -r requirements.txt && (python -m scripts.fetch_org_logos || true)
+    # --proxy-headers: Render terminates HTTPS in front of the app, so trust its
+    # X-Forwarded-* headers; otherwise secure cookies and absolute links would use http.
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips='*'
+    healthCheckPath: /api/meta
+    autoDeploy: true
+    disk:
+      name: hub-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.14.7
+      - key: DB_PATH
+        value: /var/data/app.db
+      - key: SESSION_SECRET
+        generateValue: true
+      # Secrets: entered in the dashboard, never committed.
+      - key: PORTKEY_API_KEY
+        sync: false
+      - key: ADMIN_USERNAME
+        sync: false
+      - key: ADMIN_PASSWORD_HASH
+        sync: false
+      # The service's public URL, e.g. https://intern-summit-hub.onrender.com (used for links).
+      - key: PUBLIC_BASE_URL
+        sync: false
