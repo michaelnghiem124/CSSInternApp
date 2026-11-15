@@ -303,7 +303,7 @@
 
   function greet(resume) {
     const d = document.createElement("div"); d.className = "msg bot";
-    d.innerHTML = `<div class="bubble">Hi${ME ? " " + esc(ME.first_name) : ""}! I'm Mentor Match, your guide to the Think Tank. ${resume ? `I have your saved resume (${esc(resume.filename || "resume")}) and profile, so you can ask me who to meet right away. ` : ME && (ME.interests || ME.hobbies || ME.goals) ? "I already know the interests, hobbies, and goals from your registration, so you can ask me who to meet right away. Adding a resume on the left makes the matches sharper. " : ""}${META.llm_ready ? "Add your resume on the left (or just tell me what you're into) and I'll suggest who to meet at the Summit, why, and how to start the conversation." : "<strong>Mentor Match is offline because no API key is configured.</strong> The Think Tank directory and the talks calendar still work."}</div>`;
+    d.innerHTML = `<div class="bubble">Hi${ME ? " " + esc(ME.first_name) : ""}! I'm Mentor Match, your guide to the Think Tank. ${resume ? `I have your saved resume (${esc(resume.filename || "resume")}) and profile, so you can ask me who to meet right away. ` : ME && (ME.interests || ME.hobbies || ME.goals) ? "I already know the interests, hobbies, and goals from your registration, so you can ask me who to meet right away. Adding a resume on the left makes the matches sharper. " : ""}${META.llm_ready ? "Add your resume on the left (or just tell me what you're into) and I'll suggest who to meet at the Summit, why, and how to start the conversation." : "<strong>Mentor Match is offline because no API key is configured.</strong> The Think Tank directory and the events calendar still work."}</div>`;
     log.appendChild(d);
   }
 
@@ -315,7 +315,7 @@
     const events = all.filter((e) => new Date(e.ends_at) >= new Date());
     const past = all.filter((e) => new Date(e.ends_at) < new Date()).reverse();
     renderPast(past);
-    if (!events.length) { $("#event-list").innerHTML = `<div class="empty">No upcoming talks scheduled yet. Check back soon.</div>`; return; }
+    if (!events.length) { $("#event-list").innerHTML = `<div class="empty">No upcoming events scheduled yet. Check back soon.</div>`; return; }
     let month = "";
     const rsvped = JSON.parse(store.get("css_rsvps") || "{}");
     $("#event-list").innerHTML = events.map((e) => {
@@ -325,7 +325,7 @@
       return `${head}<article class="event ${soon ? "soon" : ""}" id="event-${e.id}">
         <div class="datebox"><div class="dow">${esc(d.toLocaleString([], { weekday: "short" }))}</div><div class="day">${d.getDate()}</div><div class="mon">${esc(d.toLocaleString([], { month: "short" }))}</div></div>
         <div>
-          <div class="badges"><span class="badge">${esc(e.kind)}</span>${e.required ? '<span class="badge req">Required</span>' : ""}${e.is_sample ? '<span class="badge sample">Sample</span>' : ""}</div>
+          <div class="badges"><span class="badge ${e.kind === "Intern huddle" ? "huddle" : ""}">${esc(e.kind)}</span>${e.required ? '<span class="badge req">Required</span>' : ""}${e.is_sample ? '<span class="badge sample">Sample</span>' : ""}</div>
           <h3>${esc(e.title)}</h3>
           <div class="meta"><span>🕒 ${esc(timeRange(e))}</span>${e.location ? `<span>📍 ${esc(e.location)}</span>` : ""}<span>👥 ${e.rsvp_count} going</span></div>
           ${e.speakers.length ? `<div class="speakers">${e.speakers.map((s) => `<button class="speaker" type="button" data-person="${esc(s.slug)}">${avatar(s, "sm")}${esc(s.name)} <span class="muted">· ${esc(s.org)}</span></button>`).join("")}</div>` : ""}
@@ -349,14 +349,18 @@
   }
 
   function renderPast(past) {
-    $("#past-talks").innerHTML = past.length ? `<div class="section-head past-head"><div><h2>Past talks</h2>
-        <p class="muted">${past.length} Think Tank Talks this program year. Click a speaker for their bio.</p></div></div>
+    const talks = past.filter((e) => e.kind !== "Intern huddle").length, huddles = past.length - talks;
+    const counts = [talks ? `${talks} Think Tank Talk${talks === 1 ? "" : "s"}` : "", huddles ? `${huddles} intern huddle${huddles === 1 ? "" : "s"}` : ""].filter(Boolean).join(" and ");
+    $("#past-talks").innerHTML = past.length ? `<div class="section-head past-head"><div><h2>Past events</h2>
+        <p class="muted">${counts} this program year. Click a speaker for their bio.</p></div></div>
       <div class="past-list">${past.map((e) => {
-        const d = new Date(e.starts_at);
-        const who = e.speakers.length
+        const d = new Date(e.starts_at), huddle = e.kind === "Intern huddle";
+        const who = huddle
+          ? `<span class="speaker static huddle">🤝 Intern monthly huddle${e.location ? ` · ${esc(e.location)}` : ""}</span>`
+          : e.speakers.length
           ? e.speakers.map((sp) => `<button class="speaker" type="button" data-person="${esc(sp.slug)}">${avatar(sp, "sm")}${esc(sp.name)}</button>`).join("")
           : `<span class="speaker static">${esc(e.title.replace(/^Think Tank Talk:\s*/, ""))}</span>`;
-        return `<div class="past-talk"><div class="past-date">${esc(d.toLocaleString([], { month: "short", day: "numeric" }))}<small>${esc(d.toLocaleString([], { year: "numeric" }))}</small></div>
+        return `<div class="past-talk${huddle ? " is-huddle" : ""}"><div class="past-date">${esc(d.toLocaleString([], { month: "short", day: "numeric" }))}<small>${esc(d.toLocaleString([], { year: "numeric" }))}</small></div>
           <div><div class="speakers">${who}</div><div class="muted small">${esc(e.description)}</div></div></div>`;
       }).join("")}</div>` : "";
   }

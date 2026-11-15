@@ -189,6 +189,9 @@ textarea { resize: vertical; }
 .badge.ciso { background: var(--navy); color: #fff; }
 .badge.req { background: #fdecea; color: #8a2a1f; }
 .badge.sample { background: #eef2f7; color: var(--muted); }
+.badge.huddle { background: #fff4dc; color: #8a5d00; }
+.speaker.static.huddle { background: #fff7e3; border-color: #f4dca0; color: #6b4a00; }
+.past-talk.is-huddle .past-date { color: #8a5d00; }
 
 /* ---------- dialog ---------- */
 .dialog { border: 0; border-radius: 18px; padding: 0; width: min(760px, 94vw); max-height: 88vh; box-shadow: 0 20px 60px rgba(0,0,0,.25); }
