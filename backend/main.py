@@ -554,6 +554,8 @@ def meta(request: Request):
         "sectors": list(directory.Sector.__args__),  # type: ignore[attr-defined]
         "people_count": len(directory.load_people()),
         "db_restore_enabled": auth.is_admin(request) and _restore_enabled(),
+        # Admin-only: whether accounts survive restarts (database on a persistent disk).
+        "persistent_storage": db.storage_is_persistent_disk() if auth.is_admin(request) else None,
     }
 
 

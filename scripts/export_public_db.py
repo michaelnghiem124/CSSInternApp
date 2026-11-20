@@ -1,12 +1,15 @@
 """Make a copy of the database that is safe to put on a public server: no intern data.
 
-    .venv/bin/python -m scripts.export_public_db [out_path]      (default: data/app-public.db)
+    .venv/bin/python -m scripts.export_public_db [out_path] [--demo-jobs]   (default: data/app-public.db)
 
 Removes every intern account (with photos, resumes, and contact details), RSVPs, password
 resets, placements, fit profiles, Slack and meeting-note data, Monday Briefs, and the safety
 log (its details can contain emails), and drops the program access code so the new server
 generates its own. Keeps the Think Tank Talks and huddles, job postings and their labels,
-committees and Cyber Coach pool, announcements, and the anonymous AI usage log.
+committees and Cyber Coach pool. Announcements and the AI usage log are cleared too, so a new
+deployment starts clean for real interns (the local database keeps its usage log for the report).
+`--demo-jobs` adds 5 clearly fictional "(demo)" listings in the Adzuna slot (off by default since
+2026-11-20, when the live site opened to real interns).
 
 Then it checks the copy for any intern's full name, email, or phone number from the source
 database and refuses to finish if one is found. The output is gitignored (data/*.db).
@@ -21,11 +24,11 @@ from pathlib import Path
 
 from backend import config
 
-CLEAR = ["rsvps", "password_resets", "reset_requests", "placements", "fit_profiles", "match_runs",
+CLEAR = ["announcements", "usage_log", "rsvps", "password_resets", "reset_requests", "placements", "fit_profiles", "match_runs",
          "slack_users", "slack_messages", "meeting_notes", "briefs", "safety_log", "users"]
 
 
-def main(out: Path) -> None:
+def main(out: Path, demo_jobs: bool = False) -> None:
     src = sqlite3.connect(config.DB_PATH)
     people = src.execute("SELECT first_name, last_name, slack_email, phone FROM users").fetchall()
     if out.exists():
@@ -42,9 +45,10 @@ def main(out: Path) -> None:
     # Adzuna's terms: its data must be removable if API access ends, so it never goes into a public
     # file. A deployment with ADZUNA_APP_ID/ADZUNA_APP_KEY fetches its own on the next refresh.
     dst.execute("DELETE FROM job_postings WHERE platform = 'adzuna'")
-    # In their place, clearly fictional demo listings so graders see how Adzuna roles appear.
-    from backend import demo_jobs, opportunities  # noqa: PLC0415
-    demo_jobs.add_demo_postings(dst, opportunities.CLASSIFIER_VERSION)
+    dst.execute("DELETE FROM job_postings WHERE id LIKE 'demo|%'")
+    if demo_jobs:  # optional: clearly fictional listings so graders see how Adzuna roles appear
+        from backend import demo_jobs as demo, opportunities  # noqa: PLC0415
+        demo.add_demo_postings(dst, opportunities.CLASSIFIER_VERSION)
     dst.commit()
     dst.execute("VACUUM")
 
@@ -75,4 +79,5 @@ def main(out: Path) -> None:
 
 
 if __name__ == "__main__":
-    main(Path(sys.argv[1]) if len(sys.argv) > 1 else config.DATA_DIR / "app-public.db")
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    main(Path(args[0]) if args else config.DATA_DIR / "app-public.db", demo_jobs="--demo-jobs" in sys.argv)

@@ -276,6 +276,34 @@ def init() -> None:
     placements.seed_defaults()
     from . import opportunities  # noqa: PLC0415
     opportunities.init()
+    _remove_demo_data_once()
+
+
+DEMO_CLEANUP_KEY = "demo_cleanup_2026_11_20"
+
+
+def _remove_demo_data_once() -> None:
+    """Get a database ready for real interns (2026-11-20), once per database: drop the fictional
+    "(demo)" job listings, sample talks, and the old test announcement. A deployed copy with its
+    own disk (DB_PATH outside data/) also drops the development AI-usage and safety logs it
+    inherited from the seed, so Admin -> AI usage counts only real testers. A local database
+    keeps its usage log (the report's measured costs come from it)."""
+    with conn() as c:
+        if c.execute("SELECT 1 FROM settings WHERE key = ?", (DEMO_CLEANUP_KEY,)).fetchone():
+            return
+        c.execute("DELETE FROM job_postings WHERE id LIKE 'demo|%'")
+        c.execute("DELETE FROM rsvps WHERE event_id IN (SELECT id FROM events WHERE is_sample = 1)")
+        c.execute("DELETE FROM events WHERE is_sample = 1")
+        c.execute("DELETE FROM announcements WHERE message LIKE 'Welcome, 2027 interns!%'")
+        if DB_PATH.resolve().parent != DATA_DIR.resolve():
+            c.execute("DELETE FROM usage_log")
+            c.execute("DELETE FROM safety_log")
+        c.execute("INSERT INTO settings (key, value) VALUES (?, ?)", (DEMO_CLEANUP_KEY, _now()))
+
+
+def storage_is_persistent_disk() -> bool:
+    """True when the database lives outside the app folder (e.g. Render's disk at /var/data)."""
+    return DB_PATH.resolve().parent != DATA_DIR.resolve()
 
 
 def _seed_samples(c: sqlite3.Connection) -> None:
