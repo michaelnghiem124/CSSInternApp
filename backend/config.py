@@ -19,7 +19,17 @@ PROJECT_ROOT = BACKEND_DIR.parent
 DATA_DIR = PROJECT_ROOT / "data"
 FRONTEND_DIR = PROJECT_ROOT / "frontend"
 PROMPTS_DIR = BACKEND_DIR / "prompts"
-DB_PATH = Path(os.environ.get("DB_PATH", DATA_DIR / "app.db"))
+def _default_db_path() -> Path:
+    """data/app.db, except on Render with a persistent disk mounted at /var/data (Render sets
+    RENDER=true): then the database lives on the disk and survives deploys and restarts, with
+    no dashboard setting needed. An explicit DB_PATH always wins."""
+    disk = Path("/var/data")
+    if os.environ.get("RENDER") and disk.is_dir() and os.access(disk, os.W_OK):
+        return disk / "app.db"
+    return DATA_DIR / "app.db"
+
+
+DB_PATH = Path(os.environ.get("DB_PATH") or _default_db_path())
 THINK_TANK_PATH = DATA_DIR / "think_tank.json"
 THINK_TANK_RAW_PATH = DATA_DIR / "think_tank_raw.json"
 
