@@ -27,7 +27,7 @@ services:
       - key: SESSION_SECRET
         generateValue: true
       # Secrets: entered in the dashboard, never committed.
-      - key: PORTKEY_API_KEY
+      - key: OPENAI_API_KEY
         sync: false
       - key: ADMIN_USERNAME
         sync: false

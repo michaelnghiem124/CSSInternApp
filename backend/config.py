@@ -56,14 +56,15 @@ def _int(name: str, default: int) -> int:
 # ---------------------------------------------------------------------------
 # Model provider
 # ---------------------------------------------------------------------------
-# Anthropic when ANTHROPIC_API_KEY is present (the hosted deployment); otherwise the
-# course's Portkey key with gpt-6-luna, so a grader with only the course .env can run it.
-# MODEL_PROVIDER=anthropic|portkey forces one.
+# Anthropic when ANTHROPIC_API_KEY is present; then an OpenAI key (OPENAI_API_KEY) with
+# gpt-6-luna straight from OpenAI; otherwise the course's Portkey key with gpt-6-luna, so a
+# grader with only the course .env can run it. MODEL_PROVIDER=anthropic|openai|portkey forces one.
 
-Provider = Literal["anthropic", "portkey"]
+Provider = Literal["anthropic", "openai", "portkey"]
 
 PORTKEY_BASE_URL = os.environ.get("PORTKEY_BASE_URL", "https://api.portkey.ai/v1")
 PORTKEY_MODEL = os.environ.get("PORTKEY_MODEL", "gpt-6-luna")
+OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-6-luna")
 
 # Two tiers: a cheap model reads resumes and screens input; a stronger one does matching.
 ANTHROPIC_MATCH_MODEL = os.environ.get("ANTHROPIC_MATCH_MODEL", "claude-sonnet-5-5")
@@ -72,10 +73,12 @@ ANTHROPIC_FAST_MODEL = os.environ.get("ANTHROPIC_FAST_MODEL", "claude-haiku-5-5"
 
 def provider() -> Provider:
     explicit = os.environ.get("MODEL_PROVIDER", "").strip().lower()
-    if explicit in ("anthropic", "portkey"):
+    if explicit in ("anthropic", "openai", "portkey"):
         return explicit  # type: ignore[return-value]
     if os.environ.get("ANTHROPIC_API_KEY"):
         return "anthropic"
+    if os.environ.get("OPENAI_API_KEY"):
+        return "openai"
     if os.environ.get("PORTKEY_API_KEY"):
         return "portkey"
     return "anthropic"  # fails later with a clear message
@@ -84,11 +87,17 @@ def provider() -> Provider:
 def model_name(tier: Literal["match", "fast"]) -> str:
     if provider() == "portkey":
         return PORTKEY_MODEL
+    if provider() == "openai":
+        return OPENAI_MODEL
     return ANTHROPIC_MATCH_MODEL if tier == "match" else ANTHROPIC_FAST_MODEL
 
 
 def has_llm_key() -> bool:
-    return bool(os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("PORTKEY_API_KEY"))
+    return bool(
+        os.environ.get("ANTHROPIC_API_KEY")
+        or os.environ.get("OPENAI_API_KEY")
+        or os.environ.get("PORTKEY_API_KEY")
+    )
 
 
 def low_effort() -> dict:
@@ -97,9 +106,10 @@ def low_effort() -> dict:
     Claude accepts thinking="low" alongside tools. gpt-6-luna on Portkey's chat-completions
     endpoint (Azure) rejects function tools whenever reasoning is on, and it reasons by
     default, so on Portkey reasoning has to be turned off explicitly with 'none'. Every agent
-    here uses tools (structured output is itself a tool call).
+    here uses tools (structured output is itself a tool call). The same setting is used when
+    calling OpenAI directly.
     """
-    if provider() == "portkey":
+    if provider() in ("portkey", "openai"):
         return {"openai_reasoning_effort": "none"}
     return {"thinking": "low"}
 
@@ -116,12 +126,20 @@ def build_model(tier: Literal["match", "fast"]):
         return OpenAIChatModel(
             PORTKEY_MODEL, provider=OpenAIProvider(api_key=key, base_url=PORTKEY_BASE_URL)
         )
+    if provider() == "openai":
+        from pydantic_ai.models.openai import OpenAIChatModel
+        from pydantic_ai.providers.openai import OpenAIProvider
+
+        key = os.environ.get("OPENAI_API_KEY")
+        if not key:
+            raise RuntimeError("OPENAI_API_KEY is not set.")
+        return OpenAIChatModel(OPENAI_MODEL, provider=OpenAIProvider(api_key=key))
 
     from pydantic_ai.models.anthropic import AnthropicModel
 
     if not os.environ.get("ANTHROPIC_API_KEY"):
         raise RuntimeError(
-            "No API key found. Put ANTHROPIC_API_KEY or PORTKEY_API_KEY in .env "
+            "No API key found. Put ANTHROPIC_API_KEY, OPENAI_API_KEY or PORTKEY_API_KEY in .env "
             "(in this folder or the one above it)."
         )
     return AnthropicModel(model_name(tier))
