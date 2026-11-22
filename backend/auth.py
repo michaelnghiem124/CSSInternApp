@@ -16,6 +16,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import os
+import re
 import secrets
 import time
 
@@ -174,7 +175,11 @@ def require_user(request: Request) -> dict:
         if user.get("must_change_password") and request.url.path not in FORCED_CHANGE_ALLOWED:
             raise HTTPException(403, "password_change_required")
         return user
-    if is_admin(request):
+    role = admin_role(request)
+    if role == "grader":
+        return {"id": 0, "first_name": "Grader", "last_name": "", "is_admin_view": True,
+                "is_grader": True}
+    if role == "owner":
         return {"id": 0, "first_name": config.ADMIN_NAME.split()[0],
                 "last_name": " ".join(config.ADMIN_NAME.split()[1:]), "is_admin_view": True}
     raise HTTPException(401, "Please sign in.")
@@ -205,21 +210,79 @@ def admin_configured() -> bool:
     return bool(config.ADMIN_USERNAME and config.ADMIN_PASSWORD_HASH)
 
 
-def check_admin_login(username: str, password: str) -> bool:
-    if not admin_configured():
-        verify_password(password, _DUMMY_HASH)
-        return False
-    user_ok = hmac.compare_digest(username.strip().lower(), config.ADMIN_USERNAME.lower())
-    pw_ok = verify_password(password, config.ADMIN_PASSWORD_HASH)
-    return user_ok and pw_ok
+def grader_configured() -> bool:
+    return bool(config.GRADER_USERNAME and config.GRADER_PASSWORD_HASH)
+
+
+# The admin cookie's subject: the Program Lead's username, or "grader:<username>" for the
+# view-only grader login. Usernames can't contain ':', so the two can never be confused.
+GRADER_PREFIX = "grader:"
+
+
+def check_admin_login(username: str, password: str) -> str | None:
+    """'owner' or 'grader' when the username and password match that login, else None."""
+    name = username.strip().lower()
+    if admin_configured() and hmac.compare_digest(name, config.ADMIN_USERNAME.lower()):
+        return "owner" if verify_password(password, config.ADMIN_PASSWORD_HASH) else None
+    if grader_configured() and hmac.compare_digest(name, config.GRADER_USERNAME.lower()):
+        return "grader" if verify_password(password, config.GRADER_PASSWORD_HASH) else None
+    verify_password(password, _DUMMY_HASH)  # same timing whether or not the name exists
+    return None
+
+
+def admin_cookie_subject(role: str) -> str:
+    if role == "grader":
+        return GRADER_PREFIX + config.GRADER_USERNAME.lower()
+    return config.ADMIN_USERNAME.lower()
+
+
+def admin_role(request: Request) -> str | None:
+    """'owner' (the Program Lead), 'grader' (view-only), or None."""
+    subject = read_token("admin", request.cookies.get(ADMIN_COOKIE))
+    if not subject:
+        return None
+    if admin_configured() and subject == config.ADMIN_USERNAME.lower():
+        return "owner"
+    if grader_configured() and subject == GRADER_PREFIX + config.GRADER_USERNAME.lower():
+        return "grader"
+    return None
 
 
 def is_admin(request: Request) -> bool:
-    if not admin_configured():
-        return False
-    return read_token("admin", request.cookies.get(ADMIN_COOKIE)) == config.ADMIN_USERNAME.lower()
+    return admin_role(request) is not None
+
+
+def is_grader(request: Request) -> bool:
+    return admin_role(request) == "grader"
+
+
+# What the grader login may do beyond reading. Everything else that changes data is refused.
+GRADER_ALLOWED_WRITES = [
+    ("POST", r"/api/admin/demo"),                    # load the fictional demo cohort
+    ("DELETE", r"/api/admin/demo"),                  # remove it again
+    ("POST", r"/api/admin/placements/run"),          # run the Placement Matcher
+    ("POST", r"/api/admin/placements/\d+/drafts"),   # draft intros (text only, never sent)
+    ("POST", r"/api/admin/pulse/brief"),             # generate a Cohort Pulse brief
+]
+# Reads the grader may not make: they expose contact details, resumes, or sign-up secrets.
+GRADER_BLOCKED_READS = [
+    r"/api/admin/interns\.csv",
+    r"/api/admin/interns/\d+/resume",
+    r"/api/admin/access-code",
+    r"/api/admin/reset-requests",
+]
+
+
+def grader_may(method: str, path: str) -> bool:
+    if method in ("GET", "HEAD"):
+        return not any(re.fullmatch(p, path) for p in GRADER_BLOCKED_READS)
+    return any(method == m and re.fullmatch(p, path) for m, p in GRADER_ALLOWED_WRITES)
 
 
 def require_admin(request: Request) -> None:
-    if not is_admin(request):
+    role = admin_role(request)
+    if not role:
         raise HTTPException(401, "Admin sign-in required.")
+    if role == "grader" and not grader_may(request.method, request.url.path):
+        raise HTTPException(403, "The grader login is view-only, so this is turned off. "
+                                 "It can load the demo cohort and run the AI agents.")

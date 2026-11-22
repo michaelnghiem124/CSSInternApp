@@ -194,6 +194,11 @@ PUBLIC_URL = os.environ.get("PUBLIC_URL", "").strip().rstrip("/")
 # Written by scripts/set_admin_password.py. No default: admin sign-in is off until set.
 ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "").strip()
 ADMIN_PASSWORD_HASH = os.environ.get("ADMIN_PASSWORD_HASH", "").strip()
+# Optional second, view-only admin login for course graders (scripts/set_admin_password.py
+# --grader). It sees the admin pages and can run the demo agents, but can't change or delete
+# anything, and real interns' email and phone are hidden from it.
+GRADER_USERNAME = os.environ.get("GRADER_USERNAME", "").strip()
+GRADER_PASSWORD_HASH = os.environ.get("GRADER_PASSWORD_HASH", "").strip()
 
 
 def _session_secret() -> str:

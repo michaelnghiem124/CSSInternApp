@@ -496,6 +496,8 @@ def cohort(user: Annotated[dict, Depends(auth.require_user)]):
         d = _public_user(u)
         if u.get("email_pending"):
             d["slack_email"] = ""  # placeholder login, not a real address
+        if user.get("is_grader") and not u.get("is_sample"):
+            d["slack_email"] = ""  # the grader login doesn't see real interns' addresses
         out.append(d)
     return out
 
@@ -507,14 +509,15 @@ def admin_login(body: AdminLoginBody, request: Request, response: Response):
                             "scripts/set_admin_password.py, then restart.")
     if not login_limiter.allow(_ip(request)):
         raise HTTPException(429, "Too many attempts. Wait a minute.")
-    if not auth.check_admin_login(body.username, body.password):
+    role = auth.check_admin_login(body.username, body.password)
+    if not role:
         db.log_safety(_ip(request), "admin_login_failed", body.username[:40])
         raise HTTPException(401, "Wrong username or password.")
     auth.set_cookie(response, request, auth.ADMIN_COOKIE,
-                    auth.make_token("admin", config.ADMIN_USERNAME.lower(),
+                    auth.make_token("admin", auth.admin_cookie_subject(role),
                                     auth.ADMIN_SESSION_SECONDS),
                     auth.ADMIN_SESSION_SECONDS)
-    return {"ok": True}
+    return {"ok": True, "role": role}
 
 
 @app.post("/api/admin/logout")
@@ -543,6 +546,7 @@ def meta(request: Request):
         "admin_name": config.ADMIN_NAME,
         "admin_title": config.ADMIN_TITLE,
         "is_admin": auth.is_admin(request),
+        "admin_role": auth.admin_role(request),
         "admin_configured": auth.admin_configured(),
         "email_enabled": mailer.enabled(),
         "signed_in": auth.current_user(request) is not None or auth.is_admin(request),
@@ -553,7 +557,7 @@ def meta(request: Request):
         "us_states": sorted(US_STATES - {"Other"}) + ["Other"],
         "sectors": list(directory.Sector.__args__),  # type: ignore[attr-defined]
         "people_count": len(directory.load_people()),
-        "db_restore_enabled": auth.is_admin(request) and _restore_enabled(),
+        "db_restore_enabled": auth.admin_role(request) == "owner" and _restore_enabled(),
         # Whether accounts survive restarts (database on a persistent disk). A harmless yes/no,
         # shown to everyone so a deployment can be checked without signing in.
         "persistent_storage": db.storage_is_persistent_disk(),
@@ -1128,8 +1132,19 @@ def admin_usage():
 # Admin: intern profiles + access code
 # ---------------------------------------------------------------------------
 @app.get("/api/admin/interns", dependencies=[Depends(auth.require_admin)])
-def admin_interns():
-    return [_public_user(u, include_private=True) for u in db.list_users()]
+def admin_interns(request: Request):
+    out = [_public_user(u, include_private=True) for u in db.list_users()]
+    if auth.is_grader(request):
+        out = [_hide_contact(d) for d in out]
+    return out
+
+
+def _hide_contact(d: dict) -> dict:
+    """For the grader login: real interns' email and phone are replaced. Fictional demo
+    interns keep theirs so the demo still reads naturally."""
+    if not d.get("is_sample"):
+        d = {**d, "slack_email": "(hidden in grader view)", "phone": ""}
+    return d
 
 
 class ContactBody(BaseModel):
