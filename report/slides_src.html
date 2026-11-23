@@ -63,7 +63,7 @@
       <h1>Intern Summit Hub</h1>
       <p style="font-size:.95em">AI that matches each Cyber Security Summit intern with the Think Tank members to meet and the open roles where they work, and gives a volunteer Program Lead hours back every week.</p>
       <p class="small" style="margin-top:30px"><b>Michael Nghiem</b> · Program Lead, Intern Cyber Security Program<br>
-      <span style="color:#8fb3c9">Live: cssinternhub.onrender.com<br>github.com/michaelnghiem124/CSSInternApp · gpt-6-luna</span></p>
+      <span style="color:#8fb3c9">Live (always on): cssinternhub.onrender.com<br>github.com/michaelnghiem124/CSSInternApp · gpt-6-luna</span></p>
     </div>
     <img class="shot" src="img/home-desktop.jpg" alt="The Intern Summit Hub home page" style="border:1px solid rgba(33,254,254,.35)">
   </div>
@@ -156,6 +156,7 @@
     <li><b>Cuts:</b> cheap tier for extraction, prompt caching, pay-once classification, code pre-filters, hard caps.</li>
     <li><b>Trade-off:</b> gpt-6-luna is 54% cheaper per reply than Sonnet but takes more steps (2.4 vs 1.9 calls).</li>
     <li><b>Cut a feature:</b> "Career paths" cost $0.43 in one refresh for little intern value, so it's gone.</li>
+    <li><b>All in:</b> about $10/month for today's program, with $7.25 of it hosting (always-on server + disk).</li>
   </ul>
 </section>
 
@@ -175,10 +176,12 @@
         <li><b>Made-up facts:</b> only real people, talks, posting ids</li>
         <li><b>Wrong actions:</b> drafts only; read-only tools; human approves</li>
         <li><b>Overspend:</b> per-run caps, 6 msgs/min, 2M tokens/day</li>
+        <li><b>Least privilege:</b> view-only grader login; read-only Slack bot</li>
       </ul>
 <pre class="term">injected resume: flagged, <span class="bad">2 lines removed</span>
 budget test:     request <span class="bad">BLOCKED (budget)</span>
-rate test:       msgs 1-6 <span class="ok">allowed</span>, msg 7 <span class="bad">BLOCKED</span></pre>
+rate test:       msgs 1-6 <span class="ok">allowed</span>, msg 7 <span class="bad">BLOCKED</span>
+grader login:    11 writes/reads <span class="bad">refused</span>, contacts <span class="ok">0 of 12</span></pre>
     </div>
   </div>
 </section>
@@ -197,7 +200,7 @@ rate test:       msgs 1-6 <span class="ok">allowed</span>, msg 7 <span class="ba
     <li><b>Interns:</b> a named shortlist and a ready opener take the intimidation out of a first message to a CISO.</li>
     <li><b>Think Tank members:</b> already invested in interns; context and drafted intros let them connect directly.</li>
     <li><b>Program Lead:</b> hours back each week, and 30-plus career sites checked per intern, with a named contact wherever there is one.</li>
-    <li class="muted">Next: a pilot with past interns for real before-and-after numbers.</li>
+    <li class="muted"><b>Pilot open:</b> live site ready for the 2026 cohort, plus a 13-question retro survey (responses pending).</li>
   </ul>
 </section>
 
@@ -207,14 +210,13 @@ rate test:       msgs 1-6 <span class="ok">allowed</span>, msg 7 <span class="ba
   <h2>With another month</h2>
   <div class="cols">
     <ul class="small">
-      <li><b class="gold">Pilot</b> with the 2026 cohort and past interns</li>
+      <li><b class="gold">Pilot results:</b> survey answers into fixes and before/after numbers</li>
       <li><b class="gold">Quality eval:</b> fixed resume set on every model change</li>
       <li><b class="gold">Separate budgets</b> for background jobs + per-user quotas</li>
     </ul>
     <ul class="small">
       <li><b class="gold">Talk recordings + transcripts</b> fed into Mentor Match</li>
-      <li><b class="gold">Live Slack sync</b> and USAJOBS federal roles</li>
-      <li><b class="gold">Persistent disk</b> for the live site ($7/month)</li>
+      <li><b class="gold">Slack on the live site</b> and USAJOBS federal roles</li>
       <li><b class="gold">Calendar invites</b> via Google Calendar, one per intern</li>
     </ul>
   </div>
