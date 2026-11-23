@@ -1390,7 +1390,8 @@
     $("#opp-count").textContent = `${list.length} open role${list.length === 1 ? "" : "s"} at ${new Set(list.map((p) => p.org)).size} employers`;
     $("#opp-list").innerHTML = list.map(oppCard).join("") || `<div class="empty">${OPPS.postings.length ? "Nothing matches those filters." : "No openings yet. The Program Lead refreshes the job feeds weekly."}</div>`;
     const nUnc = (OPPS.unconnected || []).length;
-    $("#opp-foot").textContent = `${OPPS.employers ? OPPS.employers.length - nUnc : 0} Think Tank organizations with official public job feeds${OPPS.no_feed ? `, ${OPPS.no_feed.length} more without one` : ""}${nUnc ? `, plus ${nUnc} other Minnesota employers with no direct Summit connection` : ""}.${(OPPS.via_adzuna || []).length ? " Some roles come from the Adzuna job-search API (Jobs by Adzuna)." : ""} ${OPPS.last_refresh ? `Last checked ${oppDate(OPPS.last_refresh)}.` : ""} AI labels can be wrong; always confirm details and eligibility on the employer's posting. The Hub never applies for you.`;
+    const nFeeds = OPPS.employers ? OPPS.employers.length - nUnc : 0;
+    $("#opp-foot").textContent = `Roles come from the public job listings of ${nFeeds} Think Tank organizations${nUnc ? ` and ${nUnc} other Minnesota employers` : ""}${OPPS.last_refresh ? `, last checked ${oppDate(OPPS.last_refresh)}` : ""}.${(OPPS.via_adzuna || []).length ? " Some come from the Adzuna job-search API (Jobs by Adzuna)." : ""} AI labels can be wrong, so confirm details and eligibility on the employer's posting. The Hub never applies for you.`;
   }
   ["opp-q", "opp-kind", "opp-field", "opp-loc", "opp-sort"].forEach((id) => $("#" + id).addEventListener(id === "opp-q" ? "input" : "change", renderOpportunities));
   document.addEventListener("click", (e) => {
@@ -1499,11 +1500,14 @@
     $$("#ox-stage .ox-org").forEach((t) => ($(".ox-meta", t).textContent = counts[t.dataset.org] ? `${counts[t.dataset.org]} open` : ""));
     $("#ox-stage").className = `ox-stage${employers.length > 16 ? " dense" : ""}`;
     const nf = OPPS.no_feed || [];
-    $("#ox-nofeed").innerHTML = nf.length ? `<div class="lbl small muted">Also in the Think Tank, with no job feed the Hub can read (hover for why). Ask the member there directly.</div>
-      <div class="chips">${nf.map((o) => `<span class="chip" title="${esc(o.reason)}">${esc(orgShort(o.org))}${o.emeritus_only ? "<em>Emeritus</em>" : ""}</span>`).join("")}</div>` : "";
     const unf = OPPS.unconnected_no_feed || [];
-    if (unf.length) $("#ox-nofeed").innerHTML += `<div class="lbl small muted" style="margin-top:10px">Other Minnesota Fortune 500 employers, no direct Summit connection and no job feed the Hub can read (hover for why). Check their careers sites yourself.</div>
-      <div class="chips">${unf.map((o) => `<span class="chip noconn" title="${esc(o.reason)}">${esc(o.org)}</span>`).join("")}</div>`;
+    const notes = [];
+    if (nf.length) notes.push(`<div class="note"><p><b>On the Think Tank, but no public listings the Hub can read (${nf.length}).</b> These organizations may still be hiring. Ask a Think Tank member there directly.</p>
+      <div class="chips">${nf.map((o) => `<span class="chip" title="${esc(o.reason)}">${esc(orgShort(o.org))}${o.emeritus_only ? "<em>Emeritus</em>" : ""}</span>`).join("")}</div></div>`);
+    if (unf.length) notes.push(`<div class="note"><p><b>Other Minnesota employers (${unf.length}).</b> No Summit connection and no public listings the Hub can read. Check their careers sites.</p>
+      <div class="chips">${unf.map((o) => `<span class="chip noconn" title="${esc(o.reason)}">${esc(o.org)}</span>`).join("")}</div></div>`);
+    $("#ox-nofeed").hidden = !notes.length;
+    $("#ox-nofeed").innerHTML = notes.length ? `<h4>Notes</h4>${notes.join("")}` : "";
     requestAnimationFrame(oxLayout);
   }
   window.addEventListener("resize", () => { if (OX.busy) return; oxLayout(); if (OX.best) bubbleLayout(OX.best, false); });

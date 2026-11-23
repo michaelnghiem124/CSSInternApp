@@ -583,7 +583,10 @@ label.check-inline input { width: auto; margin: 0; }
 .ox-rail .ox-meta { display: none; }
 .ox-rail .ox-org.scan { transform: none; background: rgba(33,254,254,.12); }
 @media (max-width: 760px) and (min-width: 701px) { .ox-rail { width: 128px; } }
-.ox-nofeed { margin: 12px 2px 4px; }
+.ox-nofeed { margin: 14px 0 4px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; background: #fafcfe; }
+.ox-nofeed h4 { margin: 0 0 8px; font-size: .78rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.ox-nofeed .note + .note { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--line); }
+.ox-nofeed .note p { margin: 0 0 6px; font-size: .86rem; }
 .ox-nofeed .lbl { margin-bottom: 6px; }
 .ox-nofeed .chips { gap: 6px; }
 .ox-nofeed .chip { font-size: .74rem; background: #fff; border: 1px dashed var(--line); color: var(--muted); cursor: help; }
@@ -837,6 +840,10 @@ input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 4px rgba(4,105,141
 .gate-trust { display: flex; align-items: center; gap: 10px; margin-top: 26px; padding: 10px 12px; max-width: 460px; border-radius: 10px;
   border: 1px solid rgba(33,254,254,.22); background: rgba(10,29,49,.45); font-family: var(--mono); font-size: .72rem; line-height: 1.5; color: #b9d3e3; }
 .gate-trust svg { flex: none; width: 18px; height: 18px; color: var(--neon); }
+.gate-link { text-decoration: none; transition: border-color .15s, background .15s; }
+.gate-link b { color: var(--neon); font-weight: 600; }
+.gate-link:hover { border-color: rgba(33,254,254,.6); background: rgba(10,29,49,.7); }
+.footer a { color: inherit; }
 
 @media (max-width: 700px) {
   .hero::before { inset: 7px; } .gate::before { inset: 8px; }
