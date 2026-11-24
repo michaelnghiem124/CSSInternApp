@@ -1,5 +1,7 @@
 # Intern Summit Hub
 
+**Live app: <https://cssinternhub.onrender.com>** (always on). Graders: the view-only admin login is in the Canvas submission comment. To run it locally instead, see [Run it locally](#run-it-locally); the app reads `.env` from this folder first, then the folder above it.
+
 An AI-powered resource for the **Cyber Security Summit Intern Program** (Minneapolis). Interns use it to find out which Think Tank members (CISOs, security directors, military cyber officers, government and legal leaders) they should meet, and why. The Program Lead uses it to put Think Tank talks on the interns' calendars.
 
 - **Mentor Match**: an intern uploads a resume and says what they're curious about. Two agents read it and recommend 3 to 5 Think Tank members, each with a reason grounded in that person's published bio, shared ground, and conversation starters.
@@ -14,7 +16,7 @@ An AI-powered resource for the **Cyber Security Summit Intern Program** (Minneap
 
 ## Course deliverables
 
-- [`report.html`](report.html): the written report (13 printed pages, US Letter), self-contained with every screenshot embedded.
+- [`report.html`](report.html): the written report (15 printed pages, US Letter), self-contained with every screenshot embedded.
 - [`slides.html`](slides.html): the 10-slide reveal.js deck. Arrow keys move between slides; **F** goes fullscreen.
 
 Both are built from editable sources in `report/` (`report_src.html`, `slides_src.html`, `diagram.svg`, `img/`). After editing, run `python3 scripts/build_deliverables.py` to inline the images and regenerate both files.
