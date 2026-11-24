@@ -1,11 +1,12 @@
-"""Set (or change) the Program Lead's admin username and password, or, with --grader, the
-separate view-only login for course graders.
+"""Set (or change) the Program Lead's admin username and password, or, with --grader or
+--reviewer, a separate view-only login (course graders; a Think Tank member testing the app).
 
 Run it yourself in a terminal; the password is typed at a hidden prompt and only its scrypt
 hash is saved, to .env in the project folder (which git ignores):
 
     .venv/bin/python -m scripts.set_admin_password            # Program Lead
     .venv/bin/python -m scripts.set_admin_password --grader   # view-only grader login
+    .venv/bin/python -m scripts.set_admin_password --reviewer # view-only reviewer login
 
 Restart the server afterwards. Changing the password signs out any open admin session only
 when SESSION_SECRET also changes; to force that, delete data/.session_secret too.
@@ -30,17 +31,19 @@ def _set(lines: list[str], key: str, value: str) -> list[str]:
 
 
 def main() -> None:
-    grader = "--grader" in sys.argv[1:]
-    prefix = "GRADER" if grader else "ADMIN"
-    who = "Grader" if grader else "Admin"
-    username = input(f"{who} username (e.g. {'grader' if grader else 'mnghiem'}): ").strip().lower()
+    args = sys.argv[1:]
+    prefix = "GRADER" if "--grader" in args else "REVIEWER" if "--reviewer" in args else "ADMIN"
+    who = prefix.capitalize()
+    example = {"ADMIN": "mnghiem", "GRADER": "grader", "REVIEWER": "cssthinktank"}[prefix]
+    username = input(f"{who} username (e.g. {example}): ").strip().lower()
     if not re.fullmatch(r"[a-z0-9._@-]{3,64}", username):
         sys.exit("Username: 3-64 characters, letters, numbers, . _ @ - only.")
     lines = ENV_PATH.read_text().splitlines() if ENV_PATH.is_file() else []
-    other = next((ln.split("=", 1)[1].strip().strip("'\"").lower() for ln in lines
-                  if re.match(rf"\s*{'ADMIN' if grader else 'GRADER'}_USERNAME\s*=", ln)), "")
-    if other and other == username:
-        sys.exit("That username is already used by the other admin login. Pick a different one.")
+    others = {ln.split("=", 1)[1].strip().strip("'\"").lower() for ln in lines
+              for p in ("ADMIN", "GRADER", "REVIEWER") if p != prefix
+              and re.match(rf"\s*{p}_USERNAME\s*=", ln)}
+    if username in others:
+        sys.exit("That username is already used by another admin login. Pick a different one.")
     pw = getpass.getpass(f"New {who.lower()} password (min 12 characters): ")
     if len(pw) < 12:
         sys.exit("Password must be at least 12 characters.")

@@ -199,6 +199,10 @@ ADMIN_PASSWORD_HASH = os.environ.get("ADMIN_PASSWORD_HASH", "").strip()
 # anything, and real interns' email and phone are hidden from it.
 GRADER_USERNAME = os.environ.get("GRADER_USERNAME", "").strip()
 GRADER_PASSWORD_HASH = os.environ.get("GRADER_PASSWORD_HASH", "").strip()
+# Optional view-only login for a Think Tank member or other reviewer (--reviewer). Same limits
+# as the grader login, with its own username and password so either can be turned off alone.
+REVIEWER_USERNAME = os.environ.get("REVIEWER_USERNAME", "").strip()
+REVIEWER_PASSWORD_HASH = os.environ.get("REVIEWER_PASSWORD_HASH", "").strip()
 
 
 def _session_secret() -> str:

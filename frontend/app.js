@@ -497,13 +497,14 @@
   async function loadAdmin() {
     if (!META.is_admin) return;
     $("#admin-panel").hidden = false;
-    const grader = META.admin_role === "grader";
-    $("#admin-name").textContent = grader ? "Grader (view-only)" : META.admin_name;
+    const grader = META.admin_role === "grader" || META.admin_role === "reviewer";
+    const roleLabel = META.admin_role === "reviewer" ? "Reviewer" : "Grader";
+    $("#admin-name").textContent = grader ? `${roleLabel} (view-only)` : META.admin_name;
     $("#admin-title").textContent = grader
       ? "You can open every admin page, load the fictional demo cohort, and run the AI agents. Changes are turned off, and real interns' email and phone are hidden."
       : META.admin_title;
     $("#restore-card").hidden = !META.db_restore_enabled;
-    if (grader) $("#access-code").textContent = "Hidden in grader view";
+    if (grader) $("#access-code").textContent = "Hidden in view-only mode";
     await Promise.all([loadInterns(), ...(grader ? [] : [loadResetRequests(), loadAccessCode()]), loadAdminEvents(), loadAnnouncements(), loadDemoStatus()]);
     showAdminSection(store.get("css_admin_sec") || "interns");
   }
@@ -1796,7 +1797,7 @@
     if (ME && ME.must_change_password) { showForceChange(ME.slack_email); return; }
     $("#gate").hidden = true; $("#app-nav").hidden = false; $("#app-main").hidden = false;
     $("#admin-tab").hidden = !META.is_admin;
-    $("#who-name").textContent = ME ? `${ME.first_name} ${ME.last_name}` : META.admin_role === "grader" ? "Grader · View-only" : `${META.admin_name} · Admin`;
+    $("#who-name").textContent = ME ? `${ME.first_name} ${ME.last_name}` : (META.admin_role === "grader" || META.admin_role === "reviewer") ? `${META.admin_role === "reviewer" ? "Reviewer" : "Grader"} · View-only` : `${META.admin_name} · Admin`;
     $("#who-name").href = ME ? "#profile" : "#admin";
     $("#footer-admin").textContent = `${META.admin_name}, ${META.admin_title}`;
     // Which models run is an admin detail; interns only hear about it when the AI is offline.

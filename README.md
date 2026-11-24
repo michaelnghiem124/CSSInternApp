@@ -72,6 +72,8 @@ The whole site sits behind a sign-in. Only the sign-in/register screen is public
 
   **Grader login (view-only):** `.venv/bin/python -m scripts.set_admin_password --grader` saves `GRADER_USERNAME` and `GRADER_PASSWORD_HASH`. Graders sign in on the same **Admin** screen. They can open every admin page, load and remove the fictional demo cohort, and run the Placement Matcher, intro drafter, and Cohort Pulse brief. Anything else that changes data (deleting or editing interns, events, announcements, the access code, job refresh, Slack sync, database restore) is refused, and real interns' email and phone, resumes, the CSV export, reset requests, and the access code are hidden. Remove the two variables to turn the login off.
 
+  **Reviewer login (view-only):** `.venv/bin/python -m scripts.set_admin_password --reviewer` saves `REVIEWER_USERNAME` and `REVIEWER_PASSWORD_HASH`: a second view-only login with exactly the grader's limits, for a Think Tank member or anyone else testing the admin side, with its own password so it can be turned off on its own.
+
 **Passwords:** at least 12 characters. Interns can change theirs under **Cohort → Edit my profile**; this requires the current password and signs out their other devices.
 
 **Forgotten passwords:** the intern chooses **Forgot your password?** and enters their email. The response is the same whether or not the account exists. What happens next depends on whether email is set up.

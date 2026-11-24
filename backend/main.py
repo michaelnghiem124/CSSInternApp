@@ -1143,7 +1143,7 @@ def _hide_contact(d: dict) -> dict:
     """For the grader login: real interns' email and phone are replaced. Fictional demo
     interns keep theirs so the demo still reads naturally."""
     if not d.get("is_sample"):
-        d = {**d, "slack_email": "(hidden in grader view)", "phone": ""}
+        d = {**d, "slack_email": "(hidden in view-only mode)", "phone": ""}
     return d
 
 

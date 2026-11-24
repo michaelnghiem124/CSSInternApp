@@ -176,8 +176,8 @@ def require_user(request: Request) -> dict:
             raise HTTPException(403, "password_change_required")
         return user
     role = admin_role(request)
-    if role == "grader":
-        return {"id": 0, "first_name": "Grader", "last_name": "", "is_admin_view": True,
+    if role in VIEW_ONLY_ROLES:
+        return {"id": 0, "first_name": VIEW_ONLY_LABELS[role], "last_name": "", "is_admin_view": True,
                 "is_grader": True}
     if role == "owner":
         return {"id": 0, "first_name": config.ADMIN_NAME.split()[0],
@@ -210,41 +210,55 @@ def admin_configured() -> bool:
     return bool(config.ADMIN_USERNAME and config.ADMIN_PASSWORD_HASH)
 
 
+# View-only admin logins: role -> (username, password hash). Each sees the admin pages and
+# can run the demo agents, but nothing else that changes data (see GRADER_ALLOWED_WRITES).
+VIEW_ONLY_ROLES = ("grader", "reviewer")
+VIEW_ONLY_LABELS = {"grader": "Grader", "reviewer": "Reviewer"}
+
+
+def _view_only_logins() -> dict[str, tuple[str, str]]:
+    out = {"grader": (config.GRADER_USERNAME, config.GRADER_PASSWORD_HASH),
+           "reviewer": (config.REVIEWER_USERNAME, config.REVIEWER_PASSWORD_HASH)}
+    return {role: (u.lower(), h) for role, (u, h) in out.items() if u and h}
+
+
 def grader_configured() -> bool:
-    return bool(config.GRADER_USERNAME and config.GRADER_PASSWORD_HASH)
+    return "grader" in _view_only_logins()
 
 
-# The admin cookie's subject: the Program Lead's username, or "grader:<username>" for the
-# view-only grader login. Usernames can't contain ':', so the two can never be confused.
+# The admin cookie's subject: the Program Lead's username, or "<role>:<username>" for a
+# view-only login. Usernames can't contain ':', so they can never be confused.
 GRADER_PREFIX = "grader:"
 
 
 def check_admin_login(username: str, password: str) -> str | None:
-    """'owner' or 'grader' when the username and password match that login, else None."""
+    """'owner', 'grader' or 'reviewer' when the username and password match, else None."""
     name = username.strip().lower()
     if admin_configured() and hmac.compare_digest(name, config.ADMIN_USERNAME.lower()):
         return "owner" if verify_password(password, config.ADMIN_PASSWORD_HASH) else None
-    if grader_configured() and hmac.compare_digest(name, config.GRADER_USERNAME.lower()):
-        return "grader" if verify_password(password, config.GRADER_PASSWORD_HASH) else None
+    for role, (user, pw_hash) in _view_only_logins().items():
+        if hmac.compare_digest(name, user):
+            return role if verify_password(password, pw_hash) else None
     verify_password(password, _DUMMY_HASH)  # same timing whether or not the name exists
     return None
 
 
 def admin_cookie_subject(role: str) -> str:
-    if role == "grader":
-        return GRADER_PREFIX + config.GRADER_USERNAME.lower()
+    if role in VIEW_ONLY_ROLES:
+        return f"{role}:{_view_only_logins()[role][0]}"
     return config.ADMIN_USERNAME.lower()
 
 
 def admin_role(request: Request) -> str | None:
-    """'owner' (the Program Lead), 'grader' (view-only), or None."""
+    """'owner' (the Program Lead), 'grader' or 'reviewer' (view-only), or None."""
     subject = read_token("admin", request.cookies.get(ADMIN_COOKIE))
     if not subject:
         return None
     if admin_configured() and subject == config.ADMIN_USERNAME.lower():
         return "owner"
-    if grader_configured() and subject == GRADER_PREFIX + config.GRADER_USERNAME.lower():
-        return "grader"
+    for role, (user, _) in _view_only_logins().items():
+        if subject == f"{role}:{user}":
+            return role
     return None
 
 
@@ -252,8 +266,11 @@ def is_admin(request: Request) -> bool:
     return admin_role(request) is not None
 
 
-def is_grader(request: Request) -> bool:
-    return admin_role(request) == "grader"
+def is_view_only(request: Request) -> bool:
+    return admin_role(request) in VIEW_ONLY_ROLES
+
+
+is_grader = is_view_only  # older name
 
 
 # What the grader login may do beyond reading. Everything else that changes data is refused.
@@ -283,6 +300,6 @@ def require_admin(request: Request) -> None:
     role = admin_role(request)
     if not role:
         raise HTTPException(401, "Admin sign-in required.")
-    if role == "grader" and not grader_may(request.method, request.url.path):
-        raise HTTPException(403, "The grader login is view-only, so this is turned off. "
+    if role in VIEW_ONLY_ROLES and not grader_may(request.method, request.url.path):
+        raise HTTPException(403, "This login is view-only, so this is turned off. "
                                  "It can load the demo cohort and run the AI agents.")
