@@ -680,11 +680,17 @@
     location.hash = "#match"; location.reload();
   });
   // ---------- password fields: show toggle + requirement checklist ----------
-  document.addEventListener("change", (e) => {
-    const cb = e.target.closest("[data-show]");
-    if (!cb) return;
-    cb.dataset.show.split(",").forEach((id) => { const f = document.getElementById(id); if (f) f.type = cb.checked ? "text" : "password"; });
+  // The box and its fields must never drift apart. Browsers restore a checkbox's state on
+  // reload/back while the fields come back hidden, and form.reset() unchecks the box but leaves
+  // the fields as text; either way the next click looked like it did nothing (tester bug).
+  const syncShow = (cb) => cb.dataset.show.split(",").forEach((id) => {
+    const f = document.getElementById(id); if (f) f.type = cb.checked ? "text" : "password";
   });
+  const hideAllPw = () => document.querySelectorAll("input[data-show]").forEach((cb) => { cb.checked = false; syncShow(cb); });
+  hideAllPw();
+  document.addEventListener("change", (e) => { const cb = e.target.closest("input[data-show]"); if (cb) syncShow(cb); });
+  document.addEventListener("reset", () => setTimeout(() => document.querySelectorAll("input[data-show]").forEach(syncShow)), true);
+  window.addEventListener("pageshow", hideAllPw);
 
   let RESET_EMAIL = "", FORCE_EMAIL = "";
   const RULE_EMAIL = { "rg-pw": () => $("#rg-email").value, "rs-pw": () => RESET_EMAIL, "fc-pw": () => FORCE_EMAIL, "pw-new": () => (ME && ME.slack_email) || "" };

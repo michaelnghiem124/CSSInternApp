@@ -292,7 +292,12 @@ TEST 4 - view-only grader login (Nov 22, 12 real interns in the copy)
   <li><b>Mission.</b> Every intern who lands a first security role through a Think Tank connection is the program's purpose, in a field the BLS projects to grow 21% from 2025 to 2035.</li>
 </ul>
 <p><b>Real use so far.</b> I run the admin side on the real 2026 program: the 12 real interns and 12 past Think Tank Talks are loaded on my own copy, and Cohort Pulse is connected to the real 2026 intern Slack workspace through a read-only bot (23 members; 133 messages readable in the main channel). Real intern data stays on my copy; the public site starts with none.</p>
-<div class="callout warn"><b>Pilot opened, responses pending.</b> To get evidence from interns rather than from me, I prepared the live site for a pilot with the 2026 cohort: I removed all demo data (November 20), moved the site to a paid instance with a persistent disk so testers' accounts last (November 23), and wrote a 13-question, four-minute <b>retroactive survey</b> in Google Forms. Because their internship is over, Part 1 asks about it before the hub: how hard it was to find Think Tank members (1–5), how they found them, and how many one-on-ones they had, which gives the "today" baseline. Part 2 asks them to try the hub for ten minutes and then rate how useful it would have been at the start, whether Mentor Match suggested people they wish they had met, whether they would have connected with more members, whether a listed role is one they would apply to, the time it would have saved, how likely they are to recommend it (0–10), and what was broken. <b>At submission no responses had come in</b>, so the numbers above remain my estimates and measured runs.</div>
+<div class="callout gold"><b>First pilot results: two 2026 interns (November 23).</b> To get evidence from interns rather than from me, I opened the live site to the 2026 cohort (demo data removed November 20; paid instance with a persistent disk November 23) with a 13-question <b>retroactive survey</b> in Google Forms. Because their internship is over, Part 1 gives the "before" baseline and Part 2 asks them to try the hub first.
+<ul class="small">
+  <li><b>Survey response (1 so far, quote permission given).</b> Before the hub: finding the right Think Tank members rated <b>3 of 5</b> for ease; they found people through Program Lead introductions, Think Tank Talks and LinkedIn, and had <b>1–2</b> real one-on-ones. After trying all seven parts of the hub: useful at the start of the internship <b>5 of 5</b>; Mentor Match suggested <b>"several"</b> people they wish they had met; they would have connected with <b>"definitely more"</b> members; Opportunities showed a role they would apply to now; about <b>3–5 hours</b> saved over the internship; likely to recommend it to next year's interns <b>10 of 10</b>. Nothing broken; the one change asked for was more postings in the region (Wisconsin, Iowa).</li>
+  <li><b>Second tester (written feedback while testing).</b> "So cool that after putting content in the chat it pulled up mentor profiles!" They also liked the LinkedIn links and the Explorer ("really liked seeing all the orgs I am connected with"), and called the look "very cool". They reported one bug, <b>Show password did nothing</b>; the box and the field could fall out of step after a browser restored the page or a form reset, and it was fixed and shipped the same day.</li>
+</ul>
+<b>Read with care:</b> two self-selected testers, answering after the fact, is a direction, not proof. If 3–5 hours held for all 12 interns, that would be roughly 36–60 intern hours a cohort, on top of the Program Lead's time; the stat cards above remain my estimates and measured runs.</div>
 
 <!-- ============================ 8. LIMITS ============================ -->
 <h2><span class="n">8</span>Limits and next steps</h2>
@@ -300,7 +305,7 @@ TEST 4 - view-only grader login (Nov 22, 12 real interns in the copy)
   <div>
     <h3>What doesn't work yet</h3>
     <ul class="small">
-      <li>The intern pilot has just opened, with no survey responses yet, and there is no formal quality evaluation, so match quality is judged by eye.</li>
+      <li>The intern pilot has only two testers so far (one survey response), and there is no formal quality evaluation, so match quality is judged by eye.</li>
       <li>The injection screen is a pattern list; reworded attacks rely on the later layers.</li>
       <li>The 2M-token daily budget is shared, so a large job refresh can pause Mentor Match.</li>
       <li>Job feeds cover 25 member organizations and 7 other Minnesota Fortune 500 companies. State of Minnesota jobs (MNIT, State Patrol) sit behind a CAPTCHA, Best Buy, APi Group, and Fastenal have no readable feed, and some sites post only on LinkedIn; the app respects those blocks. Lumen's own job API refuses automated requests, but its internship now arrives through Adzuna.</li>
@@ -312,7 +317,7 @@ TEST 4 - view-only grader login (Nov 22, 12 real interns in the copy)
   <div>
     <h3>With another month</h3>
     <ul class="small">
-      <li><b>Pilot results:</b> read the 2026 cohort's survey answers, fix what they found broken, and turn "would have been useful" into before-and-after numbers.</li>
+      <li><b>Wider pilot:</b> more survey responses from the cohort, regional roles beyond Minnesota (Wisconsin, Iowa) as the first respondent asked, and before-and-after numbers from next year's interns.</li>
       <li><b>Quality eval:</b> a fixed set of resumes scored on every prompt or model change, to settle whether gpt-6-luna matches Sonnet.</li>
       <li><b>Separate budgets</b> for background jobs and per-user daily quotas.</li>
       <li><b>Think Tank Talk recordings and transcripts</b> on the hub, with key takeaways fed into Mentor Match.</li>

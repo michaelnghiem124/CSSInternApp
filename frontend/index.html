@@ -61,7 +61,7 @@
             Right after you sign in, you'll be asked to <strong>choose a new password</strong>.
           </div>
           <label><span id="li-pw-label">Password</span><input type="password" id="li-pw" autocomplete="current-password" required></label>
-          <label class="show-pw"><input type="checkbox" data-show="li-pw"> Show password</label>
+          <label class="show-pw"><input type="checkbox" autocomplete="off" data-show="li-pw"> Show password</label>
           <button class="btn primary wide" type="submit" id="li-submit">Sign in</button>
           <p class="fine" id="temp-cancel" hidden><a href="#" id="temp-cancel-link">I remembered my password, sign in normally</a></p>
           <p class="fine"><a href="#" data-goto="forgot">Forgot your password?</a></p>
@@ -92,7 +92,7 @@
           <label class="span2">Availability <small class="muted">when you can't meet</small><input id="rg-avail" maxlength="300" placeholder="e.g. Classes Tue/Thu mornings; no Friday meetings"></label>
           <label>Password <span class="req">*</span><input type="password" id="rg-pw" required minlength="12" autocomplete="new-password" placeholder="12+ characters"></label>
           <label>Confirm password <span class="req">*</span><input type="password" id="rg-pw2" required minlength="12" autocomplete="new-password"></label>
-          <div class="span2"><label class="show-pw"><input type="checkbox" data-show="rg-pw,rg-pw2"> Show password</label><ul class="pw-rules" data-pw="rg-pw" data-confirm="rg-pw2" aria-live="polite"><li data-rule="len">At least 12 characters</li><li data-rule="email">Not your email address</li><li data-rule="match">Both entries match</li></ul></div>
+          <div class="span2"><label class="show-pw"><input type="checkbox" autocomplete="off" data-show="rg-pw,rg-pw2"> Show password</label><ul class="pw-rules" data-pw="rg-pw" data-confirm="rg-pw2" aria-live="polite"><li data-rule="len">At least 12 characters</li><li data-rule="email">Not your email address</li><li data-rule="match">Both entries match</li></ul></div>
           <label class="check span2"><input type="checkbox" id="rg-share" checked> Show my profile to other interns (photo, name, city, email, school or employer, LinkedIn, interests, hobbies, goals, fun fact). Your phone number is only visible to the Program Lead.</label>
           <div class="span2"><button class="btn primary wide" type="submit">Create my account</button></div>
         </form>
@@ -110,7 +110,7 @@
           <p class="muted small">A short phrase works well, like <em>purple-hockey-2027</em>. Saving signs you out on your other devices.</p>
           <label>New password<input type="password" id="rs-pw" minlength="12" autocomplete="new-password" required></label>
           <label>Confirm new password<input type="password" id="rs-pw2" minlength="12" autocomplete="new-password" required></label>
-          <label class="show-pw"><input type="checkbox" data-show="rs-pw,rs-pw2"> Show password</label><ul class="pw-rules" data-pw="rs-pw" data-confirm="rs-pw2" aria-live="polite"><li data-rule="len">At least 12 characters</li><li data-rule="email">Not your email address</li><li data-rule="old" class="info">Different from your previous password</li><li data-rule="match">Both entries match</li></ul>
+          <label class="show-pw"><input type="checkbox" autocomplete="off" data-show="rs-pw,rs-pw2"> Show password</label><ul class="pw-rules" data-pw="rs-pw" data-confirm="rs-pw2" aria-live="polite"><li data-rule="len">At least 12 characters</li><li data-rule="email">Not your email address</li><li data-rule="old" class="info">Different from your previous password</li><li data-rule="match">Both entries match</li></ul>
           <button class="btn primary wide" type="submit">Save new password</button>
         </form>
 
@@ -119,7 +119,7 @@
           <p class="muted small">You signed in with the <strong>temporary password</strong> from your email. It's now used up, so choose your own password to continue. A short phrase works well, like <em>purple-hockey-2027</em>.</p>
           <label>New password<input type="password" id="fc-pw" minlength="12" autocomplete="new-password" required></label>
           <label>Confirm new password<input type="password" id="fc-pw2" minlength="12" autocomplete="new-password" required></label>
-          <label class="show-pw"><input type="checkbox" data-show="fc-pw,fc-pw2"> Show password</label><ul class="pw-rules" data-pw="fc-pw" data-confirm="fc-pw2" aria-live="polite"><li data-rule="len">At least 12 characters</li><li data-rule="email">Not your email address</li><li data-rule="old" class="info">Different from your previous password</li><li data-rule="match">Both entries match</li></ul>
+          <label class="show-pw"><input type="checkbox" autocomplete="off" data-show="fc-pw,fc-pw2"> Show password</label><ul class="pw-rules" data-pw="fc-pw" data-confirm="fc-pw2" aria-live="polite"><li data-rule="len">At least 12 characters</li><li data-rule="email">Not your email address</li><li data-rule="old" class="info">Different from your previous password</li><li data-rule="match">Both entries match</li></ul>
           <button class="btn primary wide" type="submit">Save and continue</button>
           <p class="fine"><a href="#" id="force-signout">Sign out instead</a></p>
         </form>
@@ -128,7 +128,7 @@
           <p class="muted small">For the Program Lead only.</p>
           <label>Admin username<input id="ad-user" autocomplete="username" required></label>
           <label>Password<input type="password" id="ad-pw" autocomplete="current-password" required></label>
-          <label class="show-pw"><input type="checkbox" data-show="ad-pw"> Show password</label>
+          <label class="show-pw"><input type="checkbox" autocomplete="off" data-show="ad-pw"> Show password</label>
           <button class="btn primary wide" type="submit">Sign in as admin</button>
           <p class="fine" id="admin-not-configured" hidden>Admin sign-in isn't set up on this server yet. Run <code>.venv/bin/python -m scripts.set_admin_password</code>, then restart.</p>
         </form>
@@ -217,7 +217,7 @@
         <label class="span2">Current password<input type="password" id="pw-current" autocomplete="current-password" required></label>
         <label>New password<input type="password" id="pw-new" minlength="12" autocomplete="new-password" required placeholder="12+ characters"></label>
         <label>Confirm new password<input type="password" id="pw-new2" minlength="12" autocomplete="new-password" required></label>
-        <div class="span2"><label class="show-pw"><input type="checkbox" data-show="pw-current,pw-new,pw-new2"> Show password</label><ul class="pw-rules" data-pw="pw-new" data-confirm="pw-new2" aria-live="polite"><li data-rule="len">At least 12 characters</li><li data-rule="email">Not your email address</li><li data-rule="notcurrent">Different from your current password</li><li data-rule="match">Both entries match</li></ul></div>
+        <div class="span2"><label class="show-pw"><input type="checkbox" autocomplete="off" data-show="pw-current,pw-new,pw-new2"> Show password</label><ul class="pw-rules" data-pw="pw-new" data-confirm="pw-new2" aria-live="polite"><li data-rule="len">At least 12 characters</li><li data-rule="email">Not your email address</li><li data-rule="notcurrent">Different from your current password</li><li data-rule="match">Both entries match</li></ul></div>
         <div class="span2 form-actions"><button class="btn" type="submit">Change password</button><span class="error" id="pw-error" hidden></span></div>
       </form>
           </div>
